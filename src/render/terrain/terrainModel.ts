@@ -9,7 +9,6 @@ import { sampleSpline } from './curves';
 import type { DenseCurve } from './curves';
 import { ValueNoise, smoothstep } from './noise';
 import { TERRAIN_COLORS, mixRgb } from './terrainPalette';
-import { TREE_SHAPES } from './treeSprites';
 
 /** Bit flags stored per mask cell. */
 export const MASK = {
@@ -19,14 +18,7 @@ export const MASK = {
   village: 8,
   structure: 16,
   forest: 32,
-  /** Keep-clear margin around roads, structures and unit spawns (no scrub/rocks, for readability). */
-  clearance: 64,
-  /** The churned battlefield around the defended outpost (sparse decor). */
-  battlefield: 128,
 } as const;
-
-/** Unit kinds whose spawn points get a decor-free margin so they read clearly against the ground. */
-const UNIT_KINDS: ReadonlySet<string> = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'friendlyTank', 'friendlyInfantry']);
 
 export interface RiverModel {
   curve: DenseCurve;
@@ -93,15 +85,12 @@ const FOOTPRINT_SPRITES: Partial<Record<EntityKind, { key: SpriteKey; margin: nu
 };
 
 /** Canopy sprite variants available to the painter (families × shapes). */
-export const TREE_VARIANTS = TERRAIN_COLORS.canopies.length * TREE_SHAPES;
+export const TREE_VARIANTS = 12;
 
 /**
  * Everything derived once from a `LevelDefinition` for painting: smoothed curves, a height field
- * with hill shading, a macro colour field, a feature mask, and deterministic decor placement
- * (seeded from `level.seed`). Pure data + offscreen canvases; no Phaser.
- *
- * Art direction v1 (lush green toy countryside): only large, soft colour variation; round
- * "lollipop" trees clustered into woods; big cute village houses; almost no scatter, so units pop.
+ * with hill shading, a macro colour field, a feature mask, and deterministic decor placement.
+ * Pure data + offscreen canvases; no Phaser.
  */
 export class TerrainModel {
   readonly width: number;
@@ -138,6 +127,8 @@ export class TerrainModel {
   readonly contours: Float32Array[] = [];
   /** Bounding box [minX, minY, maxX, maxY] per contour polyline. */
   readonly contourBounds: Array<[number, number, number, number]> = [];
+  /** Dry washes (erosion gullies) flowing downhill from the hills. */
+  readonly washes: Array<{ curve: DenseCurve; width: number }> = [];
 
   constructor(readonly level: LevelDefinition) {
     this.width = level.width;
@@ -161,6 +152,7 @@ export class TerrainModel {
     this.mask = this.buildMask();
 
     this.macro = this.buildMacro();
+    this.buildWashes();
     this.buildVillages();
     this.trees = this.buildTrees();
     this.buildBattleScars();
@@ -360,19 +352,16 @@ export class TerrainModel {
         const dot = (-sx * lx - sy * ly + lz) * inv;
         const diff = dot - lz;
         const o = i * 4;
-        // Soft, low-contrast toy shading: warm light on sunward slopes, cool green shadow.
-        const lit = TERRAIN_COLORS.hillLight;
-        const dark = TERRAIN_COLORS.hillShadow;
         if (diff >= 0) {
-          data[o] = lit[0];
-          data[o + 1] = lit[1];
-          data[o + 2] = lit[2];
-          data[o + 3] = Math.min(90, diff * 255 * 1.6);
+          data[o] = 255;
+          data[o + 1] = 244;
+          data[o + 2] = 214;
+          data[o + 3] = Math.min(190, diff * 255 * 2.8);
         } else {
-          data[o] = dark[0];
-          data[o + 1] = dark[1];
-          data[o + 2] = dark[2];
-          data[o + 3] = Math.min(110, -diff * 255 * 1.5);
+          data[o] = 92;
+          data[o + 1] = 74;
+          data[o + 2] = 50;
+          data[o + 3] = Math.min(95, -diff * 255 * 1.2);
         }
       }
     }
@@ -455,43 +444,6 @@ export class TerrainModel {
         ctx.fill();
       }
     }, [MASK.village, MASK.structure, MASK.forest]);
-
-    paint(() => {
-      ctx.strokeStyle = 'rgb(255,0,0)';
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      for (const road of this.roads) {
-        ctx.lineWidth = road.width + 110;
-        ctx.beginPath();
-        const c = road.curve;
-        for (let i = 0; i < c.xs.length; i++) {
-          if (i === 0) ctx.moveTo(c.xs[i] ?? 0, c.ys[i] ?? 0);
-          else ctx.lineTo(c.xs[i] ?? 0, c.ys[i] ?? 0);
-        }
-        ctx.stroke();
-      }
-      ctx.fillStyle = 'rgb(255,0,0)';
-      for (const fp of this.footprints) {
-        ctx.save();
-        ctx.translate(fp.x, fp.y);
-        ctx.rotate(fp.angle);
-        ctx.fillRect(-fp.w / 2 - 70, -fp.h / 2 - 70, fp.w + 140, fp.h + 140);
-        ctx.restore();
-      }
-      for (const e of this.level.entities) {
-        if (!UNIT_KINDS.has(e.kind)) continue;
-        ctx.beginPath();
-        ctx.arc(e.pos.x, e.pos.y, 120, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = 'rgb(0,255,0)';
-      for (const e of this.level.entities) {
-        if (e.kind !== 'outpost') continue;
-        ctx.beginPath();
-        ctx.arc(e.pos.x + 150, e.pos.y, 720, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }, [MASK.clearance, MASK.battlefield, 0]);
     return out;
   }
 
@@ -550,20 +502,17 @@ export class TerrainModel {
       for (let gx = 0; gx < cols; gx++) {
         const x = gx * cell;
         const y = gy * cell;
-        // Only very large, soft variation: two low-frequency octaves, lusher near water and
-        // woods, a touch warmer on hilltops. No high-frequency detail at all.
-        const n1 = noise.fbm(x / 1900 + 100, y / 1900, 2);
-        const n2 = noise.fbm(x / 800 + 50, y / 800 + 80, 2);
+        const n1 = noise.fbm(x / 1500 + 100, y / 1500, 3);
+        const n2 = noise.fbm(x / 420 + 50, y / 420 + 80, 3);
+        const n3 = noise.fbm(x / 260 + 7, y / 260 + 300, 2);
         const m = Math.min(1, ((moistData[(gy * cols + gx) * 4] ?? 0) / 255) * 1.1);
         const h = this.heightAt(x, y);
 
-        mixRgb(C.grassDark, C.grassLight, smoothstep(0.3, 0.7, n1), col);
-        mixRgb(col, C.grass, 0.35 + 0.3 * smoothstep(0.35, 0.65, n2), tmp);
-        mixRgb(tmp, C.grassLush, smoothstep(0.2, 0.9, m) * 0.55, col);
-        mixRgb(col, C.grassHigh, smoothstep(0.25, 0.8, h) * 0.6, tmp);
-        col[0] = tmp[0] ?? 0;
-        col[1] = tmp[1] ?? 0;
-        col[2] = tmp[2] ?? 0;
+        mixRgb(C.sand, C.dryGrass, smoothstep(0.32, 0.68, n1), col);
+        mixRgb(col, C.steppe, smoothstep(0.52, 0.76, n2) * 0.5, tmp);
+        mixRgb(tmp, C.sandLight, smoothstep(0.6, 0.78, n3) * 0.55, col);
+        mixRgb(col, C.greenSteppe, smoothstep(0.15, 0.9, m) * 0.7, tmp);
+        mixRgb(tmp, C.rocky, smoothstep(0.25, 0.8, h) * 0.6, col);
 
         const o = (gy * cols + gx) * 4;
         data[o] = col[0] ?? 0;
@@ -580,6 +529,79 @@ export class TerrainModel {
     return (this.maskAt(x, y) & flags) !== 0;
   }
 
+  /** Trace meandering dry washes downhill from hill flanks (and a few from the open steppe). */
+  private buildWashes(): void {
+    const rng = new Rng(this.seed ^ 0x3a5);
+    const starts: Vec2[] = [];
+    for (const hill of this.level.terrain.hills) {
+      const n = 3 + Math.round(hill.height * 4);
+      for (let k = 0; k < n; k++) {
+        const a = rng.range(0, Math.PI * 2);
+        const d = hill.radius * rng.range(0.25, 0.6);
+        starts.push({ x: hill.center.x + Math.cos(a) * d, y: hill.center.y + Math.sin(a) * d });
+      }
+    }
+    for (let k = 0; k < 10; k++) starts.push({ x: rng.range(300, this.width - 300), y: rng.range(300, this.height - 300) });
+    const e = 14;
+    const grad = (x: number, y: number): [number, number] => [
+      ((this.heightAt(x + e, y) - this.heightAt(x - e, y)) / (2 * e)) * 420,
+      ((this.heightAt(x, y + e) - this.heightAt(x, y - e)) / (2 * e)) * 420,
+    ];
+    starts.forEach((st, k) => {
+      let x = st.x;
+      let y = st.y;
+      if (this.maskAt(x, y) & (MASK.water | MASK.road | MASK.field | MASK.structure | MASK.village)) return;
+      // Heading follows the downhill direction plus a pull toward the river, with a limited
+      // turn rate and a gentle meander so washes never curl back on themselves.
+      const riverPull = (px: number, py: number): [number, number] => {
+        let best = Infinity;
+        let bx = 0;
+        let by = 0;
+        for (const r of this.rivers) {
+          const c = r.curve;
+          for (let i = 0; i < c.xs.length; i += 8) {
+            const ddx = (c.xs[i] ?? 0) - px;
+            const ddy = (c.ys[i] ?? 0) - py;
+            const d = ddx * ddx + ddy * ddy;
+            if (d < best) {
+              best = d;
+              bx = ddx;
+              by = ddy;
+            }
+          }
+        }
+        const l = Math.hypot(bx, by) || 1;
+        return [bx / l, by / l];
+      };
+      const [g0x, g0y] = grad(x, y);
+      const [p0x, p0y] = riverPull(x, y);
+      let ang = Math.atan2(-g0y * 2.2 + p0y * 0.35, -g0x * 2.2 + p0x * 0.35);
+      const pts: Vec2[] = [{ x, y }];
+      let turned = 0;
+      for (let i = 0; i < 120; i++) {
+        const [gx, gy] = grad(x, y);
+        const [px, py] = riverPull(x, y);
+        const desired = Math.atan2(-gy * 2.2 + py * 0.35, -gx * 2.2 + px * 0.35);
+        let turn = Math.atan2(Math.sin(desired - ang), Math.cos(desired - ang));
+        turn = Math.max(-0.1, Math.min(0.1, turn));
+        turn += (this.noise.fbm(x / 160 + k * 3.1, y / 160, 2) - 0.5) * 0.5;
+        const applied = Math.max(-0.18, Math.min(0.18, turn));
+        ang += applied;
+        turned += applied;
+        if (Math.abs(turned) > 2.4) break;
+        x += Math.cos(ang) * 14;
+        y += Math.sin(ang) * 14;
+        if (x < 0 || y < 0 || x > this.width || y > this.height) break;
+        const m = this.maskAt(x, y);
+        pts.push({ x, y });
+        if (m & (MASK.water | MASK.road | MASK.field | MASK.structure | MASK.village)) break;
+      }
+      if (pts.length < 10) return;
+      const sparse = pts.filter((_, i) => i % 2 === 0 || i === pts.length - 1);
+      this.washes.push({ curve: sampleSpline(sparse, 8), width: rng.range(3.5, 7) });
+    });
+  }
+
   private buildVillages(): void {
     const rng = new Rng(this.seed ^ 0x5eed);
     const C = TERRAIN_COLORS;
@@ -587,20 +609,19 @@ export class TerrainModel {
       const theta = rng.range(0, Math.PI);
       const placed: BuildingModel[] = [];
       // Houses line a main street (and a cross street for bigger villages), long side to the road.
-      const streets: Array<{ angle: number; len: number }> = [{ angle: theta, len: v.radius * 2.3 }];
-      if (v.buildings > 6) streets.push({ angle: theta + Math.PI / 2 + rng.range(-0.15, 0.15), len: v.radius * 1.5 });
+      const streets: Array<{ angle: number; len: number }> = [{ angle: theta, len: v.radius * 1.9 }];
+      if (v.buildings > 6) streets.push({ angle: theta + Math.PI / 2 + rng.range(-0.15, 0.15), len: v.radius * 1.2 });
       let attempts = 0;
       while (placed.length < v.buildings && attempts < v.buildings * 40) {
         attempts++;
         const street = streets[placed.length % streets.length] ?? streets[0];
         if (!street) break;
-        // Toy scale: houses are roughly tank-sized so they read as chunky, cute blocks.
         const big = placed.length === 0;
-        const w = big ? rng.range(70, 82) : rng.range(42, 56);
-        const h = big ? rng.range(38, 44) : rng.range(28, 34);
+        const w = big ? rng.range(46, 56) : rng.range(24, 36);
+        const h = big ? rng.range(24, 28) : rng.range(16, 21);
         const along = rng.range(-0.5, 0.5) * street.len;
         const side = rng.chance(0.5) ? 1 : -1;
-        const setback = 12 + h / 2 + rng.range(0, 6);
+        const setback = 11 + h / 2 + rng.range(0, 6);
         const dx = Math.cos(street.angle);
         const dy = Math.sin(street.angle);
         const x = v.center.x + dx * along - dy * side * setback;
@@ -615,7 +636,7 @@ export class TerrainModel {
           h,
           angle: street.angle + rng.range(-0.05, 0.05),
           roof: rng.pick(C.roofs),
-          height: big ? 16 : rng.range(10, 13),
+          height: big ? 12 : rng.range(7, 10),
           garden: !big && rng.chance(0.65),
           gardenSide: side,
         });
@@ -676,102 +697,97 @@ export class TerrainModel {
     const vs: number[] = [];
     const noise = this.noise;
     const hardBlock = MASK.water | MASK.road | MASK.field | MASK.structure;
-    /** `shape` < 0 picks a random canopy shape (mostly single round lollipops). */
-    const add = (x: number, y: number, r: number, family: number, shape = -1): void => {
+    const add = (x: number, y: number, r: number, family: number): void => {
       if (x < -40 || y < -40 || x > this.width + 40 || y > this.height + 40) return;
       xs.push(x);
       ys.push(y);
       rs.push(r);
-      const sh = shape >= 0 ? shape : rng.chance(0.7) ? rng.int(0, 1) : rng.int(2, TREE_SHAPES - 1);
-      vs.push(family * TREE_SHAPES + sh);
+      vs.push(family * 4 + rng.int(0, 3));
     };
 
-    // Woods: a jittered grid of big lollipops clipped by a noisy boundary; clearings from noise.
+    // Forests: jittered grid clipped by a noisy boundary; clearings from noise.
     this.level.terrain.forests.forEach((f, fi) => {
-      const spacing = 29 / Math.sqrt(Math.max(0.2, f.density));
+      const spacing = 23 / Math.sqrt(Math.max(0.2, f.density));
       const family = fi % 3;
       for (let gy = -f.radius * 1.5; gy <= f.radius * 1.5; gy += spacing) {
         for (let gx = -f.radius * 1.5; gx <= f.radius * 1.5; gx += spacing) {
-          const x = f.center.x + gx + rng.range(-0.4, 0.4) * spacing;
-          const y = f.center.y + gy + rng.range(-0.4, 0.4) * spacing;
+          const x = f.center.x + gx + rng.range(-0.45, 0.45) * spacing;
+          const y = f.center.y + gy + rng.range(-0.45, 0.45) * spacing;
           const d = Math.hypot(x - f.center.x, y - f.center.y) / f.radius;
-          const edge = 0.82 + 0.6 * (noise.fbm(x / 360 + fi * 31, y / 360, 2) - 0.5) * 2;
+          const edge = 0.8 + 0.75 * (noise.fbm(x / 320 + fi * 31, y / 320, 3) - 0.5) * 2;
           if (d > edge) {
-            // A few outliers just beyond the edge.
-            if (d < edge + 0.25 && rng.chance(0.1 * (1 - (d - edge) / 0.25)) && !this.blocked(x, y, hardBlock | MASK.village)) {
-              add(x, y, rng.range(12, 16), family);
+            // Sparse outliers thinning out beyond the edge.
+            if (d < edge + 0.35 && rng.chance(0.12 * (1 - (d - edge) / 0.35)) && !this.blocked(x, y, hardBlock | MASK.village)) {
+              add(x, y, rng.range(8, 13), family);
             }
             continue;
           }
-          const clearing = noise.fbm(x / 150 + 500, y / 150 + fi * 17, 2);
-          if (clearing > 0.74 && d < edge - 0.12) continue;
+          const clearing = noise.fbm(x / 130 + 500, y / 130 + fi * 17, 2);
+          if (clearing > 0.72 && d < edge - 0.1) continue;
           if (this.blocked(x, y, hardBlock | MASK.village)) continue;
-          const fam = rng.chance(0.15) ? rng.int(0, 2) : family;
-          add(x, y, rng.range(15, 21) * (d > edge - 0.15 ? 0.88 : 1), fam);
+          const fam = rng.chance(0.18) ? rng.int(0, 2) : family;
+          add(x, y, rng.range(11, 18) * (d > edge - 0.15 ? 0.85 : 1), fam);
         }
       }
     });
 
-    // Riverside clumps along both banks.
+    // Riparian trees in clumps along both banks.
     for (const river of this.rivers) {
       const c = river.curve;
-      for (let i = 0; i < c.xs.length; i += 3) {
+      for (let i = 0; i < c.xs.length; i += 2) {
         const s = c.s[i] ?? 0;
         for (const side of [-1, 1]) {
-          const clump = noise.fbm(s / 300 + (side > 0 ? 70 : 0), 42, 2);
-          if (!rng.chance(smoothstep(0.52, 0.72, clump) * 0.7)) continue;
+          const clump = noise.fbm(s / 260 + (side > 0 ? 70 : 0), 42, 3);
+          if (!rng.chance(smoothstep(0.45, 0.7, clump) * 0.8)) continue;
           const half = side < 0 ? (river.halfL[i] ?? 0) : (river.halfR[i] ?? 0);
-          const off = side * (half + rng.range(26, 56));
+          const off = side * (half + rng.range(14, 46));
           const x = (c.xs[i] ?? 0) + (c.nx[i] ?? 0) * off + rng.range(-6, 6);
           const y = (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * off + rng.range(-6, 6);
-          if (this.blocked(x, y, MASK.road | MASK.field | MASK.structure | MASK.clearance)) continue;
-          if (this.distanceToRiverCentre(river, i, x, y) < half + 20) continue;
-          add(x, y, rng.range(12, 17), 1);
+          if (this.blocked(x, y, MASK.road | MASK.field | MASK.structure)) continue;
+          if (this.distanceToRiverCentre(river, i, x, y) < half + 8) continue;
+          add(x, y, rng.range(10, 16), 1);
         }
       }
     }
 
-    // Neat tree rows along the paved road (every other stretch).
+    // Occasional poplar rows along the paved road.
     for (const road of this.roads) {
       if (road.surface !== 'paved') continue;
       const c = road.curve;
-      for (let i = 0; i < c.xs.length; i += 4) {
+      for (let i = 0; i < c.xs.length; i += 3) {
         const s = c.s[i] ?? 0;
-        if (noise.fbm(s / 500, 91, 2) < 0.58) continue;
+        if (noise.fbm(s / 400, 91, 2) < 0.55) continue;
         for (const side of [-1, 1]) {
-          const off = side * (road.width / 2 + 22);
+          const off = side * (road.width / 2 + 14);
           const x = (c.xs[i] ?? 0) + (c.nx[i] ?? 0) * off;
           const y = (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * off;
           if (this.blocked(x, y, MASK.water | MASK.structure | MASK.field)) continue;
-          add(x, y, rng.range(9.5, 11), 2, 0);
+          add(x, y, rng.range(6.5, 8.5), 2);
         }
       }
     }
 
-    // Village trees.
+    // Village trees and lone steppe trees/bushes.
     for (const v of this.level.terrain.villages) {
-      for (let k = 0; k < v.buildings; k++) {
-        const p = rng.inDisc(v.radius * 1.2);
+      for (let k = 0; k < v.buildings * 2; k++) {
+        const p = rng.inDisc(v.radius * 1.1);
         const x = v.center.x + p.x;
         const y = v.center.y + p.y;
         if (this.blocked(x, y, MASK.road | MASK.water)) continue;
-        if (this.buildings.some((b) => Math.hypot(b.x - x, b.y - y) < Math.hypot(b.w, b.h) / 2 + 18)) continue;
-        add(x, y, rng.range(12, 16), rng.int(0, 2));
+        if (this.buildings.some((b) => Math.hypot(b.x - x, b.y - y) < Math.hypot(b.w, b.h) / 2 + 13)) continue;
+        add(x, y, rng.range(10, 15), rng.int(0, 2));
       }
     }
-
-    // A few small copses in the open (never near roads, structures or units: they must pop).
-    for (let k = 0; k < 150; k++) {
+    for (let k = 0; k < 520; k++) {
       const x = rng.range(0, this.width);
       const y = rng.range(0, this.height);
-      if (this.blocked(x, y, hardBlock | MASK.village | MASK.forest | MASK.clearance)) continue;
-      const cluster = rng.int(1, 3);
-      const family = rng.int(0, 2);
+      if (this.blocked(x, y, hardBlock | MASK.village | MASK.forest)) continue;
+      const cluster = rng.int(1, 4);
       for (let j = 0; j < cluster; j++) {
-        const px = x + (j > 0 ? rng.range(-30, 30) : 0);
-        const py = y + (j > 0 ? rng.range(-30, 30) : 0);
-        if (this.blocked(px, py, hardBlock | MASK.clearance)) continue;
-        add(px, py, rng.range(12, 18), family);
+        const px = x + rng.range(-22, 22) * (j > 0 ? 1 : 0);
+        const py = y + rng.range(-22, 22) * (j > 0 ? 1 : 0);
+        if (this.blocked(px, py, hardBlock)) continue;
+        add(px, py, rng.chance(0.6) ? rng.range(5, 8) : rng.range(9, 13), rng.int(0, 2));
       }
     }
 
@@ -811,13 +827,13 @@ export class TerrainModel {
     const rng = new Rng(this.seed ^ 0xbad);
     const outpost = this.level.entities.find((e) => e.kind === 'outpost');
     if (outpost) {
-      for (let k = 0; k < 12; k++) {
+      for (let k = 0; k < 22; k++) {
         const a = rng.range(-1.3, 1.3);
         const d = rng.range(110, 560);
         const x = outpost.pos.x + Math.cos(a) * d;
         const y = outpost.pos.y + Math.sin(a) * d;
         if (this.blocked(x, y, MASK.water | MASK.structure)) continue;
-        this.craters.push({ x, y, r: rng.range(7, 14) });
+        this.craters.push({ x, y, r: rng.range(4, 11) });
       }
     }
     for (const e of this.level.entities) {

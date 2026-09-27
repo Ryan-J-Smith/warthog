@@ -1,6 +1,9 @@
 import { degToRad } from '../../sim/math';
-import { hash2 } from './canvasUtil';
+import { createCanvas, context2d, hash2 } from './canvasUtil';
 import type { DenseCurve } from './curves';
+import { smoothstep } from './noise';
+import type { ValueNoise } from './noise';
+import { MASK } from './terrainModel';
 import type { RiverModel, TerrainModel } from './terrainModel';
 import { TERRAIN_COLORS } from './terrainPalette';
 import { TREE_BASE_RADIUS, TREE_SPRITE_SIZE, TreeSprites } from './treeSprites';
@@ -21,19 +24,19 @@ interface Rect {
 /**
  * Paints any world rectangle of a `TerrainModel` into a canvas at any resolution.
  * Everything is anchored to world coordinates, so adjacent chunks tile seamlessly.
- *
- * Art direction v1 (lush green toy countryside): flat, calm grass with only large soft variation;
- * clean-edged patchwork fields and light roads; a bright blue river with sandy banks; outlined
- * lollipop trees and red-roofed houses. No noise textures and almost no scatter, so units pop.
  */
 export class TerrainPainter {
   private readonly treesNear: TreeSprites;
   private readonly treesFar: TreeSprites;
+  private readonly mottle: HTMLCanvasElement;
+  private readonly grain: HTMLCanvasElement;
 
   constructor(private readonly model: TerrainModel) {
-    // Sprites at roughly the bake resolution (trees are ~0.7–1.3× the base radius).
+    // Sprites at roughly the bake resolution (trees are ~0.7–1.1× the base radius).
     this.treesNear = new TreeSprites(model.seed, 1.25);
     this.treesFar = new TreeSprites(model.seed, 0.5);
+    this.mottle = this.noiseTile(model.noise, 256, 8, 4, 0.9, 11);
+    this.grain = this.noiseTile(model.noise, 128, 16, 4, 1.0, 23);
   }
 
   /**
@@ -50,11 +53,14 @@ export class TerrainPainter {
     ctx.globalCompositeOperation = 'source-over';
 
     this.paintGround(ctx, rect);
+    this.paintTexture(ctx, rect, detail);
     this.paintFields(ctx, rect, detail);
     const m = this.model;
     ctx.drawImage(m.shade, -m.shadeCell / 2, -m.shadeCell / 2, m.shade.width * m.shadeCell, m.shade.height * m.shadeCell);
     ctx.imageSmoothingQuality = 'high';
     this.paintContours(ctx, rect, detail);
+    this.paintWashes(ctx, rect, detail);
+    this.paintScatter(ctx, rect, detail);
     this.paintScars(ctx, rect);
     this.paintRoads(ctx, rect, detail);
     for (const river of this.model.rivers) this.paintRiver(ctx, river, rect, detail);
@@ -69,54 +75,52 @@ export class TerrainPainter {
 
   private paintGround(ctx: CanvasRenderingContext2D, rect: Rect): void {
     const m = this.model;
-    const C = TERRAIN_COLORS;
     ctx.drawImage(m.macro, -m.macroCell / 2, -m.macroCell / 2, m.macro.width * m.macroCell, m.macro.height * m.macroCell);
     ctx.imageSmoothingQuality = 'high';
 
-    // Forest floor: deeper green under the canopy so gaps between trees read as woodland.
+    // Forest floor: darker, greener ground under the canopy so gaps don't read as sand.
     for (const f of m.level.terrain.forests) {
       if (!overlaps(rect, f.center.x - f.radius * 1.4, f.center.y - f.radius * 1.4, f.radius * 2.8, f.radius * 2.8)) continue;
-      const g = ctx.createRadialGradient(f.center.x, f.center.y, f.radius * 0.35, f.center.x, f.center.y, f.radius * 1.2);
-      g.addColorStop(0, C.forestFloor);
-      g.addColorStop(0.72, 'rgba(34, 104, 44, 0.4)');
-      g.addColorStop(1, 'rgba(34, 104, 44, 0)');
+      const g = ctx.createRadialGradient(f.center.x, f.center.y, f.radius * 0.3, f.center.x, f.center.y, f.radius * 1.25);
+      g.addColorStop(0, 'rgba(70, 76, 38, 0.62)');
+      g.addColorStop(0.7, 'rgba(80, 86, 44, 0.38)');
+      g.addColorStop(1, 'rgba(80, 86, 44, 0)');
       ctx.fillStyle = g;
       ctx.fillRect(f.center.x - f.radius * 1.3, f.center.y - f.radius * 1.3, f.radius * 2.6, f.radius * 2.6);
     }
 
-    // Trampled ground around structures and in village yards.
+    // Worn, dusty ground around structures and villages.
     for (const fp of m.footprints) {
       if (fp.kind === 'bridge' || fp.kind === 'cache' || fp.kind === 'aaGun') continue;
-      const r = Math.max(fp.w, fp.h) * 0.6;
+      const r = Math.max(fp.w, fp.h) * 0.62;
       if (!overlaps(rect, fp.x - r, fp.y - r, r * 2, r * 2)) continue;
       ctx.save();
       ctx.translate(fp.x, fp.y);
       ctx.rotate(fp.angle);
       ctx.scale(fp.w / Math.max(fp.w, fp.h), fp.h / Math.max(fp.w, fp.h));
-      const g = ctx.createRadialGradient(0, 0, r * 0.45, 0, 0, r);
-      g.addColorStop(0, C.worn);
-      g.addColorStop(0.8, 'rgba(214, 206, 138, 0.35)');
-      g.addColorStop(1, 'rgba(214, 206, 138, 0)');
+      const g = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r);
+      g.addColorStop(0, 'rgba(190, 172, 128, 0.7)');
+      g.addColorStop(0.75, 'rgba(186, 168, 124, 0.45)');
+      g.addColorStop(1, 'rgba(186, 168, 124, 0)');
       ctx.fillStyle = g;
       ctx.fillRect(-r, -r, r * 2, r * 2);
       ctx.restore();
     }
     for (const v of m.level.terrain.villages) {
-      const r = v.radius * 1.15;
+      const r = v.radius * 1.3;
       if (!overlaps(rect, v.center.x - r, v.center.y - r, r * 2, r * 2)) continue;
-      const g = ctx.createRadialGradient(v.center.x, v.center.y, r * 0.25, v.center.x, v.center.y, r);
-      g.addColorStop(0, 'rgba(206, 214, 140, 0.55)');
-      g.addColorStop(1, 'rgba(206, 214, 140, 0)');
+      const g = ctx.createRadialGradient(v.center.x, v.center.y, r * 0.2, v.center.x, v.center.y, r);
+      g.addColorStop(0, 'rgba(192, 174, 130, 0.65)');
+      g.addColorStop(1, 'rgba(192, 174, 130, 0)');
       ctx.fillStyle = g;
       ctx.fillRect(v.center.x - r, v.center.y - r, r * 2, r * 2);
     }
   }
 
-  /** Patchwork fields: a dark hedge border, a flat crop fill with broad rows, a crisp inner edge. */
   private paintFields(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
     const C = TERRAIN_COLORS;
     this.model.level.terrain.fields.forEach((f, fi) => {
-      const r = Math.hypot(f.width, f.height) / 2 + 12;
+      const r = Math.hypot(f.width, f.height) / 2 + 10;
       if (!overlaps(rect, f.center.x - r, f.center.y - r, r * 2, r * 2)) return;
       const [base, stripe, edge] = C[f.crop];
       const hw = f.width / 2;
@@ -124,123 +128,252 @@ export class TerrainPainter {
       ctx.save();
       ctx.translate(f.center.x, f.center.y);
       ctx.rotate(degToRad(f.rotationDeg));
-      // Soft hedge shadow, then the hedge border itself.
-      ctx.fillStyle = 'rgba(14, 58, 22, 0.25)';
-      roundRect(ctx, -hw - 5 + 3, -hh - 5 + 4, f.width + 10, f.height + 10, 6);
-      ctx.fill();
-      ctx.fillStyle = C.hedgeDark;
-      roundRect(ctx, -hw - 6, -hh - 6, f.width + 12, f.height + 12, 7);
-      ctx.fill();
+      // hedge / earth margin
       ctx.fillStyle = C.hedge;
-      roundRect(ctx, -hw - 4.5, -hh - 4.5, f.width + 9, f.height + 9, 6);
-      ctx.fill();
+      ctx.fillRect(-hw - 5, -hh - 5, f.width + 10, f.height + 10);
       ctx.fillStyle = base;
-      roundRect(ctx, -hw, -hh, f.width, f.height, 3);
-      ctx.fill();
-      ctx.save();
+      ctx.fillRect(-hw, -hh, f.width, f.height);
+      ctx.beginPath();
+      ctx.rect(-hw, -hh, f.width, f.height);
       ctx.clip();
-      // Broad crop rows along the long axis (same geometry at both LODs so chunks match).
-      const along = f.width >= f.height;
-      const span = along ? f.height : f.width;
-      const spacing = f.crop === 'plowed' ? 12 : 16;
-      ctx.fillStyle = stripe;
-      ctx.globalAlpha = f.crop === 'plowed' ? 0.8 : 0.6;
-      for (let t = -span / 2 + spacing / 2; t < span / 2; t += spacing) {
-        if (along) ctx.fillRect(-hw, t - spacing * 0.22, f.width, spacing * 0.44);
-        else ctx.fillRect(t - spacing * 0.22, -hh, spacing * 0.44, f.height);
+      // patchwork strips across the short axis
+      const strips = 2 + (fi % 3);
+      for (let k = 0; k < strips; k++) {
+        const t = hash2(fi, k, 77);
+        ctx.fillStyle = t > 0.5 ? edge : stripe;
+        ctx.globalAlpha = 0.12 + t * 0.2;
+        ctx.fillRect(-hw, -hh + (k * f.height) / strips, f.width, f.height / strips);
       }
-      ctx.globalAlpha = 1;
-      // Split some fields into two crops for the patchwork look.
-      if (fi % 2 === 0) {
-        const other = fi % 4 === 0 ? C.green[0] : C.wheat[0];
-        if (other !== base) {
-          ctx.fillStyle = other;
-          ctx.globalAlpha = 0.9;
-          if (along) ctx.fillRect(hw * 0.35, -hh, hw * 0.65, f.height);
-          else ctx.fillRect(-hw, hh * 0.35, f.width, hh * 0.65);
-          ctx.globalAlpha = 1;
-          ctx.strokeStyle = C.hedge;
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          if (along) {
-            ctx.moveTo(hw * 0.35, -hh);
-            ctx.lineTo(hw * 0.35, hh);
-          } else {
-            ctx.moveTo(-hw, hh * 0.35);
-            ctx.lineTo(hw, hh * 0.35);
-          }
-          ctx.stroke();
+      // furrows along the long axis
+      ctx.globalAlpha = f.crop === 'plowed' ? 0.55 : 0.4;
+      ctx.strokeStyle = stripe;
+      const spacing = detail === 'near' ? (f.crop === 'plowed' ? 4 : 5.5) : 11;
+      ctx.lineWidth = detail === 'near' ? 1.7 : 3.2;
+      ctx.beginPath();
+      for (let yy = -hh + spacing / 2; yy < hh; yy += spacing) {
+        ctx.moveTo(-hw, yy);
+        ctx.lineTo(hw, yy);
+      }
+      ctx.stroke();
+      if (f.crop !== 'plowed') {
+        // tractor tramlines
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = C.plowed[0];
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let yy = -hh + 30; yy < hh; yy += 60) {
+          ctx.moveTo(-hw, yy);
+          ctx.lineTo(hw, yy);
+          ctx.moveTo(-hw, yy + 3.5);
+          ctx.lineTo(hw, yy + 3.5);
         }
+        ctx.stroke();
       }
       ctx.restore();
-      // Crisp lit inner edge on the upper-left sides.
-      ctx.strokeStyle = edge;
-      ctx.lineWidth = detail === 'near' ? 2 : 3;
-      ctx.beginPath();
-      ctx.moveTo(-hw + 2, hh - 3);
-      ctx.lineTo(-hw + 2, -hh + 2);
-      ctx.lineTo(hw - 3, -hh + 2);
-      ctx.stroke();
+      // crisp field edge
+      ctx.save();
+      ctx.translate(f.center.x, f.center.y);
+      ctx.rotate(degToRad(f.rotationDeg));
+      ctx.strokeStyle = 'rgba(70, 60, 36, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-hw, -hh, f.width, f.height);
       ctx.restore();
     });
   }
 
-  /** Hill terraces: very soft darker-green contour steps (the hill-shade overlay does the rest). */
+  private paintTexture(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
+    const fillPattern = (tile: HTMLCanvasElement, matrix: DOMMatrix, op: GlobalCompositeOperation, alpha: number): void => {
+      const pattern = ctx.createPattern(tile, 'repeat');
+      if (!pattern) return;
+      pattern.setTransform(matrix);
+      ctx.globalCompositeOperation = op;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = pattern;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    };
+    // Wind-streaked soil: isotropic noise stretched along the prevailing wind.
+    fillPattern(this.mottle, new DOMMatrix().rotateSelf(-22).scaleSelf(9, 2.4), 'overlay', 0.24);
+    // Medium soil texture (same at every LOD so near/far chunks match).
+    fillPattern(this.grain, new DOMMatrix().translateSelf(37, 91).rotateSelf(31).scaleSelf(2.3, 2.3), 'soft-light', 0.4);
+    if (detail === 'near') fillPattern(this.grain, new DOMMatrix().rotateSelf(-17).scaleSelf(0.85, 0.85), 'soft-light', 0.28);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
+  /** Hill strata: a dark step line with a sunlit lip just above it. */
   private paintContours(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
+    const trace = (line: Float32Array, dx: number, dy: number): void => {
+      ctx.beginPath();
+      for (let i = 0; i < line.length; i += 2) {
+        const x = (line[i] ?? 0) + dx;
+        const y = (line[i + 1] ?? 0) + dy;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = TERRAIN_COLORS.contour;
-    ctx.lineWidth = detail === 'near' ? 3 : 4;
     const m = this.model;
     for (let k = 0; k < m.contours.length; k++) {
       const line = m.contours[k];
       const b = m.contourBounds[k];
       if (!line || !b) continue;
       if (!overlaps(rect, b[0] - 4, b[1] - 4, b[2] - b[0] + 8, b[3] - b[1] + 8)) continue;
-      ctx.beginPath();
-      for (let i = 0; i < line.length; i += 2) {
-        const x = (line[i] ?? 0) + 1;
-        const y = (line[i + 1] ?? 0) + 1.5;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(92, 72, 44, 0.26)';
+      ctx.lineWidth = detail === 'near' ? 2.2 : 3;
+      trace(line, 0.8, 1);
+      ctx.strokeStyle = 'rgba(255, 244, 214, 0.2)';
+      ctx.lineWidth = detail === 'near' ? 1.4 : 2.4;
+      trace(line, -1.2, -1.5);
     }
   }
 
-  /** Old shell craters (toy dirt bowls) and flattened-grass tank tracks near the outpost. */
-  private paintScars(ctx: CanvasRenderingContext2D, rect: Rect): void {
-    const m = this.model;
-    const C = TERRAIN_COLORS;
-    ctx.strokeStyle = C.trackMark;
-    ctx.lineWidth = 4;
+  /** Dry washes: pale sandy beds with a shaded bank. */
+  private paintWashes(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    for (const wash of this.model.washes) {
+      if (!touches(wash.curve, rect, 20)) continue;
+      ctx.strokeStyle = 'rgba(96, 82, 52, 0.3)';
+      ctx.lineWidth = wash.width + 5;
+      stroke(ctx, wash.curve, 1.2);
+      ctx.strokeStyle = 'rgba(222, 208, 170, 0.55)';
+      ctx.lineWidth = wash.width;
+      stroke(ctx, wash.curve, 0);
+      if (detail === 'near') {
+        ctx.strokeStyle = 'rgba(150, 132, 92, 0.35)';
+        ctx.lineWidth = 1;
+        stroke(ctx, wash.curve, wash.width * 0.15);
+      }
+    }
+  }
+
+  /**
+   * Scrub bushes, grass tufts and rocks, scattered per 48-unit cell from a stateless hash.
+   * Shapes are accumulated into a few paths and filled once per colour (thousands of tiny
+   * shapes per chunk would otherwise cost one fill call each).
+   */
+  private paintScatter(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
+    const m = this.model;
+    const cell = 48;
+    const seed = m.seed;
+    const C = TERRAIN_COLORS;
+    const c0 = Math.floor((rect.x - 12) / cell);
+    const c1 = Math.floor((rect.x + rect.w + 12) / cell);
+    const r0 = Math.floor((rect.y - 12) / cell);
+    const r1 = Math.floor((rect.y + rect.h + 12) / cell);
+    const block = MASK.water | MASK.road | MASK.field | MASK.structure;
+    const near = detail === 'near';
+    const scrubShadow = new Path2D();
+    const scrubA = new Path2D();
+    const scrubB = new Path2D();
+    const scrubHi = new Path2D();
+    const rockShadow = new Path2D();
+    const rockBody = new Path2D();
+    const rockHi = new Path2D();
+    const tufts = new Path2D();
+    const circle = (path: Path2D, x: number, y: number, r: number): void => {
+      path.moveTo(x + r, y);
+      path.arc(x, y, r, 0, Math.PI * 2);
+    };
+    const oval = (path: Path2D, x: number, y: number, rx: number, ry: number, rot: number): void => {
+      path.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot));
+      path.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    };
+    for (let cy = r0; cy <= r1; cy++) {
+      for (let cx = c0; cx <= c1; cx++) {
+        const bx = cx * cell;
+        const by = cy * cell;
+        const patch = m.noise.fbm(bx / 460 + 3, by / 460 + 9, 3);
+        const slope = m.slopeAt(bx + cell / 2, by + cell / 2);
+        const nScrub = Math.floor(hash2(cx, cy, seed) * (1.35 + 9 * smoothstep(0.54, 0.74, patch)));
+        const nRock =
+          Math.floor(hash2(cx, cy, seed + 5) * (0.6 + 3.2 * smoothstep(0.35, 0.9, slope))) + (hash2(cx, cy, seed + 4) > 0.94 ? 1 : 0);
+        const nTuft = 2 + Math.floor(hash2(cx, cy, seed + 9) * 6);
+        for (let k = 0; k < nScrub; k++) {
+          const x = bx + hash2(cx * 31 + k, cy, seed + 1) * cell;
+          const y = by + hash2(cx, cy * 17 + k, seed + 2) * cell;
+          if (m.maskAt(x, y) & (block | MASK.forest)) continue;
+          const r = 2 + hash2(cx + k, cy - k, seed + 3) * 3.6;
+          circle(scrubShadow, x + r * 0.5, y + r * 0.7, r);
+          circle(hash2(k, cx + cy, seed) > 0.5 ? scrubA : scrubB, x, y, r);
+          if (near) circle(scrubHi, x - r * 0.3, y - r * 0.35, r * 0.45);
+        }
+        for (let k = 0; k < nRock; k++) {
+          const x = bx + hash2(cx * 13 + k, cy * 3, seed + 6) * cell;
+          const y = by + hash2(cx * 5, cy * 11 + k, seed + 7) * cell;
+          if (m.maskAt(x, y) & block) continue;
+          const r = 1.3 + hash2(cx - k, cy + k, seed + 8) * (1.4 + Math.min(1, slope) * 2.4);
+          if (!near && r < 2.2) continue;
+          oval(rockShadow, x + r * 0.45, y + r * 0.55, r * 1.05, r * 0.85, 0);
+          oval(rockBody, x, y, r, r * 0.82, hash2(k, cy, seed) * 3);
+          oval(rockHi, x - r * 0.25, y - r * 0.25, r * 0.55, r * 0.42, 0);
+        }
+        for (let k = 0; k < nTuft; k++) {
+          const x = bx + hash2(cx * 7 + k, cy * 19, seed + 11) * cell;
+          const y = by + hash2(cx * 23, cy * 7 + k, seed + 12) * cell;
+          if (m.maskAt(x, y) & block) continue;
+          if (near) {
+            for (let j = 0; j < 4; j++) tufts.rect(x + (j % 2) * 1.8 - 1.7, y + Math.floor(j / 2) * 1.6 - 1.6, 1.6, 1.6);
+          } else {
+            tufts.rect(x - 1.6, y - 1.6, 3.4, 3.2);
+          }
+        }
+      }
+    }
+    ctx.fillStyle = 'rgba(92, 96, 50, 0.45)';
+    ctx.globalAlpha = near ? 1 : 0.55;
+    ctx.fill(tufts);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.treeShadow;
+    ctx.fill(scrubShadow);
+    ctx.fillStyle = C.scrub;
+    ctx.fill(scrubA);
+    ctx.fillStyle = C.scrubDark;
+    ctx.fill(scrubB);
+    if (near) {
+      ctx.fillStyle = 'rgba(150, 156, 90, 0.5)';
+      ctx.fill(scrubHi);
+    }
+    ctx.fillStyle = 'rgba(40, 32, 18, 0.35)';
+    ctx.fill(rockShadow);
+    ctx.fillStyle = C.rock;
+    ctx.fill(rockBody);
+    ctx.fillStyle = C.rockLight;
+    ctx.fill(rockHi);
+  }
+
+  private paintScars(ctx: CanvasRenderingContext2D, rect: Rect): void {
+    const m = this.model;
+    ctx.strokeStyle = 'rgba(70, 58, 36, 0.28)';
+    ctx.lineWidth = 2;
     for (const track of m.trackMarks) {
       if (!touches(track, rect, 20)) continue;
-      for (const side of [-15, 15]) {
+      for (const side of [-4.5, 4.5]) {
         ctx.beginPath();
         traceCurve(ctx, track, side);
         ctx.stroke();
       }
     }
     for (const c of m.craters) {
-      if (!overlaps(rect, c.x - c.r * 2, c.y - c.r * 2, c.r * 4, c.r * 4)) continue;
-      ctx.fillStyle = C.craterDark;
+      if (!overlaps(rect, c.x - c.r * 3, c.y - c.r * 3, c.r * 6, c.r * 6)) continue;
+      // Scorched halo, pale ejecta ring, shaded bowl (lit from the upper-left).
+      const g = ctx.createRadialGradient(c.x, c.y, c.r * 0.4, c.x, c.y, c.r * 2.8);
+      g.addColorStop(0, 'rgba(46, 38, 26, 0.35)');
+      g.addColorStop(1, 'rgba(46, 38, 26, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(c.x - c.r * 2.8, c.y - c.r * 2.8, c.r * 5.6, c.r * 5.6);
+      ctx.fillStyle = 'rgba(206, 190, 150, 0.6)';
       ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r * 1.3 + 1.5, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, c.r * 1.25, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = C.craterRim;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r * 1.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = C.craterDark;
+      const bowl = ctx.createLinearGradient(c.x - c.r, c.y - c.r, c.x + c.r, c.y + c.r);
+      bowl.addColorStop(0, 'rgba(60, 48, 32, 0.95)');
+      bowl.addColorStop(1, 'rgba(150, 128, 92, 0.9)');
+      ctx.fillStyle = bowl;
       ctx.beginPath();
       ctx.arc(c.x, c.y, c.r * 0.85, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = C.crater;
-      ctx.beginPath();
-      ctx.arc(c.x + c.r * 0.18, c.y + c.r * 0.22, c.r * 0.66, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -255,33 +388,30 @@ export class TerrainPainter {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Village tracks first (narrow, same clean style).
+    // Village tracks first (thin, faint).
     for (const t of m.villageTracks) {
       if (!touches(t, rect, 20)) continue;
-      ctx.strokeStyle = C.trackEdge;
-      ctx.lineWidth = 15;
+      ctx.strokeStyle = 'rgba(160, 140, 100, 0.55)';
+      ctx.lineWidth = 9;
       stroke(ctx, t, 0);
-    }
-    for (const t of m.villageTracks) {
-      if (!touches(t, rect, 20)) continue;
-      ctx.strokeStyle = C.track;
-      ctx.lineWidth = 11;
+      ctx.strokeStyle = 'rgba(196, 178, 136, 0.7)';
+      ctx.lineWidth = 6;
       stroke(ctx, t, 0);
     }
 
     const dirt = m.roads.filter((r) => r.surface === 'dirt');
     const paved = m.roads.filter((r) => r.surface === 'paved');
-    // Edges for everything, then bodies, so junctions merge cleanly.
+    // Verges for everything, then bodies, so junctions merge cleanly.
+    for (const road of [...dirt, ...paved]) {
+      if (!touches(road.curve, rect, road.width + 20)) continue;
+      ctx.strokeStyle = C.verge;
+      ctx.lineWidth = road.width + 16;
+      stroke(ctx, road.curve, 0);
+    }
     for (const road of dirt) {
       if (!touches(road.curve, rect, road.width + 20)) continue;
       ctx.strokeStyle = C.dirtRoadEdge;
-      ctx.lineWidth = road.width + 6;
-      stroke(ctx, road.curve, 0);
-    }
-    for (const road of paved) {
-      if (!touches(road.curve, rect, road.width + 20)) continue;
-      ctx.strokeStyle = C.pavedEdge;
-      ctx.lineWidth = road.width + 7;
+      ctx.lineWidth = road.width + 3;
       stroke(ctx, road.curve, 0);
     }
     for (const road of dirt) {
@@ -289,25 +419,37 @@ export class TerrainPainter {
       ctx.strokeStyle = C.dirtRoad;
       ctx.lineWidth = road.width;
       stroke(ctx, road.curve, 0);
+    }
+    for (const road of dirt) {
+      if (!touches(road.curve, rect, road.width + 20)) continue;
+      ctx.strokeStyle = C.dirtRut;
+      ctx.lineWidth = detail === 'near' ? 2.4 : 3.5;
+      stroke(ctx, road.curve, -road.width * 0.24);
+      stroke(ctx, road.curve, road.width * 0.24);
       if (detail === 'near') {
-        // Two faint wheel tracks: barely there, just enough to say "road".
-        ctx.strokeStyle = 'rgba(182, 151, 88, 0.22)';
+        ctx.strokeStyle = 'rgba(120, 118, 70, 0.22)';
         ctx.lineWidth = 3;
-        stroke(ctx, road.curve, -road.width * 0.24);
-        stroke(ctx, road.curve, road.width * 0.24);
+        stroke(ctx, road.curve, 0);
       }
     }
     for (const road of paved) {
       if (!touches(road.curve, rect, road.width + 20)) continue;
-      ctx.strokeStyle = C.paved;
+      ctx.strokeStyle = C.asphaltEdge;
+      ctx.lineWidth = road.width + 7;
+      stroke(ctx, road.curve, 0);
+      ctx.strokeStyle = C.asphalt;
       ctx.lineWidth = road.width;
       stroke(ctx, road.curve, 0);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-      ctx.lineWidth = road.width * 0.4;
-      stroke(ctx, road.curve, -road.width * 0.2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = road.width * 0.45;
+      stroke(ctx, road.curve, -road.width * 0.18);
+      ctx.strokeStyle = C.roadLine;
+      ctx.lineWidth = 1.3;
+      stroke(ctx, road.curve, -road.width / 2 + 3);
+      stroke(ctx, road.curve, road.width / 2 - 3);
       ctx.strokeStyle = C.roadDash;
-      ctx.lineWidth = 2.6;
-      ctx.setLineDash([18, 16]);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([16, 18]);
       ctx.lineCap = 'butt';
       stroke(ctx, road.curve, 0);
       ctx.setLineDash([]);
@@ -326,15 +468,19 @@ export class TerrainPainter {
       ctx.fillStyle = fill;
       fillBandRange(ctx, river, i0, i1, extra, scale);
     };
-    band(46, C.riparian);
-    band(13, C.bankEdge);
-    band(10.5, C.bank);
+    band(150, C.floodplain);
+    band(95, C.floodplain);
+    band(55, C.floodplain);
+    band(24, C.riparian);
+    band(10, C.bankSand);
+    band(3.5, C.bankWet);
     band(0, C.waterShallow);
-    band(-7, C.water);
-    band(-20, C.waterDeep, 0.9);
+    band(-9, C.waterMid);
+    band(-22, C.waterDeep, 0.9);
+    band(0, C.waterCore, 0.36);
 
     // Shadow cast by the north (upper-left-lit) bank onto the water.
-    ctx.fillStyle = 'rgba(20, 70, 140, 0.28)';
+    ctx.fillStyle = 'rgba(18, 38, 42, 0.32)';
     ctx.beginPath();
     for (let i = i0; i <= i1; i++) {
       const o = -(river.halfL[i] ?? 0);
@@ -344,19 +490,18 @@ export class TerrainPainter {
       else ctx.lineTo(px, py);
     }
     for (let i = i1; i >= i0; i--) {
-      const o = -(river.halfL[i] ?? 0) + 7;
+      const o = -(river.halfL[i] ?? 0) + 11;
       ctx.lineTo((c.xs[i] ?? 0) + (c.nx[i] ?? 0) * o, (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * o);
     }
     ctx.closePath();
     ctx.fill();
 
-    // White foam line along the lit south shore.
-    ctx.strokeStyle = C.foam;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
+    // Lit shoreline shimmer on the south bank.
+    ctx.strokeStyle = 'rgba(214, 232, 220, 0.38)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     for (let i = i0; i <= i1; i++) {
-      const o = (river.halfR[i] ?? 0) - 2.5;
+      const o = (river.halfR[i] ?? 0) - 2.2;
       const px = (c.xs[i] ?? 0) + (c.nx[i] ?? 0) * o;
       const py = (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * o;
       if (i === i0) ctx.moveTo(px, py);
@@ -364,25 +509,53 @@ export class TerrainPainter {
     }
     ctx.stroke();
 
-    // A few calm flow dashes (sparse, long, soft).
+    // Flow streaks and sun glints.
     const seed = this.model.seed;
-    ctx.strokeStyle = C.flow;
-    ctx.lineWidth = detail === 'near' ? 2.2 : 3;
-    for (let i = i0; i < i1 - 10; i += 4) {
-      if (hash2(i, 5, seed) > 0.14) continue;
-      const lateral = (hash2(i, 9, seed) - 0.5) * 1.1;
-      const len = 5 + Math.floor(hash2(i, 13, seed) * 5);
+    ctx.lineCap = 'round';
+    for (let i = i0; i < i1 - 8; i += 3) {
+      const h = hash2(i, 5, seed);
+      if (h > 0.34) continue;
+      const lateral = (hash2(i, 9, seed) - 0.5) * 1.3;
+      const len = 3 + Math.floor(hash2(i, 13, seed) * 6);
+      ctx.strokeStyle = h < 0.12 ? 'rgba(220, 238, 230, 0.26)' : 'rgba(30, 60, 66, 0.2)';
+      ctx.lineWidth = detail === 'near' ? 1.3 : 2.4;
       ctx.beginPath();
       for (let k = 0; k <= len; k++) {
         const j = i + k;
         const half = lateral < 0 ? (river.halfL[j] ?? 0) : (river.halfR[j] ?? 0);
-        const o = lateral * half * 0.8;
+        const o = lateral * half * 0.75;
         const px = (c.xs[j] ?? 0) + (c.nx[j] ?? 0) * o;
         const py = (c.ys[j] ?? 0) + (c.ny[j] ?? 0) * o;
         if (k === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
       ctx.stroke();
+    }
+    if (detail === 'near') {
+      ctx.fillStyle = 'rgba(240, 250, 244, 0.55)';
+      for (let i = i0; i <= i1; i++) {
+        if (hash2(i, 21, seed) > 0.22) continue;
+        const lateral = (hash2(i, 25, seed) - 0.5) * 1.4;
+        const half = lateral < 0 ? (river.halfL[i] ?? 0) : (river.halfR[i] ?? 0);
+        const o = lateral * half;
+        const px = (c.xs[i] ?? 0) + (c.nx[i] ?? 0) * o;
+        const py = (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * o;
+        ctx.fillRect(px, py, 2.2, 0.9);
+      }
+      // Reeds along the banks.
+      ctx.fillStyle = 'rgba(78, 92, 44, 0.8)';
+      for (let i = i0; i <= i1; i++) {
+        for (const side of [-1, 1]) {
+          if (hash2(i, side + 40, seed) > 0.3) continue;
+          const half = side < 0 ? (river.halfL[i] ?? 0) : (river.halfR[i] ?? 0);
+          const o = side * (half + 1 + hash2(i, side + 44, seed) * 6);
+          const px = (c.xs[i] ?? 0) + (c.nx[i] ?? 0) * o;
+          const py = (c.ys[i] ?? 0) + (c.ny[i] ?? 0) * o;
+          ctx.beginPath();
+          ctx.arc(px, py, 1.6 + hash2(i, side, seed) * 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
 
@@ -392,27 +565,32 @@ export class TerrainPainter {
 
   private paintVillages(ctx: CanvasRenderingContext2D, rect: Rect, detail: PaintDetail): void {
     const C = TERRAIN_COLORS;
-    const visible = this.model.buildings.filter((b) => overlaps(rect, b.x - 70, b.y - 70, 140, 140));
-    // Gardens: bright hedged vegetable plots behind the houses.
+    const visible = this.model.buildings.filter((b) => overlaps(rect, b.x - 40, b.y - 40, 80, 80));
+    // Gardens.
     for (const b of visible) {
       if (!b.garden) continue;
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.angle);
-      const gw = b.w * 0.95;
-      const gh = b.h * 0.85;
-      const oy = -b.gardenSide * (b.h / 2 + gh / 2 + 4);
-      ctx.fillStyle = C.hedge;
-      roundRect(ctx, -gw / 2 - 3, oy - gh / 2 - 3, gw + 6, gh + 6, 4);
-      ctx.fill();
+      const gw = b.w * 1.1;
+      const gh = b.h * 1.1;
+      const oy = -b.gardenSide * (b.h / 2 + gh / 2 + 2);
       ctx.fillStyle = C.garden;
-      roundRect(ctx, -gw / 2, oy - gh / 2, gw, gh, 2);
-      ctx.fill();
-      ctx.fillStyle = C.gardenRow;
-      for (let x = -gw / 2 + 4; x < gw / 2 - 2; x += 7) ctx.fillRect(x, oy - gh / 2 + 3, 3, gh - 6);
+      ctx.fillRect(-gw / 2, oy - gh / 2, gw, gh);
+      ctx.strokeStyle = 'rgba(60, 70, 30, 0.6)';
+      ctx.lineWidth = detail === 'near' ? 1 : 2;
+      ctx.beginPath();
+      for (let x = -gw / 2 + 2.5; x < gw / 2; x += detail === 'near' ? 3.2 : 6) {
+        ctx.moveTo(x, oy - gh / 2 + 1);
+        ctx.lineTo(x, oy + gh / 2 - 1);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(214, 200, 166, 0.7)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-gw / 2, oy - gh / 2, gw, gh);
       ctx.restore();
     }
-    // Soft shadows (swept footprint) then roofs.
+    // Shadows (swept footprint) then roofs.
     ctx.fillStyle = C.buildingShadow;
     for (const b of visible) {
       for (let k = 1; k <= 3; k++) {
@@ -420,8 +598,7 @@ export class TerrainPainter {
         ctx.save();
         ctx.translate(b.x + SHADOW_DIR.x * b.height * t, b.y + SHADOW_DIR.y * b.height * t);
         ctx.rotate(b.angle);
-        roundRect(ctx, -b.w / 2, -b.h / 2, b.w, b.h, 3);
-        ctx.fill();
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
         ctx.restore();
       }
     }
@@ -433,41 +610,31 @@ export class TerrainPainter {
       const nx = Math.sin(b.angle);
       const ny = -Math.cos(b.angle);
       const firstLit = nx * -SHADOW_DIR.x + ny * -SHADOW_DIR.y > 0;
-      const hw = b.w / 2;
-      const hh = b.h / 2;
-      // Thick dark outline, base roof, lit half, shaded half, ridge, chimney.
-      ctx.fillStyle = C.roofEdge;
-      roundRect(ctx, -hw - 1.8, -hh - 1.8, b.w + 3.6, b.h + 3.6, 3.5);
-      ctx.fill();
       ctx.fillStyle = b.roof;
-      roundRect(ctx, -hw, -hh, b.w, b.h, 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255, 236, 200, 0.3)';
-      ctx.fillRect(-hw, firstLit ? -hh : 0, b.w, hh);
-      ctx.fillStyle = 'rgba(60, 10, 10, 0.22)';
-      ctx.fillRect(-hw, firstLit ? 0 : -hh, b.w, hh);
+      ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      ctx.fillStyle = 'rgba(255, 240, 210, 0.22)';
+      ctx.fillRect(-b.w / 2, firstLit ? -b.h / 2 : 0, b.w, b.h / 2);
+      ctx.fillStyle = 'rgba(30, 20, 10, 0.22)';
+      ctx.fillRect(-b.w / 2, firstLit ? 0 : -b.h / 2, b.w, b.h / 2);
+      ctx.strokeStyle = 'rgba(40, 26, 16, 0.55)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(-b.w / 2, 0);
+      ctx.lineTo(b.w / 2, 0);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(30, 22, 14, 0.75)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
       if (detail === 'near') {
-        ctx.strokeStyle = 'rgba(90, 20, 16, 0.25)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(40, 26, 16, 0.18)';
+        ctx.lineWidth = 0.6;
         ctx.beginPath();
-        for (let x = -hw + 5; x < hw - 1; x += 5) {
-          ctx.moveTo(x, -hh + 1.5);
-          ctx.lineTo(x, hh - 1.5);
+        for (let x = -b.w / 2 + 2.5; x < b.w / 2; x += 2.5) {
+          ctx.moveTo(x, -b.h / 2);
+          ctx.lineTo(x, b.h / 2);
         }
         ctx.stroke();
       }
-      ctx.strokeStyle = C.roofEdge;
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(-hw + 1, 0);
-      ctx.lineTo(hw - 1, 0);
-      ctx.stroke();
-      const cx = hw * 0.45;
-      const cy = firstLit ? -hh * 0.5 : hh * 0.5;
-      ctx.fillStyle = C.roofEdge;
-      ctx.fillRect(cx - 4, cy - 4, 8, 8);
-      ctx.fillStyle = C.chimney;
-      ctx.fillRect(cx - 2.8, cy - 2.8, 5.6, 5.6);
       ctx.restore();
     }
   }
@@ -476,19 +643,19 @@ export class TerrainPainter {
     const t = this.model.trees;
     const sprites = detail === 'near' ? this.treesNear : this.treesFar;
     ctx.imageSmoothingQuality = 'low';
-    const pad = TREE_SPRITE_SIZE * 1.4;
+    const pad = TREE_SPRITE_SIZE;
     const visible: number[] = [];
     t.grid.query(rect.x, rect.y, rect.w, rect.h, pad, (i) => visible.push(i));
     visible.sort((a, b) => a - b);
     const size = TREE_SPRITE_SIZE;
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.42;
     for (const i of visible) {
       const r = t.r[i] ?? 0;
       const k = r / TREE_BASE_RADIUS;
-      const s = size * k * 1.08;
+      const s = size * k;
       const sprite = sprites.shadows[t.variant[i] ?? 0];
       if (!sprite) continue;
-      const off = r * 0.75;
+      const off = r * 1.05;
       ctx.drawImage(sprite, (t.x[i] ?? 0) + SHADOW_DIR.x * off - s / 2, (t.y[i] ?? 0) + SHADOW_DIR.y * off - s / 2, s, s);
     }
     ctx.globalAlpha = 1;
@@ -500,6 +667,31 @@ export class TerrainPainter {
       ctx.drawImage(sprite, (t.x[i] ?? 0) - s / 2, (t.y[i] ?? 0) - s / 2, s, s);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+
+  /** Tileable greyscale fBm tile, centred on mid-grey for overlay/soft-light blending. */
+  private noiseTile(noise: ValueNoise, size: number, period: number, octaves: number, contrast: number, offset: number): HTMLCanvasElement {
+    const canvas = createCanvas(size, size);
+    const ctx = context2d(canvas);
+    const img = ctx.createImageData(size, size);
+    const d = img.data;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const v = noise.fbm((x / size) * period + offset * period, (y / size) * period, octaves, 0.55, period);
+        const grey = Math.max(0, Math.min(255, 128 + (v - 0.5) * 2 * contrast * 127 * 1.6));
+        const o = (y * size + x) * 4;
+        d[o] = grey;
+        d[o + 1] = grey;
+        d[o + 2] = grey;
+        d[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+  }
 }
 
 function overlaps(r: Rect, x: number, y: number, w: number, h: number): boolean {
@@ -508,12 +700,6 @@ function overlaps(r: Rect, x: number, y: number, w: number, h: number): boolean 
 
 function touches(c: DenseCurve, r: Rect, pad: number): boolean {
   return c.maxX + pad >= r.x && c.minX - pad <= r.x + r.w && c.maxY + pad >= r.y && c.minY - pad <= r.y + r.h;
-}
-
-/** Rounded rectangle path (current path is replaced). */
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
 }
 
 /** First/last sample index inside the rect grown by `pad` (null if none). */

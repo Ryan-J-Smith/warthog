@@ -1,79 +1,61 @@
-/**
- * Colours for the lush green countryside biome (art direction v1, "chunky toy arcade").
- * Shared by the terrain model and painter.
- *
- * The ground sits in a calm, mid-value green band on purpose: dark crimson enemy armour and white
- * friendly armour both separate from it by VALUE (not just hue), so units pop at every zoom and
- * for colour-blind players too. Everything else (fields, roads, river) is bright and flat.
- */
+/** Colours for the desert-steppe biome. Shared by the terrain model and painter. */
 export const TERRAIN_COLORS = {
-  // Ground macro colour field endpoints (RGB). Only large, soft variation between these.
-  grass: [104, 182, 72],
-  grassLight: [118, 192, 80],
-  grassDark: [92, 170, 66],
-  /** Near water and woods: a touch deeper and cooler. */
-  grassLush: [82, 166, 72],
-  /** Hilltops: slightly warmer and lighter. */
-  grassHigh: [134, 196, 84],
+  // ground (macro colour field endpoints)
+  sand: [196, 178, 132],
+  sandLight: [210, 194, 150],
+  dryGrass: [170, 158, 104],
+  steppe: [150, 148, 92],
+  greenSteppe: [128, 136, 80],
+  rocky: [184, 170, 138],
   /** Average ground colour (backdrop outside the map, camera background). */
-  average: [104, 182, 72],
+  average: [174, 160, 112],
 
-  forestFloor: 'rgba(34, 104, 44, 0.6)',
-  /** Trampled ground around structures and in village yards. */
-  worn: 'rgba(214, 206, 138, 0.62)',
 
-  // Hill shading (the model's shade overlay): cool dark-green shadows, warm light tops.
-  hillShadow: [22, 84, 34] as const,
-  hillLight: [236, 255, 176] as const,
-  contour: 'rgba(30, 100, 40, 0.16)',
+  // water
+  waterShallow: '#6b9690',
+  waterMid: '#4f8084',
+  waterDeep: '#3d6d77',
+  waterCore: '#335f6c',
+  bankWet: '#857553',
+  bankSand: '#b7a57b',
+  riparian: 'rgba(104, 116, 58, 0.55)',
+  floodplain: 'rgba(98, 112, 56, 0.16)',
 
-  // Water.
-  waterShallow: '#6fc6f2',
-  water: '#3f9ee4',
-  waterDeep: '#2d86d4',
-  foam: 'rgba(255, 255, 255, 0.7)',
-  flow: 'rgba(255, 255, 255, 0.32)',
-  bank: '#ecdfa4',
-  bankEdge: '#b79f5d',
-  riparian: 'rgba(40, 136, 56, 0.32)',
+  // roads
+  dirtRoad: '#bfab80',
+  dirtRoadEdge: '#9a8660',
+  dirtRut: 'rgba(118, 100, 66, 0.5)',
+  verge: 'rgba(96, 86, 52, 0.22)',
+  asphalt: '#5b5a55',
+  asphaltEdge: '#a39a80',
+  roadLine: 'rgba(222, 216, 196, 0.62)',
+  roadDash: 'rgba(226, 206, 130, 0.85)',
 
-  // Roads: light, flat, clean edges.
-  dirtRoad: '#ecd69e',
-  dirtRoadEdge: '#b69758',
-  paved: '#aeb3ba',
-  pavedEdge: '#6a707a',
-  roadDash: 'rgba(255, 255, 255, 0.95)',
-  track: '#e4d29e',
-  trackEdge: '#bba26a',
+  // fields: [base, stripe, edge]
+  wheat: ['#c6ad62', '#a98f47', '#d8c17a'],
+  green: ['#86954c', '#6c7c3a', '#99a85c'],
+  plowed: ['#7f6446', '#634c34', '#8e7352'],
+  hedge: 'rgba(92, 102, 52, 0.55)',
 
-  // Fields: [base, row stripe, inner edge highlight].
-  wheat: ['#f2cf58', '#ddb640', '#fbe488'],
-  green: ['#a4dc64', '#8cc852', '#c0ea88'],
-  plowed: ['#bb8452', '#a26c40', '#d09a68'],
-  hedge: '#2f8636',
-  hedgeDark: '#1f5c27',
-
-  // Lollipop trees: families of [outline, shade, base, highlight].
+  // trees: canopy families [dark, mid, light]
   canopies: [
-    ['#1a4a22', '#2d7d36', '#3c9d42', '#78cf5c'],
-    ['#194630', '#287447', '#359358', '#6fc684'],
-    ['#284d1c', '#4a8a2c', '#5caa36', '#98d85a'],
+    ['#34431f', '#4f6128', '#7c8c42'],
+    ['#2f3d22', '#465a2c', '#6f8545'],
+    ['#3f4820', '#5f6a2a', '#8e9346'],
   ],
-  treeShadow: 'rgba(14, 58, 22, 0.5)',
+  treeShadow: 'rgba(38, 32, 14, 0.42)',
 
-  // Villages: cute red roofs.
-  roofs: ['#e2573f', '#d8483c', '#ec6c44', '#cc4636', '#ea7a4c'],
-  roofEdge: '#4a1c1a',
-  chimney: '#8a8f9a',
-  garden: '#8fd462',
-  gardenRow: 'rgba(40, 120, 44, 0.5)',
-  buildingShadow: 'rgba(14, 56, 22, 0.42)',
+  // villages
+  roofs: ['#a4583c', '#b0674a', '#8c7c6a', '#7a756c', '#9c8f7a', '#b58d5c'],
+  garden: '#7e8c46',
+  buildingShadow: 'rgba(34, 28, 12, 0.45)',
 
-  // Battle scars.
-  craterRim: '#caa86c',
-  crater: '#8c6640',
-  craterDark: '#5e4128',
-  trackMark: 'rgba(58, 120, 44, 0.35)',
+  // decor
+  rockLight: '#c4b594',
+  rock: '#9a8b6c',
+  rockDark: '#6f6552',
+  scrub: '#5d6634',
+  scrubDark: '#46502a',
 } as const;
 
 /** out = a + (b - a) * t, per RGB channel. */
