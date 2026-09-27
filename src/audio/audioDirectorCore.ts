@@ -18,6 +18,9 @@ const ENGINE_SPEED_MIN = 150;
 const ENGINE_SPEED_MAX = 360;
 /** SAM lock build-up time; the RWR beep accelerates over it. */
 const RWR_LOCK_BUILD_MS = 2000;
+/** Armour fractions for the low-armour warning: one alert on going critical, one more when nearly dead. */
+const LOW_ARMOR_CRITICAL = 0.3;
+const LOW_ARMOR_SEVERE = 0.15;
 
 const EXPLOSION_BY_SIZE: Record<ExplosionSize, AudioKey> = {
   small: 'explosionSmall',
@@ -77,7 +80,8 @@ export class AudioDirectorCore {
   private engineRate = 1;
   private rwrHeldMs = 0;
   private rwrNextBeepMs = 0;
-  private lowHealthNextMs = 0;
+  /** Low-armour warnings already sounded: 0 none, 1 critical, 2 severe. */
+  private lowHealthStage = 0;
   private radioOutAtMs: number | null = null;
   private ended = false;
   private destroyed = false;
@@ -129,15 +133,12 @@ export class AudioDirectorCore {
 
     this.setLoop('rearm', p.alive && p.rearm > 0 && p.rearm < 1, MIX.rearmLoop.volume);
 
+    // Low armour: alert once on going critical and once more when nearly dead, never a continuous
+    // beep (the HUD keeps showing ARMOR CRITICAL). Re-arms after a repair or a respawn.
     const hpFrac = p.maxHp > 0 ? p.hp / p.maxHp : 1;
-    if (p.alive && hpFrac <= 0.3) {
-      if (this.nowMs >= this.lowHealthNextMs) {
-        this.playUi('lowHealth');
-        this.lowHealthNextMs = this.nowMs + (hpFrac <= 0.15 ? 650 : 1100);
-      }
-    } else {
-      this.lowHealthNextMs = this.nowMs;
-    }
+    const stage = !p.alive ? 0 : hpFrac <= LOW_ARMOR_SEVERE ? 2 : hpFrac <= LOW_ARMOR_CRITICAL ? 1 : 0;
+    if (stage > this.lowHealthStage) this.playUi('lowHealth');
+    this.lowHealthStage = stage;
 
     // Distant battle: more present down low, fainter from altitude.
     const altFrac = Math.max(0, Math.min(1, p.alt / 2));

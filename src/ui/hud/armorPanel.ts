@@ -18,6 +18,7 @@ export class ArmorPanel extends HudWidget {
   private readonly value: Phaser.GameObjects.Text;
   private readonly lives: Phaser.GameObjects.Image[] = [];
   private readonly warning: Phaser.GameObjects.Text;
+  private readonly repairHint: Phaser.GameObjects.Text;
   private readonly hitFlash: Phaser.GameObjects.Rectangle;
   private hpShown = -1;
   private livesShown = -1;
@@ -37,10 +38,15 @@ export class ArmorPanel extends HudWidget {
       this.lives.push(scene.add.image(100 + i * 40, 84, UI_TEX.a10).setDisplaySize(32, 32).setRotation(-Math.PI / 2).setTint(COLOR.green));
     }
     this.warning = scene.add
-      .text(0, -12, 'ARMOR CRITICAL', textStyle({ size: 24, color: COLOR.red }))
+      .text(0, -38, 'ARMOR CRITICAL', textStyle({ size: 24, color: COLOR.red, stroke: true }))
       .setOrigin(0, 1)
       .setVisible(false);
-    this.container = scene.add.container(x, y, [g, label, this.value, this.bar, livesLabel, ...this.lives, this.hitFlash, this.warning]);
+    // How to fix it, while it matters: repair is otherwise only mentioned in the briefing.
+    this.repairHint = scene.add
+      .text(0, -12, 'REPAIR: HOLD LOW OVER HOME BASE', textStyle({ size: 20, color: COLOR.blue, stroke: true }))
+      .setOrigin(0, 1)
+      .setVisible(false);
+    this.container = scene.add.container(x, y, [g, label, this.value, this.bar, livesLabel, ...this.lives, this.hitFlash, this.warning, this.repairHint]);
   }
 
   update({ view, events, dt, now }: HudFrame): void {
@@ -68,6 +74,7 @@ export class ArmorPanel extends HudWidget {
     }
     const low = p.alive && p.hp <= PLAYER.lowHp;
     this.warning.setVisible(low);
+    this.repairHint.setVisible(low);
     if (low) this.warning.setAlpha(blink(now, 2.5) ? 1 : 0.35);
   }
 

@@ -157,4 +157,27 @@ describe('AudioDirectorCore', () => {
     expect(backend.created.every((v) => !v.playing)).toBe(true);
     expect(backend.oneShots.every((v) => !v.playing)).toBe(true);
   });
+  it('sounds the low-armour warning once on going critical, once more near death, and again after a repair', () => {
+    const { backend, director, world, player } = setup();
+    // The real beep lasts ~0.25 s; let each one finish as time passes.
+    const tick = (ms: number) => {
+      for (let t = 0; t < ms; t += 16) {
+        director.update(16, world);
+        backend.finishOneShots();
+      }
+    };
+    player.hp = 25;
+    tick(5000);
+    expect(backend.played('lowHealth')).toHaveLength(1);
+
+    player.hp = 10;
+    tick(5000);
+    expect(backend.played('lowHealth')).toHaveLength(2);
+
+    player.hp = player.maxHp;
+    tick(100);
+    player.hp = 20;
+    tick(100);
+    expect(backend.played('lowHealth')).toHaveLength(3);
+  });
 });
