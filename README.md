@@ -6,6 +6,8 @@ Mavericks and precise bombs, **High** for speed and a view of the whole sector.
 
 Xevious meets Desert Strike, with a third dimension.
 
+**Play it in your browser: https://ryan-j-smith.github.io/warthog/** (keyboard; desktop Chrome/Firefox/Edge)
+
 ![WARTHOG: an A-10 over Outpost Bravo, inside an AA gun's range](docs/screenshot.jpg)
 
 ## Play (dev)
@@ -45,8 +47,7 @@ npm run preview      # serve dist/ locally to check it
 - **itch.io:** zip the *contents* of `dist/` (so `index.html` is at the zip root), create an HTML project,
   upload the zip, and tick "This file will be played in the browser". Use a 1920×1080 or 1280×720 viewport
   with fullscreen enabled.
-- **GitHub Pages:** push `dist/` to a `gh-pages` branch, or use a Pages workflow that runs `npm ci && npm run build`
-  and publishes `dist/`.
+- **GitHub Pages:** `.github/workflows/deploy.yml` runs the tests, builds, and publishes `dist/` on every push to `master`.
 
 ## Development
 
