@@ -73,18 +73,19 @@ export const MAVERICK = {
 
 export const BOMBS = {
   cooldown: 0.35,
-  /** Fall time = factor × aircraft height (band units). Medium ≈ 1.1 s, High ≈ 1.9 s. */
+  /**
+   * Fall time = factor × aircraft height (band units). Medium ≈ 1.1 s, High ≈ 1.9 s.
+   * Bombs land exactly on the CCIP reticle at every altitude: no hidden scatter.
+   */
   fallTimePerHeight: 0.82,
-  scatterMedium: 10,
-  scatterHigh: 140,
   damage: 150,
   splash: 85,
 } as const;
 
+/** Popping flares always decoys every SAM missile tracking you (no hidden roll). */
 export const FLARES = {
   count: 8,
   cooldown: 0.8,
-  decoyChance: 0.6,
   life: 2.5,
 } as const;
 

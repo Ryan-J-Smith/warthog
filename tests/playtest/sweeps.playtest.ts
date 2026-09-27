@@ -3,7 +3,7 @@
  * Candidate values are applied with the prototype-only `withTuning` helper and restored after.
  */
 import { describe, expect, it } from 'vitest';
-import { ENTITY_STATS, FLARES, GUN } from '../../src/config';
+import { ENTITY_STATS, GUN } from '../../src/config';
 import type { SimSystem } from '../../src/sim/systems';
 import type { AltitudeBand, WeaponId } from '../../src/sim/types';
 import { ACE, AVERAGE, HUMAN_KEYBOARD, ROOKIE, attackRuns, fastDiveSystems, firstTime, labFlight, mean, rampedTurnSystems, piloted, set, table, withTuning, type Intent, type Override, type SkillProfile } from './harness';
@@ -148,13 +148,10 @@ describe('sweeps', () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
-  it('SAM: flare strength vs dive rate', () => {
+  it('SAM: dive rate (flares always decoy)', () => {
     const variants: Array<{ name: string; overrides: Override[]; systems?: () => SimSystem[] }> = [
-      { name: 'current (flares 75%, dive 1.0 band/s)', overrides: [] },
-      { name: 'flares 50%', overrides: [set(FLARES, { decoyChance: 0.5 })] },
+      { name: 'current config', overrides: [] },
       { name: 'dive 2.0 band/s', overrides: [], systems: () => fastDiveSystems(2.0) },
-      { name: 'flares 50% + dive 2.0', overrides: [set(FLARES, { decoyChance: 0.5 })], systems: () => fastDiveSystems(2.0) },
-      { name: 'flares 60% + dive 1.6', overrides: [set(FLARES, { decoyChance: 0.6 })], systems: () => fastDiveSystems(1.6) },
     ];
     const responses: Array<{ label: string; skill: SkillProfile }> = [
       { label: 'none', skill: { ...ACE, samResponse: 'none', jinks: false, aimWobble: 0 } },

@@ -1,4 +1,4 @@
-import { BAND_ALTITUDE, BOMBS, CLIMB_RATE, ENTITY_STATS, FLARES, GUN, SCORING, bandOf } from '../../../src/config';
+import { BAND_ALTITUDE, CLIMB_RATE, ENTITY_STATS, GUN, SCORING, bandOf } from '../../../src/config';
 import type { LevelDefinition } from '../../../src/sim/level';
 import type { EntityKind } from '../../../src/sim/types';
 import { approach } from '../../../src/sim/math';
@@ -73,13 +73,11 @@ function samStats() {
  * The proposed v1 config changes (see docs/ai_docs/fun.md). Prototype-only overrides.
  * - AA: survivable-but-scary at Low (was a one-pass kill).
  * - Gun: rounds walk forward onto the target; slightly bigger hit slop.
- * - Bombs from High scatter widely (toss bombing costs ammo, not safety).
  * - RTB grace long enough to finish an optional after the primaries.
  */
 export const PROPOSED_CONFIG: readonly Override[] = [
   set(shilka(), { roundDamage: 2, spreadLow: 30, spreadMedium: 50, burstPause: 1.2, roundsPerBurst: 10 }),
   set(GUN, { dipRate: 0.7, hitSlop: 7 }),
-  set(BOMBS, { scatterHigh: 140 }),
   set(SCORING, { rtbGrace: 90 }),
 ];
 
@@ -87,7 +85,7 @@ export const PROPOSED_CONFIG: readonly Override[] = [
  * Proposed SAM changes: the ring properly covers the bridge, flares are a backup rather than a
  * guarantee, and diving is the answer (pair with `fastDiveSystems(1.6)`).
  */
-export const PROPOSED_SAM: readonly Override[] = [set(samStats(), { range: 1250 }), set(FLARES, { decoyChance: 0.6 })];
+export const PROPOSED_SAM: readonly Override[] = [set(samStats(), { range: 1250 })];
 
 /** Dive rate used by the proposal (bands / s); climbing stays at 1.0. */
 export const PROPOSED_DIVE_RATE = 1.6;

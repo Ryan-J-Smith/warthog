@@ -101,11 +101,11 @@ describe('proposal A/B', () => {
   });
 
   it('ablations: remove one piece of the package', () => {
-    const [aa, gun, bombs, rtb] = PROPOSED_CONFIG;
+    const [aa, gun, rtb] = PROPOSED_CONFIG;
     const pieces: Array<{ name: string; condition: Condition }> = [
       { name: 'full proposal', condition: PROPOSAL },
-      { name: 'minus AA change', condition: { ...PROPOSAL, name: 'no AA', overrides: [gun, bombs, rtb, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined) } },
-      { name: 'minus gun change', condition: { ...PROPOSAL, name: 'no gun', overrides: [aa, bombs, rtb, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined) } },
+      { name: 'minus AA change', condition: { ...PROPOSAL, name: 'no AA', overrides: [gun, rtb, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined) } },
+      { name: 'minus gun change', condition: { ...PROPOSAL, name: 'no gun', overrides: [aa, rtb, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined) } },
       { name: 'minus level data', condition: { ...PROPOSAL, name: 'no level', level: riverCrossing } },
     ];
     const lines: string[] = [];
@@ -129,11 +129,11 @@ describe('proposal A/B', () => {
   });
 
   it('RTB clock: can you still do an optional after the primaries?', () => {
-    const [aa, gun, bombs] = PROPOSED_CONFIG;
+    const [aa, gun] = PROPOSED_CONFIG;
     const shortGrace: Condition = {
       ...PROPOSAL,
       name: 'proposal, 25 s grace',
-      overrides: [aa, gun, bombs, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined),
+      overrides: [aa, gun, ...PROPOSED_SAM].filter((o): o is Override => o !== undefined),
     };
     const base = run(shortGrace, ['primaries-then-dump'], [ACE, AVERAGE]);
     const prop = run(PROPOSAL, ['primaries-then-dump'], [ACE, AVERAGE]);

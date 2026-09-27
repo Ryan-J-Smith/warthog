@@ -54,23 +54,23 @@ describe('air defence', () => {
     expect(run(high, 2).some((e) => e.type === 'aaBurst')).toBe(false);
   });
 
-  it('flares can decoy a tracking SAM', () => {
+  it('flares always decoy a tracking SAM', () => {
     const level = makeLevel({
       player: { spawn: { x: 400, y: 1000 }, headingDeg: 180 },
       entities: [{ refId: 'sam', kind: 'samSite', pos: { x: 1300, y: 1000 } }],
     });
-    // Try a few seeds: decoy is probabilistic (75%).
-    let decoyed = false;
-    for (const seed of [1, 2, 3, 4, 5]) {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const sim = new Simulation(level, seed);
       sim.step(input({ climb: true }));
-      for (let i = 0; i < 600; i++) {
+      let launched = false;
+      for (let i = 0; i < 600 && !launched; i++) {
         sim.step(input());
-        if (sim.drainEvents().some((e) => e.type === 'samLaunched')) break;
+        launched = sim.drainEvents().some((e) => e.type === 'samLaunched');
       }
+      expect(launched).toBe(true);
       sim.step(input({ flare: true }));
-      if (sim.drainEvents().some((e) => e.type === 'samDecoyed')) decoyed = true;
+      expect(sim.drainEvents().some((e) => e.type === 'samDecoyed')).toBe(true);
+      expect(sim.world.player.missilesTracking).toBe(0);
     }
-    expect(decoyed).toBe(true);
   });
 });

@@ -71,6 +71,24 @@ describe('weapons', () => {
     expect(sim.world.findByRef('bridge')?.alive).toBe(false);
   });
 
+  it('bombs land exactly on the CCIP reticle, even from High (no hidden scatter)', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const sim = new Simulation(makeLevel(), seed);
+      sim.step(input({ climb: true, select: 'bombs' }));
+      sim.step(input({ climb: true }));
+      run(sim, 2.5);
+      expect(sim.world.player.band).toBe('high');
+      const ccip = { ...sim.world.reticle.impact! };
+      const speed = sim.world.player.speed;
+      sim.step(input({ fire: true }));
+      const impact = run(sim, 3).find((e) => e.type === 'ordnanceImpact' && e.weapon === 'bomb');
+      expect(impact?.type).toBe('ordnanceImpact');
+      if (impact?.type !== 'ordnanceImpact') continue;
+      // Within the one sim step the aircraft moves between reading the reticle and releasing.
+      expect(Math.hypot(impact.pos.x - ccip.x, impact.pos.y - ccip.y)).toBeLessThanOrEqual(speed / 60 + 1);
+    }
+  });
+
   it('Maverick needs a lock at Medium and then kills the target', () => {
     const level = makeLevel({ entities: [{ refId: 't', kind: 'tank', pos: { x: 1650, y: 1000 } }] });
     const sim = new Simulation(level);

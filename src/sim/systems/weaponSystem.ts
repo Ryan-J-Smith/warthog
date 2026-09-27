@@ -167,7 +167,7 @@ export class WeaponSystem extends SimSystem {
     const range = rocketRange(world);
     const n = ROCKETS.perSalvo;
     for (let i = 0; i < n; i++) {
-      const spread = degToRad(ROCKETS.spreadDeg) * (i - (n - 1) / 2) + world.rng.range(-0.01, 0.01);
+      const spread = degToRad(ROCKETS.spreadDeg) * (i - (n - 1) / 2);
       const side = (i % 2 === 0 ? 1 : -1) * 22;
       const origin = offsetFrom(p.pos, p.heading, PLAYER.hardpointOffset, side);
       const aim = offsetFrom(p.pos, p.heading + spread, range, 0);
@@ -235,10 +235,7 @@ export class WeaponSystem extends SimSystem {
     p.ammo.bombs -= 1;
     this.cooldowns.bombs = BOMBS.cooldown;
     const fall = bombFallTime(world);
-    const scatter = lerp(BOMBS.scatterMedium, BOMBS.scatterHigh, clamp(p.alt - 1, 0, 1));
-    const off = world.rng.inDisc(scatter);
-    const ccip = bombImpact(world);
-    const aim = { x: ccip.x + off.x, y: ccip.y + off.y };
+    const aim = bombImpact(world);
     const origin = { ...p.pos };
     const dist = distance(origin, aim);
     world.projectiles.push(
@@ -267,10 +264,9 @@ export class WeaponSystem extends SimSystem {
       flare.vel = { x: velocity.x * 0.35 + dir.x, y: velocity.y * 0.35 + dir.y };
       world.projectiles.push(flare);
     }
-    // Decoy SAMs currently tracking the player.
+    // Decoy every SAM currently tracking the player.
     for (const missile of world.projectiles) {
       if (missile.kind !== 'samMissile' || missile.targetId !== -1 || missile.lostLock) continue;
-      if (!world.rng.chance(FLARES.decoyChance)) continue;
       missile.targetId = null;
       missile.lostLock = true;
       missile.aimPoint = { ...p.pos };
