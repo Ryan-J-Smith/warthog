@@ -51,7 +51,7 @@ export function controlRows(): ControlRow[] {
     { keys: weaponKeys, action: 'Gun · Rockets · Maverick · Bombs' },
     { keys: actionKeys('flare'), action: 'Flares (decoy SAMs)' },
     { keys: actionKeys('pause'), action: 'Pause' },
-    { keys: actionKeys('mute'), action: 'Mute music' },
+    { keys: actionKeys('mute'), action: 'Mute all sound' },
   ];
 }
 

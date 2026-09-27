@@ -23,6 +23,8 @@ export class MenuList {
   readonly container: Phaser.GameObjects.Container;
   enabled = true;
   private index = 0;
+  /** False while keyboard focus is elsewhere (e.g. the sound settings rows): no highlight. */
+  private focused = true;
   private readonly texts: Phaser.GameObjects.Text[];
   private readonly bar: Phaser.GameObjects.Graphics;
   private readonly chevron: Phaser.GameObjects.Text;
@@ -52,7 +54,7 @@ export class MenuList {
       // Hit area in the text's local space (top-left origin): the whole highlight bar.
       t.setInteractive(new Phaser.Geom.Rectangle(-28, t.height / 2 - barH / 2, width, barH), Phaser.Geom.Rectangle.Contains);
       t.on(Phaser.Input.Events.POINTER_OVER, () => {
-        if (this.enabled && this.index !== i) this.select(i, true);
+        if (this.enabled && (this.index !== i || !this.focused)) this.select(i, true);
       });
       t.on(Phaser.Input.Events.POINTER_DOWN, () => {
         if (!this.enabled) return;
@@ -67,6 +69,10 @@ export class MenuList {
 
   get selected(): number {
     return this.index;
+  }
+
+  get count(): number {
+    return this.texts.length;
   }
 
   move(delta: number): void {
@@ -86,8 +92,18 @@ export class MenuList {
   select(index: number, withSound: boolean): void {
     this.index = index;
     if (withSound) this.options.sound.move();
+    this.setFocused(true);
     this.applySelection(true);
     this.options.onMove?.(index);
+  }
+
+  /** Show or hide the selection highlight (keyboard focus moved to another widget and back). */
+  setFocused(focused: boolean): void {
+    if (this.focused === focused) return;
+    this.focused = focused;
+    this.bar.setVisible(focused);
+    this.chevron.setVisible(focused);
+    this.applySelection(false);
   }
 
   setVisible(visible: boolean): void {
@@ -108,7 +124,7 @@ export class MenuList {
       this.chevron.y = y;
     }
     this.texts.forEach((t, i) => {
-      const on = i === this.index;
+      const on = this.focused && i === this.index;
       t.setColor(css(on ? COLOR.greenBright : COLOR.greenDim));
       t.setShadow(0, 0, css(COLOR.green), on ? 12 : 0, false, on);
     });

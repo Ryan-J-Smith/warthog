@@ -1,13 +1,11 @@
 import type { AudioKey } from '../assets';
 import type { MissionOutcome } from '../sim/types';
+import type { AudioSettings } from './audioSettings';
 import { MIX } from './mixTable';
 import { MusicControl } from './musicControl';
-import type { SettingsStore } from './settingsStore';
 import type { SoundBackend, SoundVoice } from './soundBackend';
 
-export const MUSIC_MUTE_KEY = 'warthog.musicMuted';
-
-/** Overall music level relative to sound effects. */
+/** Overall music level relative to sound effects (at 100% music volume). */
 export const MUSIC_VOLUME = 0.6;
 
 const DUCK_ATTACK_MS = 90;
@@ -27,26 +25,26 @@ interface Track {
 }
 
 /**
- * Engine-independent music logic: crossfades, stings, ducking, persisted mute.
- * `MusicManager` shares one instance per game so every scene talks to the same music.
+ * Engine-independent music logic: crossfades, stings, ducking. Level and mute follow the player's
+ * `AudioSettings` (music channel). `MusicManager` shares one instance per game.
  */
 export class MusicCore extends MusicControl {
   private tracks: Track[] = [];
   private current: Track | null = null;
-  private muted: boolean;
   private nowMs = 0;
   private duckLevel = 1;
   private duckTarget = 1;
   private duckUntilMs = 0;
   private readonly unsubscribe: () => void;
+  private readonly unsubscribeSettings: () => void;
 
   constructor(
     private readonly backend: SoundBackend,
-    private readonly store: SettingsStore,
+    private readonly settings: AudioSettings,
   ) {
     super();
-    this.muted = store.get(MUSIC_MUTE_KEY) === '1';
     this.unsubscribe = backend.onTick((dt) => this.tick(dt));
+    this.unsubscribeSettings = settings.subscribe(() => this.apply());
   }
 
   playTitle(): void {
@@ -70,18 +68,6 @@ export class MusicCore extends MusicControl {
     this.current = null;
   }
 
-  /** Toggle music mute (persisted). Returns the new muted state. */
-  toggleMute(): boolean {
-    this.muted = !this.muted;
-    this.store.set(MUSIC_MUTE_KEY, this.muted ? '1' : '0');
-    this.apply();
-    return this.muted;
-  }
-
-  isMuted(): boolean {
-    return this.muted;
-  }
-
   duck(level: number, holdMs: number): void {
     this.duckTarget = Math.min(this.duckTarget, Math.max(0, Math.min(1, level)));
     this.duckUntilMs = Math.max(this.duckUntilMs, this.nowMs + holdMs);
@@ -94,6 +80,7 @@ export class MusicCore extends MusicControl {
 
   destroy(): void {
     this.unsubscribe();
+    this.unsubscribeSettings();
     for (const t of this.tracks) t.voice.destroy();
     this.tracks = [];
     this.current = null;
@@ -147,7 +134,7 @@ export class MusicCore extends MusicControl {
   }
 
   private apply(): void {
-    const master = this.muted ? 0 : MUSIC_VOLUME * this.duckLevel;
+    const master = MUSIC_VOLUME * this.settings.gain('music') * this.duckLevel;
     for (const t of this.tracks) t.voice.setVolume(master * MIX[t.key].volume * t.gain);
   }
 }

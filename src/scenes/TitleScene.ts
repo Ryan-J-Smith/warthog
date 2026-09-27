@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MusicManager } from '../audio';
+import { MusicManager, audioSettingsFor } from '../audio';
 import { CREDITS_TEXT } from '../content/credits';
 import { LEVELS } from '../content/levels';
 import { BAND_NAME, PLAY_TIPS, bandPrimer } from '../ui/copy';
@@ -7,7 +7,9 @@ import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/s
 import { TACMAP_TERRAIN, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, css, textStyle } from '../ui/theme';
 import {
+  MenuFocus,
   MenuList,
+  SoundSettingsPanel,
   UI_TEX,
   artOr,
   bindMenuKeys,
@@ -50,6 +52,7 @@ const FLY_BYS: ReadonlyArray<readonly [number, number, number, number, number, n
 export class TitleScene extends Phaser.Scene {
   private uiSound!: UiSoundPort;
   private menu!: MenuList;
+  private focus!: MenuFocus;
   private map!: Phaser.GameObjects.Image;
   private plane!: Phaser.GameObjects.Image;
   private shadow!: Phaser.GameObjects.Image;
@@ -155,15 +158,31 @@ export class TitleScene extends Phaser.Scene {
       fontSize: 38,
       sound: this.uiSound,
       onConfirm: (i) => this.choose(i),
+      onMove: () => this.focus.menuFocused(),
     });
-    const hint = this.add.text(logoX + 6, height - 70, '↑↓ / W S  SELECT     ENTER  CONFIRM', textStyle({ size: 18, color: COLOR.greenDim, glow: false }));
+    const soundPanel = new SoundSettingsPanel(this, audioSettingsFor(this.game), {
+      x: logoX,
+      y: 866,
+      width: 520,
+      rowHeight: 52,
+      fontSize: 24,
+      sound: this.uiSound,
+      onFocusRequest: (row) => this.focus.focusRow(row),
+    });
+    this.focus = new MenuFocus(this.menu, soundPanel);
+    const hint = this.add.text(
+      logoX + 6,
+      height - 70,
+      '↑↓  SELECT     ←→  VOLUME     ENTER  CONFIRM     M  MUTE ALL',
+      textStyle({ size: 18, color: COLOR.greenDim, glow: false }),
+    );
     this.add.text(logoX + 6, height - 44, 'v0.1 PROTOTYPE  ·  KEYBOARD', textStyle({ size: 15, color: COLOR.greenFaint, glow: false }));
 
     // Intro: logo slams in, the rest follows.
     logo.setScale(1.5).setAlpha(0);
     this.tweens.add({ targets: logo, scale: 1, alpha: 1, duration: 520, ease: 'Expo.easeOut', delay: 150 });
     this.time.delayedCall(420, () => this.cameras.main.shake(160, 0.004));
-    for (const [i, o] of [kicker, tagline, ruleG, this.menu.container, hint].entries()) {
+    for (const [i, o] of [kicker, tagline, ruleG, this.menu.container, soundPanel.container, hint].entries()) {
       const x = o.x;
       o.setAlpha(0);
       o.x = x - 40;
@@ -175,9 +194,15 @@ export class TitleScene extends Phaser.Scene {
     bindMenuKeys(this, {
       up: () => this.nav(-1),
       down: () => this.nav(1),
-      confirm: () => (this.overlay ? this.closeOverlay() : this.menu.confirm()),
+      left: () => {
+        if (!this.overlay) this.focus.left();
+      },
+      right: () => {
+        if (!this.overlay) this.focus.right();
+      },
+      confirm: () => (this.overlay ? this.closeOverlay() : this.focus.confirm()),
       back: () => this.closeOverlay(),
-      actions: { mute: () => music.toggleMute() },
+      actions: { mute: () => audioSettingsFor(this.game).toggleAll() },
     });
   }
 
@@ -201,7 +226,9 @@ export class TitleScene extends Phaser.Scene {
       text.y = Phaser.Math.Clamp(text.y - delta * 60, min, top);
       return;
     }
-    if (!this.overlay) this.menu.move(delta);
+    if (this.overlay) return;
+    if (delta < 0) this.focus.up();
+    else this.focus.down();
   }
 
   private choose(index: number): void {

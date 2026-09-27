@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { MemorySettingsStore, MUSIC_MUTE_KEY, MusicCore } from '../../src/audio';
+import { AudioSettings, MemorySettingsStore, MusicCore } from '../../src/audio';
 import { FakeBackend } from './fakes';
 
-function setup(store = new MemorySettingsStore()) {
+function setup(settings = new AudioSettings(new MemorySettingsStore())) {
   const backend = new FakeBackend();
-  const music = new MusicCore(backend, store);
+  const music = new MusicCore(backend, settings);
   const advance = (ms: number) => {
     for (let t = 0; t < ms; t += 16) backend.tick(16);
   };
-  return { backend, music, store, advance };
+  return { backend, music, settings, advance };
 }
 
 describe('MusicCore', () => {
@@ -47,14 +47,32 @@ describe('MusicCore', () => {
     expect(backend.created.filter((v) => v.key === 'stingDefeat')).toHaveLength(1);
   });
 
-  it('mutes, persists the choice, and restores it next time', () => {
-    const { backend, music, store, advance } = setup();
+  it('follows the music volume and mute settings immediately', () => {
+    const { backend, music, settings, advance } = setup();
     music.playTitle();
     advance(3000);
-    expect(music.toggleMute()).toBe(true);
-    expect(backend.loop('musicTitle')!.volume).toBe(0);
-    expect(store.get(MUSIC_MUTE_KEY)).toBe('1');
-    expect(setup(store).music.isMuted()).toBe(true);
+    const title = backend.loop('musicTitle')!;
+    const full = title.volume;
+
+    settings.setVolume('music', 0.5);
+    expect(title.volume).toBeCloseTo(full * 0.25, 5);
+
+    settings.setMuted('music', true);
+    expect(title.volume).toBe(0);
+
+    settings.setMuted('music', false);
+    expect(title.volume).toBeCloseTo(full * 0.25, 5);
+  });
+
+  it('ignores the sound-effects settings', () => {
+    const { backend, music, settings, advance } = setup();
+    music.playTitle();
+    advance(3000);
+    const title = backend.loop('musicTitle')!;
+    const full = title.volume;
+    settings.setMuted('sfx', true);
+    settings.setVolume('sfx', 0);
+    expect(title.volume).toBe(full);
   });
 
   it('ducks under radio calls and recovers afterwards', () => {

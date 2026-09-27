@@ -3,14 +3,14 @@ import type { MissionOutcome } from '../sim/types';
 import { MusicControl } from './musicControl';
 import { MusicCore } from './musicCore';
 import { PhaserSoundBackend } from './phaserSoundBackend';
-import { LocalSettingsStore } from './settingsStore';
+import { audioSettingsFor } from './sharedAudioSettings';
 
 /** One music core per game, shared by every MusicManager (and so every scene). */
 const cores = new WeakMap<Phaser.Game, MusicCore>();
 
 /**
  * Music for the whole game: title/briefing theme, mission theme, victory/defeat stings,
- * crossfades, ducking and a persisted mute toggle (M key).
+ * crossfades and ducking. Volume and mute come from the shared `AudioSettings`.
  *
  * Construct one in any scene: all instances share the same underlying state, so calling
  * `playTitle()` from the briefing while the title theme is already playing is a no-op, and
@@ -23,7 +23,7 @@ export class MusicManager extends MusicControl {
     super();
     let core = cores.get(scene.game);
     if (!core) {
-      core = new MusicCore(new PhaserSoundBackend(scene), new LocalSettingsStore());
+      core = new MusicCore(new PhaserSoundBackend(scene), audioSettingsFor(scene.game));
       cores.set(scene.game, core);
     }
     this.core = core;
@@ -43,15 +43,6 @@ export class MusicManager extends MusicControl {
 
   stop(): void {
     this.core.stop();
-  }
-
-  /** Returns true when music is now muted. */
-  toggleMute(): boolean {
-    return this.core.toggleMute();
-  }
-
-  isMuted(): boolean {
-    return this.core.isMuted();
   }
 
   duck(level: number, holdMs: number): void {

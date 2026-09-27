@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MusicManager } from '../audio';
+import { MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
 import type { LevelDefinition } from '../sim/level';
@@ -86,7 +86,7 @@ export class BriefingScene extends Phaser.Scene {
     bindMenuKeys(this, {
       confirm: () => this.advance(),
       back: () => this.back(),
-      actions: { mute: () => music.toggleMute() },
+      actions: { mute: () => audioSettingsFor(this.game).toggleAll() },
     });
   }
 

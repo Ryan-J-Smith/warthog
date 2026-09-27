@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AudioDirector, MusicManager } from '../audio';
+import { AudioDirector, MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
 import { KeyboardControls } from '../controls';
@@ -88,7 +88,7 @@ export class GameScene extends Phaser.Scene {
       this.pauseGame();
       return;
     }
-    if (this.controls.pressed('mute')) this.music.toggleMute();
+    if (this.controls.pressed('mute')) audioSettingsFor(this.game).toggleAll();
 
     const view = this.sim.view;
     const events = this.sim.advance(this.simDelta(delta) / 1000, this.controls.read());

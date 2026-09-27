@@ -1,19 +1,30 @@
 import Phaser from 'phaser';
-import { MusicManager } from '../audio';
+import { audioSettingsFor } from '../audio';
 import { getLevel } from '../content/levels';
 import { formatMissionClock, formatScore } from '../ui/format';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { COLOR, textStyle } from '../ui/theme';
-import { MenuList, UI_TEX, bindMenuKeys, createControlsCard, drawPanel, drawRule, ensureUiTextures } from '../ui/widgets';
+import {
+  MenuFocus,
+  MenuList,
+  SoundSettingsPanel,
+  UI_TEX,
+  bindMenuKeys,
+  createControlsCard,
+  drawPanel,
+  drawRule,
+  ensureUiTextures,
+} from '../ui/widgets';
 import type { GameScene } from './GameScene';
 import { SCENES, type GameSceneData, type PauseSceneData } from './sceneKeys';
 
 const PANEL_W = 1180;
-const PANEL_H = 600;
+const PANEL_H = 700;
 
 /**
- * Pause menu over the frozen mission: RESUME / RESTART MISSION / QUIT TO TITLE, plus a
- * controls card. ESC or P resumes. The HUD pauses and resumes with the Game scene.
+ * Pause menu over the frozen mission: RESUME / RESTART MISSION / QUIT TO TITLE, music and sound
+ * effects volume/mute, plus a controls card. ESC or P resumes. The HUD pauses and resumes with
+ * the Game scene.
  */
 export class PauseScene extends Phaser.Scene {
   private levelId = '';
@@ -56,6 +67,7 @@ export class PauseScene extends Phaser.Scene {
     }
     drawRule(g, x0 + 48, y0 + 212, 460);
 
+    let focus: MenuFocus | null = null;
     const menu = new MenuList(this, ['RESUME', 'RESTART MISSION', 'QUIT TO TITLE'], {
       x: x0 + 40,
       y: y0 + 280,
@@ -64,9 +76,21 @@ export class PauseScene extends Phaser.Scene {
       fontSize: 34,
       sound: this.uiSound,
       onConfirm: (i) => this.choose(i),
+      onMove: () => focus?.menuFocused(),
     });
+    const soundPanel = new SoundSettingsPanel(this, audioSettingsFor(this.game), {
+      x: x0 + 40,
+      y: y0 + 510,
+      width: 480,
+      rowHeight: 52,
+      fontSize: 24,
+      sound: this.uiSound,
+      onFocusRequest: (row) => focus?.focusRow(row),
+    });
+    focus = new MenuFocus(menu, soundPanel);
+    const nav = focus;
 
-    this.add.text(x0 + 52, y0 + PANEL_H - 56, '↑↓ SELECT   ·   ENTER CONFIRM   ·   ESC RESUME', textStyle({ size: 17, color: COLOR.greenDim, glow: false }));
+    this.add.text(x0 + 52, y0 + PANEL_H - 56, '↑↓ SELECT  ·  ←→ VOLUME  ·  ENTER OK  ·  ESC RESUME', textStyle({ size: 17, color: COLOR.greenDim, glow: false }));
 
     this.add.text(x0 + 600, y0 + 48, 'CONTROLS', textStyle({ size: 22, color: COLOR.greenDim, glow: false }));
     drawRule(g, x0 + 600, y0 + 84, PANEL_W - 648);
@@ -78,11 +102,13 @@ export class PauseScene extends Phaser.Scene {
     this.tweens.add({ targets: lines, alpha: 0.3, duration: 140 });
 
     bindMenuKeys(this, {
-      up: () => menu.move(-1),
-      down: () => menu.move(1),
-      confirm: () => menu.confirm(),
+      up: () => nav.up(),
+      down: () => nav.down(),
+      left: () => nav.left(),
+      right: () => nav.right(),
+      confirm: () => nav.confirm(),
       back: () => this.resume(),
-      actions: { pause: () => this.resume(), mute: () => new MusicManager(this).toggleMute() },
+      actions: { pause: () => this.resume(), mute: () => audioSettingsFor(this.game).toggleAll() },
     });
   }
 

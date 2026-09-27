@@ -29,7 +29,7 @@ Dev shortcuts: `?play=river-crossing` skips straight into the mission, and `wind
 | `1` `2` `3` `4` | Gun / Rockets / Maverick / Bombs |
 | `Q` | Flares |
 | `Esc` / `P` | Pause |
-| `M` | Mute music |
+| `M` | Mute / unmute all sound (music and volume per channel: title and pause menus) |
 
 **Altitude cheat sheet:** anti-aircraft guns reach Low and Medium, SAMs reach Medium and High.
 Dive to Low to break a SAM lock, or pop flares (they always decoy a missile tracking you).

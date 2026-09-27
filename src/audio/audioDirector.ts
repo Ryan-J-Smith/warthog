@@ -19,11 +19,14 @@ import { PhaserSoundBackend } from './phaserSoundBackend';
  */
 export class AudioDirector extends SimEventListener {
   private readonly core: AudioDirectorCore;
+  private readonly backend: PhaserSoundBackend;
 
   constructor(scene: Phaser.Scene) {
     super();
+    // Everything the director plays is a sound effect: scaled by the player's SFX volume/mute.
+    this.backend = new PhaserSoundBackend(scene, 'sfx');
     this.core = new AudioDirectorCore({
-      backend: new PhaserSoundBackend(scene),
+      backend: this.backend,
       music: new MusicManager(scene),
     });
   }
@@ -38,5 +41,6 @@ export class AudioDirector extends SimEventListener {
 
   destroy(): void {
     this.core.destroy();
+    this.backend.dispose();
   }
 }

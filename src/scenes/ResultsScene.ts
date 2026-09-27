@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MusicManager } from '../audio';
+import { MusicManager, audioSettingsFor } from '../audio';
 import { SCORING } from '../config';
 import { getLevel } from '../content/levels';
 import type { MissionResults } from '../sim/world';
@@ -138,7 +138,7 @@ export class ResultsScene extends Phaser.Scene {
       up: () => this.menu.move(-1),
       down: () => this.menu.move(1),
       confirm: () => (this.done ? this.menu.confirm() : this.skip()),
-      actions: { mute: () => new MusicManager(this).toggleMute() },
+      actions: { mute: () => audioSettingsFor(this.game).toggleAll() },
     });
   }
 
