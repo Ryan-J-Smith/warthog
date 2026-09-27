@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SPRITE_RESOLUTION, type SpriteKey } from '../../assets';
 import { PLAYER } from '../../config';
-import { distance } from '../../sim/math';
+import { clamp, distance, type Vec2 } from '../../sim/math';
 import type { WeaponId } from '../../sim/types';
 import type { WorldView } from '../../sim/world';
 import { DEPTH, iffAlpha, unitDisplayScale } from '../layers';
@@ -31,6 +31,21 @@ const COLORS = {
   iffFriendly: 0x4aa8ff,
 } as const;
 
+/**
+ * Dark keyline under every overlay stroke (extra screen px of width, and opacity relative to the
+ * stroke), so thin coloured lines stay legible on light desert and busy terrain, like the
+ * outlined reticle sprites.
+ */
+const KEYLINE = { color: 0x000000, width: 2.5, alpha: 0.75 } as const;
+
+/** Danger-zone look: `idle` = your band is out of its reach, `threat` = in reach, `active` = it's shooting at / locking you. */
+const ZONE_STYLE = {
+  idle: { fill: 0, edge: 0.2, width: 2 },
+  threat: { fill: 0.09, edge: 0.75, width: 3 },
+  active: { fill: 0.16, edge: 1, width: 4 },
+} as const;
+type ZoneState = keyof typeof ZONE_STYLE;
+
 /** Kinds that get IFF markers (vehicles, infantry and air defences; not big structures). */
 const IFF_KINDS = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'samSite', 'friendlyTank', 'friendlyInfantry']);
 
@@ -57,9 +72,9 @@ export class WorldUiRenderer {
   sync(view: WorldView): void {
     const zoom = this.scene.cameras.main.zoom;
     const px = 1 / zoom;
+    this.overlay.clear();
     this.drawRings(view, px);
     this.drawIff(view, px);
-    this.overlay.clear();
     this.drawObjectiveMarkers(view, px);
     this.drawReticle(view, px);
     this.drawLock(view, px);
@@ -90,8 +105,9 @@ export class WorldUiRenderer {
 
     // Bomb fall line from aircraft to CCIP.
     if (r.weapon === 'bombs' && r.ready) {
-      this.overlay.lineStyle(2 * px, color, 0.45);
-      dashedLine(this.overlay, p.pos.x, p.pos.y, r.impact.x, r.impact.y, 14 * px, 10 * px);
+      const g = this.overlay;
+      const impact = r.impact;
+      keylined(g, px, 2, color, 0.6, (ext) => dashedLine(g, p.pos.x, p.pos.y, impact.x, impact.y, 14 * px, 10 * px, 0, ext));
     }
   }
 
@@ -117,30 +133,29 @@ export class WorldUiRenderer {
     g.clear();
     const p = view.player;
     const cam = this.scene.cameras.main.worldView;
-    const margin = 1200;
+    const margin = 1400;
+    const t = this.scene.time.now / 1000;
 
     for (const e of view.entities) {
       if (!e.alive || !e.spotted || e.hidden) continue;
       if (e.pos.x < cam.x - margin || e.pos.x > cam.right + margin || e.pos.y < cam.y - margin || e.pos.y > cam.bottom + margin) continue;
       if (e.sam) {
-        const threat = p.band !== 'low';
-        const alpha = e.sam.locking ? 0.8 : threat ? 0.45 : 0.14;
-        g.lineStyle((e.sam.locking ? 4 : 2.5) * px, COLORS.sam, alpha);
-        dashedCircle(g, e.pos.x, e.pos.y, e.sam.range, 48);
+        const state: ZoneState = e.sam.locking ? 'active' : p.band !== 'low' ? 'threat' : 'idle';
+        drawZone(g, e.pos, e.sam.range, COLORS.sam, state, px, t);
+        if (e.sam.locking && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.sam, 0.45 + 0.5 * e.sam.lock, px, t);
       }
       if (e.aa) {
-        const threat = p.band !== 'high';
-        const alpha = e.aa.engaging ? 0.75 : threat ? 0.4 : 0.12;
-        g.lineStyle((e.aa.engaging ? 3.5 : 2) * px, COLORS.aa, alpha);
-        dashedCircle(g, e.pos.x, e.pos.y, e.aa.range, 28);
+        const state: ZoneState = e.aa.engaging ? 'active' : p.band !== 'high' ? 'threat' : 'idle';
+        drawZone(g, e.pos, e.aa.range, COLORS.aa, state, px, t);
+        if (e.aa.engaging && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.aa, 0.9, px, t);
       }
     }
 
     // Rearm zone around home base, with a progress arc.
     const home = view.entities.find((e) => e.refId === view.level.homeBaseRefId);
     if (home && distance(home.pos, p.pos) < 2200) {
-      g.lineStyle(2.5 * px, COLORS.rearm, 0.5);
-      dashedCircle(g, home.pos.x, home.pos.y, PLAYER.rearmRadius, 36);
+      const dashes = dashCount(PLAYER.rearmRadius, px);
+      keylined(g, px, 2.5, COLORS.rearm, 0.6, (ext) => dashedCircle(g, home.pos.x, home.pos.y, PLAYER.rearmRadius, dashes, 0, ext));
       if (p.rearm > 0) {
         g.lineStyle(8 * px, COLORS.rearm, 0.9);
         g.beginPath();
@@ -148,6 +163,26 @@ export class WorldUiRenderer {
         g.strokePath();
       }
     }
+  }
+
+  /**
+   * A marching dashed line from an air defence to the aircraft while it shoots at or locks you, so
+   * it's obvious who is firing and from where. Trimmed so it doesn't cover either sprite.
+   */
+  private drawTether(from: Vec2, fromRadius: number, to: Vec2, color: number, alpha: number, px: number, t: number): void {
+    const len = distance(from, to);
+    const start = fromRadius + 6 * px;
+    const end = len - PLAYER_CLEARANCE;
+    if (end - start < 20 * px) return;
+    const dx = (to.x - from.x) / len;
+    const dy = (to.y - from.y) / len;
+    const x1 = from.x + dx * start;
+    const y1 = from.y + dy * start;
+    const x2 = from.x + dx * end;
+    const y2 = from.y + dy * end;
+    const g = this.overlay;
+    const offset = t * 90 * px;
+    keylined(g, px, 2, color, alpha, (ext) => dashedLine(g, x1, y1, x2, y2, 12 * px, 9 * px, offset, ext));
   }
 
   /**
@@ -164,26 +199,28 @@ export class WorldUiRenderer {
       if (!e.alive || e.hidden || !IFF_KINDS.has(e.kind)) continue;
       if (e.pos.x < cam.x - 60 || e.pos.x > cam.right + 60 || e.pos.y < cam.y - 60 || e.pos.y > cam.bottom + 60) continue;
       if (e.team === 'friendly') {
+        const x = e.pos.x;
         const y = e.pos.y - e.radius * unitScale - 10 * px;
-        g.lineStyle(2.5 * px, COLORS.iffFriendly, alpha);
-        g.beginPath();
-        g.moveTo(e.pos.x - 6 * px, y - 5 * px);
-        g.lineTo(e.pos.x, y);
-        g.lineTo(e.pos.x + 6 * px, y - 5 * px);
-        g.strokePath();
+        keylined(g, px, 3, COLORS.iffFriendly, alpha, (ext) => {
+          segment(g, x - 7 * px, y - 6 * px, x, y, ext);
+          segment(g, x, y, x + 7 * px, y - 6 * px, ext);
+        });
         continue;
       }
       if (!e.spotted) continue;
       const threat = e.aa !== null || e.sam !== null;
       const half = Math.max(e.radius * unitScale * 1.25, 9 * px);
       const arm = Math.max(half * 0.45, 4 * px);
-      g.lineStyle(2.2 * px, threat ? COLORS.iffThreat : COLORS.iffEnemy, alpha);
-      corners(g, e.pos.x, e.pos.y, half, arm);
+      const x = e.pos.x;
+      const y = e.pos.y;
+      keylined(g, px, threat ? 3.5 : 3, threat ? COLORS.iffThreat : COLORS.iffEnemy, alpha, (ext) => corners(g, x, y, half, arm, ext));
       if (threat) {
-        // Small warning triangle above air defences.
-        const ty = e.pos.y - half - 9 * px;
+        // Warning triangle above air defences.
+        const ty = y - half - 11 * px;
         g.fillStyle(COLORS.iffThreat, alpha);
-        g.fillTriangle(e.pos.x - 5 * px, ty + 4 * px, e.pos.x + 5 * px, ty + 4 * px, e.pos.x, ty - 5 * px);
+        g.fillTriangle(x - 7 * px, ty + 5 * px, x + 7 * px, ty + 5 * px, x, ty - 7 * px);
+        g.lineStyle(1.5 * px, KEYLINE.color, alpha * KEYLINE.alpha);
+        g.strokeTriangle(x - 7 * px, ty + 5 * px, x + 7 * px, ty + 5 * px, x, ty - 7 * px);
       }
     }
   }
@@ -211,16 +248,78 @@ export class WorldUiRenderer {
   }
 }
 
+/** Keep tethers this far (world units) from the aircraft centre so they don't draw over the sprite. */
+const PLAYER_CLEARANCE = 70;
+
+/** Points reused by `drawZone` fills (one zone at a time). */
+const ZONE_POINTS: Vec2[] = Array.from({ length: 64 }, () => ({ x: 0, y: 0 }));
+
+/**
+ * Stroke `draw` twice: a dark keyline underneath, then the colour on top. `draw` receives how far
+ * (world units) to extend segment ends so the keyline also caps them.
+ */
+function keylined(
+  g: Phaser.GameObjects.Graphics,
+  px: number,
+  width: number,
+  color: number,
+  alpha: number,
+  draw: (extend: number) => void,
+): void {
+  g.lineStyle((width + KEYLINE.width) * px, KEYLINE.color, alpha * KEYLINE.alpha);
+  draw((KEYLINE.width / 2) * px);
+  g.lineStyle(width * px, color, alpha);
+  draw(0);
+}
+
+/** An air-defence danger zone: tinted fill when it can reach you, keylined marching dashed edge. */
+function drawZone(g: Phaser.GameObjects.Graphics, c: Vec2, radius: number, color: number, state: ZoneState, px: number, t: number): void {
+  const style = ZONE_STYLE[state];
+  if (style.fill > 0) {
+    const n = ZONE_POINTS.length;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const pt = ZONE_POINTS[i];
+      if (!pt) continue;
+      pt.x = c.x + Math.cos(a) * radius;
+      pt.y = c.y + Math.sin(a) * radius;
+    }
+    g.fillStyle(color, style.fill);
+    g.fillPoints(ZONE_POINTS, true);
+  }
+  // Dashes march around the edge (faster while it's shooting at you).
+  const speed = (state === 'active' ? 48 : 20) * px;
+  const phase = (t * speed) / radius;
+  const dashes = dashCount(radius, px);
+  keylined(g, px, style.width, color, style.edge, (ext) => dashedCircle(g, c.x, c.y, radius, dashes, phase, ext));
+}
+
+/** About one dash per 36 screen px of circumference. */
+function dashCount(radius: number, px: number): number {
+  return clamp(Math.round((Math.PI * 2 * radius) / (36 * px)), 24, 140);
+}
+
 /**
  * Dashed circle drawn with straight line segments. (Phaser's WebGL `arc` tessellates ~100 points
- * per call regardless of length, which is expensive for dozens of dashes every frame.)
+ * per call regardless of length, which is expensive for dozens of dashes every frame.) `phase`
+ * rotates the dashes (radians); `extend` lengthens each dash at both ends (world units).
  */
-function dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, dashes: number): void {
+function dashedCircle(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  radius: number,
+  dashes: number,
+  phase = 0,
+  extend = 0,
+): void {
   const step = (Math.PI * 2) / dashes;
-  const subdivisions = 3;
+  const pad = extend / radius;
+  const span = step * 0.6 + pad * 2;
+  // Short dashes are straight enough as one segment.
+  const subdivisions = Math.max(1, Math.ceil(span / 0.06));
   for (let i = 0; i < dashes; i++) {
-    const a0 = i * step;
-    const span = step * 0.6;
+    const a0 = phase + i * step - pad;
     let px = x + Math.cos(a0) * radius;
     let py = y + Math.sin(a0) * radius;
     for (let s = 1; s <= subdivisions; s++) {
@@ -234,29 +333,53 @@ function dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, radi
   }
 }
 
-/** Four corner brackets around a square of half-size `half` centred on (x, y). */
-function corners(g: Phaser.GameObjects.Graphics, x: number, y: number, half: number, arm: number): void {
+/** Four corner brackets around a square of half-size `half` centred on (x, y); `extend` lengthens each arm at both ends. */
+function corners(g: Phaser.GameObjects.Graphics, x: number, y: number, half: number, arm: number, extend = 0): void {
   const l = x - half;
   const r = x + half;
   const t = y - half;
   const b = y + half;
-  g.lineBetween(l, t, l + arm, t);
-  g.lineBetween(l, t, l, t + arm);
-  g.lineBetween(r, t, r - arm, t);
-  g.lineBetween(r, t, r, t + arm);
-  g.lineBetween(l, b, l + arm, b);
-  g.lineBetween(l, b, l, b - arm);
-  g.lineBetween(r, b, r - arm, b);
-  g.lineBetween(r, b, r, b - arm);
+  const e = extend;
+  g.lineBetween(l - e, t, l + arm + e, t);
+  g.lineBetween(l, t - e, l, t + arm + e);
+  g.lineBetween(r + e, t, r - arm - e, t);
+  g.lineBetween(r, t - e, r, t + arm + e);
+  g.lineBetween(l - e, b, l + arm + e, b);
+  g.lineBetween(l, b + e, l, b - arm - e);
+  g.lineBetween(r + e, b, r - arm - e, b);
+  g.lineBetween(r, b + e, r, b - arm - e);
 }
 
-function dashedLine(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number, dash: number, gap: number): void {
+/** A line segment lengthened by `extend` at both ends. */
+function segment(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number, extend: number): void {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < 1e-6) return;
+  const ex = ((x2 - x1) / len) * extend;
+  const ey = ((y2 - y1) / len) * extend;
+  g.lineBetween(x1 - ex, y1 - ey, x2 + ex, y2 + ey);
+}
+
+/** Dashed line; `offset` slides the dash pattern along the line, `extend` lengthens each dash at both ends. */
+function dashedLine(
+  g: Phaser.GameObjects.Graphics,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  dash: number,
+  gap: number,
+  offset = 0,
+  extend = 0,
+): void {
   const len = Math.hypot(x2 - x1, y2 - y1);
   if (len < 1) return;
   const dx = (x2 - x1) / len;
   const dy = (y2 - y1) / len;
-  for (let d = 0; d < len; d += dash + gap) {
+  const period = dash + gap;
+  for (let d = (offset % period) - period; d < len; d += period) {
+    const s = Math.max(0, d);
     const e = Math.min(len, d + dash);
-    g.lineBetween(x1 + dx * d, y1 + dy * d, x1 + dx * e, y1 + dy * e);
+    if (e <= s) continue;
+    g.lineBetween(x1 + dx * (s - extend), y1 + dy * (s - extend), x1 + dx * (e + extend), y1 + dy * (e + extend));
   }
 }

@@ -50,6 +50,7 @@ npm run preview      # serve dist/ locally to check it
 ```bash
 npm run typecheck    # tsc --noEmit (must be zero errors)
 npm test             # unit tests (Vitest)
+npx vitest run --config tests/playtest/vitest.config.ts   # headless bot playtests (~3 min)
 ```
 
 - `src/sim/`: pure TypeScript simulation (no Phaser). It runs at a fixed 60 Hz and emits `SimEvent`s.
