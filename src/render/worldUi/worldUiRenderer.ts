@@ -141,12 +141,12 @@ export class WorldUiRenderer {
       if (e.pos.x < cam.x - margin || e.pos.x > cam.right + margin || e.pos.y < cam.y - margin || e.pos.y > cam.bottom + margin) continue;
       if (e.sam) {
         const state: ZoneState = e.sam.locking ? 'active' : p.band !== 'low' ? 'threat' : 'idle';
-        drawZone(g, e.pos, e.sam.range, COLORS.sam, state, px, t);
+        drawZone(g, e.pos, e.sam.range, COLORS.sam, state, px, t, distance(e.pos, p.pos) <= e.sam.range);
         if (e.sam.locking && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.sam, 0.45 + 0.5 * e.sam.lock, px, t);
       }
       if (e.aa) {
         const state: ZoneState = e.aa.engaging ? 'active' : p.band !== 'high' ? 'threat' : 'idle';
-        drawZone(g, e.pos, e.aa.range, COLORS.aa, state, px, t);
+        drawZone(g, e.pos, e.aa.range, COLORS.aa, state, px, t, distance(e.pos, p.pos) <= e.aa.range);
         if (e.aa.engaging && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.aa, 0.9, px, t);
       }
     }
@@ -272,10 +272,22 @@ function keylined(
   draw(0);
 }
 
-/** An air-defence danger zone: tinted fill when it can reach you, keylined marching dashed edge. */
-function drawZone(g: Phaser.GameObjects.Graphics, c: Vec2, radius: number, color: number, state: ZoneState, px: number, t: number): void {
+/**
+ * An air-defence danger zone: keylined marching dashed edge, plus a tinted fill while you're inside
+ * it and it can reach you (only inside, so overlapping zones don't wash the map orange).
+ */
+function drawZone(
+  g: Phaser.GameObjects.Graphics,
+  c: Vec2,
+  radius: number,
+  color: number,
+  state: ZoneState,
+  px: number,
+  t: number,
+  playerInside: boolean,
+): void {
   const style = ZONE_STYLE[state];
-  if (style.fill > 0) {
+  if (style.fill > 0 && playerInside) {
     const n = ZONE_POINTS.length;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;

@@ -13,7 +13,7 @@ export interface SpriteSpec {
 
 export const SPRITES = {
   // Player
-  a10: { w: 144, h: 160, note: 'Player A-10 Warthog, top-down, nose east. CHUNKY TOY STYLE: fat fuselage, big straight wings, oversized twin tails and engine pods, comically big GAU-8 barrel at the nose.' },
+  a10: { w: 144, h: 160, note: 'Player A-10 Warthog, top-down, nose east: gunmetal two-tone camo, twin engine pods, straight wings, twin tails, GAU-8 at the nose; teal canopy glint and fin stripes as the player accent.' },
 
   // Enemy vehicles (red accents, olive/tan bodies)
   tankHull: { w: 76, h: 50, note: 'Enemy tank hull: big, chunky, heavy armour (clearly bigger than a mech).' },
@@ -22,9 +22,11 @@ export const SPRITES = {
   truck: { w: 52, h: 26, note: 'Enemy supply truck, cab at east end.' },
   truckWreck: { w: 52, h: 26, note: 'Burnt-out truck.' },
   infantry: { w: 52, h: 52, note: 'Enemy MECH (replaces infantry): a chunky bipedal walker seen from above, e.g. a squat cockpit/torso with arm guns and big feet, red accents. One mech per sprite.' },
-  aaHull: { w: 58, h: 40, note: 'Self-propelled AA (Shilka-style) tracked hull.' },
+  aaHull: { w: 58, h: 40, note: 'Self-propelled AA: short boxy 8-wheeled chassis with orange/black hazard bands (never tank-like).' },
   aaTurret: { w: 36, h: 32, note: 'AA turret with quad cannons pointing east. Pivot at centre.' },
   aaWreck: { w: 58, h: 40, note: 'Destroyed AA vehicle.' },
+  aaSite: { w: 64, h: 64, note: 'Static AA emplacement: sandbag ring pad under the AA turret.' },
+  aaSiteWreck: { w: 64, h: 64, note: 'Destroyed static AA emplacement.' },
   samBase: { w: 120, h: 120, note: 'SAM site: circular sandbag revetment, radar dish + cabin to one side. No launcher.' },
   samLauncher: { w: 70, h: 38, note: 'Rotating SAM launcher: rails with 2 missiles pointing east. Pivot at centre.' },
   samWreck: { w: 120, h: 120, note: 'Destroyed SAM site (scorched revetment, debris).' },

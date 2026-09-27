@@ -36,7 +36,7 @@ export const ENTITY_VISUALS: Record<EntityKind, EntityVisualSpec> = {
   tank: vehicle('tankHull', 'tankTurret', 'tankWreck', TANK_TURRET_PIVOT),
   truck: vehicle('truck', null, 'truckWreck'),
   infantry: vehicle('infantry', null, null),
-  aaGun: vehicle('aaHull', 'aaTurret', 'aaWreck'),
+  aaGun: vehicle('aaSite', 'aaTurret', 'aaSiteWreck'),
   mobileAa: vehicle('aaHull', 'aaTurret', 'aaWreck'),
   samSite: { ...structure('samBase', 'samWreck'), top: 'samLauncher' },
   bridge: structure('bridge', 'bridgeDestroyed'),

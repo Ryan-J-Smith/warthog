@@ -17,6 +17,8 @@ interface EntityVisual {
 
 const INV_RES = 1 / SPRITE_RESOLUTION;
 const FLASH_MS = 70;
+/** Hit tint for structures (vehicles flash white instead). */
+const STRUCTURE_HIT_TINT = 0xffa090;
 /** Halo diameter relative to the unit's sprite length. */
 const HALO_SIZE = 1.9;
 const HALO_ALPHA = 0.5;
@@ -113,8 +115,14 @@ export class EntityRenderer {
     }
 
     if (visual.flashUntil > now && entity.alive) {
-      base.setTintFill(0xffffff);
-      top?.setTintFill(0xffffff);
+      if (spec.structure) {
+        // Big structures (e.g. the outpost under constant ground fire) get a soft warm tint;
+        // a full white fill turns their whole footprint into a white square.
+        base.setTint(STRUCTURE_HIT_TINT);
+      } else {
+        base.setTintFill(0xffffff);
+        top?.setTintFill(0xffffff);
+      }
     } else {
       base.clearTint();
       top?.clearTint();
