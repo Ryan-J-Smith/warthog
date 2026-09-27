@@ -6,6 +6,8 @@ Mavericks and precise bombs, **High** for speed and a view of the whole sector.
 
 Xevious meets Desert Strike, with a third dimension.
 
+![WARTHOG: an A-10 over Outpost Bravo, inside an AA gun's range](docs/screenshot.jpg)
+
 ## Play (dev)
 
 ```bash
@@ -28,7 +30,8 @@ Dev shortcuts: `?play=river-crossing` skips straight into the mission, and `wind
 | `M` | Mute music |
 
 **Altitude cheat sheet:** anti-aircraft guns reach Low and Medium, SAMs reach Medium and High.
-Dive to Low to break a SAM lock. Hold Low over the home base to rearm and repair.
+Dive to Low to break a SAM lock, or pop flares (they always decoy a missile tracking you).
+Bombs land exactly on the reticle. Hold Low over the home base to rearm and repair.
 
 ## Build and share
 
