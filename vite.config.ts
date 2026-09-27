@@ -9,7 +9,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
   },
   server: {
-    host: true,
+    // Local only: never expose the dev server to the network.
+    host: 'localhost',
   },
   test: {
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
