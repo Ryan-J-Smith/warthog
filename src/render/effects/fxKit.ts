@@ -341,10 +341,12 @@ export class FxKit {
     x: number,
     y: number,
     size: ExplosionSize,
-    opts: { scale?: number; scorch?: boolean; crater?: boolean; shake?: boolean; dirt?: boolean } = {},
+    opts: { scale?: number; scorch?: boolean; crater?: boolean; shake?: boolean; dirt?: boolean; shakeScale?: number } = {},
   ): void {
     const T = EXPLOSION_TUNING[size];
     const k = opts.scale ?? 1;
+    /** Shake multiplier; defaults to following the visual scale (capped). */
+    const shakeK = opts.shakeScale ?? Math.min(1.6, k);
     const r = T.r * k;
     // Light: a wide warm glow on the terrain + a hot core.
     this.flash('ground', x, y, r * 9, 0.34, 0xffb86a, 0.42);
@@ -367,7 +369,7 @@ export class FxKit {
     this.ring('ground', x, y, r * 0.6, r * 5.2, 0.45 + r / 200, 0xfff2da, 0.55);
     if (opts.crater) this.decals.add('crater', x, y, r * 1.9, 0.95, 0.2);
     if (opts.scorch ?? true) this.decals.add('scorch', x, y, T.scorch * k, 0.85, 0.3);
-    if (opts.shake ?? true) this.shaker.shakeAt(x, y, T.shake * Math.min(1.6, k), T.shakeMs);
+    if (opts.shake ?? true) this.shaker.shakeAt(x, y, T.shake * shakeK, T.shakeMs);
   }
 
   /** Airburst (SAM detonation, aircraft kill): flash, fireball, black flak smoke, fragments. */

@@ -1,10 +1,10 @@
 // Ground unit sprites (art direction v1: bold outlined arcade units): tanks, mechs, AA, truck.
 // The player aircraft live in player.mjs.
 // Everything faces EAST at rotation 0; viewBoxes match src/assets/spriteKeys.ts exactly.
-import { svg, r2 } from './lib.mjs';
+import { svg, r2, rng } from './lib.mjs';
 import {
   T, IW, dRect, dEllipse, dRound, mirrorY, ids, fill, strokeD, outline, cel, glint, contactShadow, glowDefs, lamp, stripLight,
-} from './toy.mjs';
+} from './style.mjs';
 
 /** Team colour sets. `sec` = secondary armour (running gear housings, pods, cockpit). */
 const ENEMY = {
@@ -238,7 +238,9 @@ export function aaHull() {
   const W = 58;
   const H = 40;
   const id = ids('ah');
-  const wheels = [9.5, 20.5, 37.5, 48.5].flatMap((x) => [dRect(x - 4.9, 0.6, 9.8, 7, 2.8), dRect(x - 4.9, 32.4, 9.8, 7, 2.8)]);
+  // Four big, clearly separate tyres per side (never reads as a track).
+  const wheelX = [9, 21, 37, 49];
+  const wheels = wheelX.flatMap((x) => [dRect(x - 4.3, 0.4, 8.6, 7.4, 3.6), dRect(x - 4.3, 32.2, 8.6, 7.4, 3.6)]);
   const hull = dRound([[6, 5.5], [46, 5.5], [55, 10.5], [55, 29.5], [46, 34.5], [6, 34.5], [3, 31.5], [3, 8.5]], 2.2);
   const nose = dRound([[45, 7], [53.6, 11.4], [53.6, 28.6], [45, 33]], 1.4);
   const tail = dRect(4.4, 7, 5.2, 26, 1.4);
@@ -248,7 +250,9 @@ export function aaHull() {
   for (const w of wheels) {
     p.push(cel(id, w, T.trkL, T.trk, { s: 1.4, line: 0.8 }));
   }
-  for (const x of [9.5, 20.5, 37.5, 48.5]) p.push(fill(dRect(x - 1.6, 1.8, 3.2, 4.6, 1), T.gunL), fill(dRect(x - 1.6, 33.6, 3.2, 4.6, 1), T.gunL));
+  for (const x of wheelX) {
+    for (const y of [2.2, 34]) p.push(fill(dRect(x - 1.8, y, 3.6, 3.8, 1.2), T.gunL, { stroke: T.ink, 'stroke-width': 0.5 }));
+  }
   // Boxy charcoal chassis with crimson side panels.
   p.push(cel(id, hull, c.sec, c.secD, { s: 2.4 }));
   p.push(fill(dRect(12, 6.6, 30, 4, 1.4), c.base, { stroke: T.ink, 'stroke-width': 0.8 }));
@@ -359,5 +363,182 @@ export function truck() {
   p.push(strokeD('M45.6,8 L47.4,10.4', T.glassHi, 0.9));
   p.push(lamp(50, 7.2, 1.5, c.gid, c.glow, c.core, { halo: 2.2 }), lamp(50, 18.8, 1.5, c.gid, c.glow, c.core, { halo: 2.2 }));
   p.push(glint('M5,5.6 L31,5.6', 1.1, '#ffffff', 0.35));
+  return svg(W, H, glowFor(c), p.join(''));
+}
+
+// ---------------------------------------------------------------------------
+// Wrecks — the same silhouettes, burnt: soot halo, charred armour, rust, displaced parts.
+// ---------------------------------------------------------------------------
+
+/** Soft soot halo under a wreck (drawn first). */
+function soot(id, cx, cy, rx, ry, opacity = 0.55) {
+  const gid = id();
+  return (
+    `<radialGradient id="${gid}" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="${T.soot}" stop-opacity="${opacity}"/>` +
+    `<stop offset="0.6" stop-color="${T.soot}" stop-opacity="${r2(opacity * 0.5)}"/><stop offset="1" stop-color="${T.soot}" stop-opacity="0"/></radialGradient>` +
+    `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${gid})"/>`
+  );
+}
+
+/** Rust blotches clipped to a part. */
+function rustOn(id, d, blobs) {
+  const cid = id();
+  return (
+    `<clipPath id="${cid}"><path d="${d}"/></clipPath><g clip-path="url(#${cid})">` +
+    blobs.map(([x, y, rx, ry, c]) => fill(dEllipse(x, y, rx, ry), c ?? T.rust, { opacity: 0.8 })).join('') +
+    `</g>`
+  );
+}
+
+export function tankWreck() {
+  const W = 76;
+  const H = 50;
+  const id = ids('tw');
+  const trackT = dRect(2, 2.5, 66, 12.5, 5.5);
+  const trackB = dRect(2, 35, 44, 12.5, 5.5);
+  const thrown = dRect(0, 0, 20, 10, 4);
+  const hull = dRound([[8, 10.5], [55, 10.5], [66.5, 18], [66.5, 32], [55, 39.5], [8, 39.5], [4, 34.5], [4, 15.5]], 4);
+  const turret = dRound([[11, 4], [30, 4], [39, 9.5], [39, 20.5], [30, 26], [11, 26], [6, 21.5], [6, 8.5]], 5);
+  const barrel = dRect(38, 12.2, 8.5, 5.6, 2);
+  const p = [];
+  p.push(soot(id, 36, 26, 38, 25));
+  p.push(outline([trackT, trackB, hull]));
+  p.push(`<g transform="translate(47,38) rotate(14)">${outline([thrown])}${cel(id, thrown, T.bD, '#16120f', { s: 1 })}</g>`);
+  p.push(trackRun(id, trackT, 2, 68, 2.5, 12.5).replaceAll(T.trkL, '#3a3530').replaceAll(T.trk, '#1c1916'));
+  p.push(trackRun(id, trackB, 2, 46, 35, 12.5).replaceAll(T.trkL, '#3a3530').replaceAll(T.trk, '#1c1916'));
+  p.push(cel(id, hull, T.b, T.bD, { s: 3 }));
+  p.push(rustOn(id, hull, [[18, 30, 7, 4], [50, 16, 5, 3], [30, 20, 4, 2.5, T.rustL]]));
+  p.push(strokeD('M11,13.2H52 M11,36.8H40', T.bD, 1.1, { opacity: 0.7 }));
+  // Open turret ring, burnt out.
+  p.push(fill(dEllipse(38, 25, 11.5, 11), '#0f0c0a', { stroke: T.ink, 'stroke-width': IW }));
+  p.push(fill(dEllipse(39, 26, 6, 5.5), T.rust, { opacity: 0.45 }));
+  // Blown-off turret (gun snapped short) lying askew on the front deck.
+  p.push(
+    `<g transform="translate(29,3) rotate(24 22 15)">` +
+      outline([turret, barrel]) +
+      cel(id, barrel, '#2d2926', '#171411', { s: 1.2, sx: 0 }) +
+      cel(id, turret, T.bL, T.bD, { s: 2.6 }) +
+      rustOn(id, turret, [[20, 18, 6, 4], [30, 9, 3, 2, T.rustL]]) +
+      fill(dEllipse(19, 10.8, 4, 3.8), '#15110e') +
+      `</g>`,
+  );
+  p.push(glint('M12,12.6 L50,12.6', 1.1, T.bHi, 0.5));
+  return svg(W, H, '', p.join(''));
+}
+
+export function truckWreck() {
+  const W = 52;
+  const H = 26;
+  const id = ids('rw');
+  const wheels = [5, 16.5, 36.5].flatMap((x) => [dRect(x, 0.8, 10, 5.4, 2.3), dRect(x, 19.8, 10, 5.4, 2.3)]);
+  const bed = dRect(2.5, 3.4, 31.5, 19.2, 3);
+  const cab = dRound([[35.5, 5], [45, 4.5], [49.5, 9], [49, 17.5], [45.5, 21.5], [35.5, 21]], 2.6);
+  const p = [];
+  p.push(soot(id, 26, 13, 27, 14));
+  p.push(outline([...wheels, bed, cab]));
+  for (const w of wheels) p.push(cel(id, w, '#2a2622', '#141210', { s: 1, line: 0.7 }));
+  // Burnt-out bed: floor visible through the charred frame.
+  p.push(cel(id, bed, '#231e1b', '#120f0d', { s: 2 }));
+  p.push(rustOn(id, bed, [[12, 12, 7, 4.5], [26, 8, 5, 3, T.rustL]]));
+  for (const x of [5.5, 12.5, 19.5, 26.5, 33]) p.push(strokeD(`M${x},4.2 Q${x + 0.8},13 ${x - 0.4},21.8`, T.bL, 1.3));
+  p.push(strokeD('M3.4,4.4 H33 M3.4,21.6 H33', T.bL, 1.2));
+  p.push(cel(id, cab, T.b, T.bD, { s: 1.8 }));
+  p.push(rustOn(id, cab, [[42, 16, 4, 3]]));
+  p.push(fill(dRound([[44, 7], [46, 7], [48, 9.5], [47.6, 16.5], [45.8, 19], [44, 19]], 1), '#0d0b09', { stroke: T.ink, 'stroke-width': 0.6 }));
+  return svg(W, H, '', p.join(''));
+}
+
+export function aaWreck() {
+  const W = 58;
+  const H = 40;
+  const id = ids('aw');
+  const wheelX = [9, 21, 37, 49];
+  const wheels = wheelX.flatMap((x) => [dRect(x - 4.3, 0.4, 8.6, 7.4, 3.6), dRect(x - 4.3, 32.2, 8.6, 7.4, 3.6)]);
+  const hull = dRound([[6, 5.5], [46, 5.5], [55, 10.5], [55, 29.5], [46, 34.5], [6, 34.5], [3, 31.5], [3, 8.5]], 2.2);
+  const nose = dRound([[45, 7], [53.6, 11.4], [53.6, 28.6], [45, 33]], 1.4);
+  const dish = dEllipse(0, 0, 4.2, 10);
+  const p = [];
+  p.push(soot(id, 29, 20, 30, 21));
+  p.push(outline([...wheels, hull]));
+  for (const w of wheels) p.push(cel(id, w, '#2a2622', '#141210', { s: 1.2, line: 0.8 }));
+  p.push(cel(id, hull, T.b, T.bD, { s: 2.4 }));
+  // Scorched hazard bands still (just) visible: the wreck of the thing that shot at you.
+  p.push(hazard(id, nose, 44, 6, 11, 28, 3.4).replace(`fill="${T.hazard}"`, `fill="#8a5a22"`));
+  p.push(rustOn(id, hull, [[20, 26, 7, 4], [36, 12, 5, 3, T.rustL]]));
+  p.push(fill(dEllipse(29, 20, 9.5, 9), '#0f0c0a', { stroke: T.ink, 'stroke-width': IW }));
+  // Broken stubby barrels and the fallen radar dish.
+  p.push(`<g transform="translate(34,14) rotate(-24)">${outline([dRect(0, 0, 10, 3, 1.2), dRect(0, 5, 7, 3, 1.2)], 1.4)}${fill(dRect(0, 0, 10, 3, 1.2), '#26221f')}${fill(dRect(0, 5, 7, 3, 1.2), '#26221f')}</g>`);
+  p.push(`<g transform="translate(14,23) rotate(58)">${outline([dish], 1.6)}${cel(id, dish, '#6b675f', '#433f39', { s: 1.2 })}${strokeD(dEllipse(0, 0, 2.6, 6.4), '#433f39', 0.7)}</g>`);
+  return svg(W, H, '', p.join(''));
+}
+
+/** Static AA emplacement after a kill: scorched pad, scattered sandbags, debris. */
+export function aaSiteWreck() {
+  const W = 64;
+  const H = 64;
+  const cx = 32;
+  const cy = 32;
+  const id = ids('sw');
+  const pad = dEllipse(cx, cy, 19.5);
+  const rand = rng(29);
+  const p = [];
+  p.push(soot(id, cx, cy, 31, 31, 0.6));
+  const bags = [];
+  const n = 22;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    if (Math.cos(a) < -0.93 || rand.chance(0.22)) continue;
+    const rr = 25 + rand.range(-1.5, 3.5);
+    bags.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr, deg: (a * 180) / Math.PI + 90 + rand.range(-25, 25) });
+  }
+  const bag = (b, grow = 0) =>
+    `<path d="${dRect(-4.3 - grow, -3.4 - grow, 8.6 + grow * 2, 6.8 + grow * 2, 2.6 + grow)}" transform="translate(${r2(b.x)},${r2(b.y)}) rotate(${r2(b.deg)})"`;
+  p.push(bags.map((b) => `${bag(b, 1.8)} fill="${T.ink}"/>`).join(''));
+  p.push(bags.map((b, i) => `${bag(b)} fill="${i % 3 === 0 ? '#5e5238' : '#7a6c4c'}"/>`).join(''));
+  p.push(outline([pad], 1.4));
+  p.push(cel(id, pad, '#4a4640', '#34302b', { s: 2 }));
+  p.push(fill(dEllipse(cx + 1, cy + 1, 12, 11), '#0f0c0a', { opacity: 0.85 }));
+  p.push(fill(dEllipse(cx + 2, cy + 2, 6, 5), T.rust, { opacity: 0.5 }));
+  // Twisted gun barrels and a crushed dish.
+  p.push(`<g transform="translate(36,22) rotate(-35)">${outline([dRect(0, 0, 12, 3, 1.2), dRect(1, 5, 9, 3, 1.2)], 1.4)}${fill(dRect(0, 0, 12, 3, 1.2), '#26221f')}${fill(dRect(1, 5, 9, 3, 1.2), '#26221f')}</g>`);
+  const dish = dEllipse(0, 0, 4, 9);
+  p.push(`<g transform="translate(22,40) rotate(70)">${outline([dish], 1.6)}${cel(id, dish, '#6b675f', '#433f39', { s: 1.2 })}</g>`);
+  return svg(W, H, '', p.join(''));
+}
+
+// ---------------------------------------------------------------------------
+// SAM launcher — 70 × 38, two missiles pointing east, pivot centre (35,19).
+// ---------------------------------------------------------------------------
+export function samLauncher() {
+  const c = ENEMY;
+  const W = 70;
+  const H = 38;
+  const id = ids('sl');
+  const base = dEllipse(35, 19, 11.5, 11);
+  const arm = dRect(12, 14.5, 36, 9, 2.5);
+  const missile = (y) =>
+    `M7,${y - 3.1} L55,${y - 3.1} Q64,${y - 2.8} 67.2,${y} Q64,${y + 2.8} 55,${y + 3.1} L7,${y + 3.1} Q5.6,${y} 7,${y - 3.1}Z`;
+  const finSet = (y) => [
+    `M8,${y - 3} L11,${y - 7.4} L16,${y - 7.4} L17,${y - 3}Z`, `M8,${y + 3} L11,${y + 7.4} L16,${y + 7.4} L17,${y + 3}Z`,
+    `M36,${y - 3} L38.5,${y - 5.8} L42.5,${y - 5.8} L43.5,${y - 3}Z`, `M36,${y + 3} L38.5,${y + 5.8} L42.5,${y + 5.8} L43.5,${y + 3}Z`,
+  ];
+  const ys = [9, 29];
+  const p = [];
+  p.push(contactShadow(id, [base, arm, ...ys.map(missile)], { blur: 1.8, opacity: 0.42, dx: 1.2, dy: 1.8, grow: 0.8 }));
+  p.push(outline([base, arm, ...ys.flatMap((y) => [missile(y), ...finSet(y)])], 1.8));
+  p.push(cel(id, base, c.sec, c.secD, { s: 2 }));
+  p.push(cel(id, arm, c.base, c.d, { s: 2 }));
+  p.push(strokeD('M16,19H44', c.dd, 1.2, { opacity: 0.7 }));
+  for (const y of ys) {
+    for (const f of finSet(y)) p.push(cel(id, f, '#c9c6bd', '#8f8c84', { s: 0.8, line: 0.6 }));
+    p.push(cel(id, missile(y), '#f1efe8', '#b3b0a7', { s: 1.4, sx: 0 }));
+    // Crimson warhead band, dark seeker tip, exhaust nozzle.
+    const cid = id();
+    p.push(`<clipPath id="${cid}"><path d="${missile(y)}"/></clipPath><g clip-path="url(#${cid})">${fill(dRect(48, y - 4, 4.5, 8, 0), c.base)}${fill(dRect(63.5, y - 4, 5, 8, 0), '#2a2430')}</g>`);
+    p.push(strokeD(missile(y), T.ink, 0.8));
+    p.push(fill(dRect(4.2, y - 2, 2.2, 4, 0.8), T.gunD));
+    p.push(glint(`M10,${y - 1.6} L52,${y - 1.6}`, 1, '#ffffff', 0.7));
+  }
+  p.push(lamp(35, 19, 1.8, c.gid, c.glow, c.core));
   return svg(W, H, glowFor(c), p.join(''));
 }

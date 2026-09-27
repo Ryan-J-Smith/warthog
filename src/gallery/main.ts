@@ -1,15 +1,15 @@
 import Phaser from 'phaser';
-import { EffectsGalleryScene, GalleryPreloadScene, SpriteSheetScene, StyleBoardScene, TerrainGalleryScene } from './scenes';
+import { EffectsGalleryScene, GalleryPreloadScene, SpriteSheetScene, TerrainGalleryScene, UnitsLineupScene } from './scenes';
 
 /**
  * Dev-only art gallery (served by Vite at /gallery.html; not part of the production build).
- * `?view=sprites|terrain|effects|board` picks the page (`board` = the art-direction style board).
+ * `?view=sprites|units|terrain|effects` picks the page (`units` = composed units at game scale).
  */
 const VIEWS: Record<string, { key: string; scene: Phaser.Types.Scenes.SceneType }> = {
   sprites: { key: 'SpriteSheet', scene: SpriteSheetScene },
   terrain: { key: 'TerrainGallery', scene: TerrainGalleryScene },
   effects: { key: 'EffectsGallery', scene: EffectsGalleryScene },
-  board: { key: 'StyleBoard', scene: StyleBoardScene },
+  units: { key: 'UnitsLineup', scene: UnitsLineupScene },
 };
 
 const requested = new URLSearchParams(window.location.search).get('view') ?? 'sprites';

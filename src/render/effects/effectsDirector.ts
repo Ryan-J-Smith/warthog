@@ -10,6 +10,12 @@ import { ensureFxTextures } from './fxTextures';
 import { ProjectileRenderer } from './projectileRenderer';
 import { WreckFires } from './wreckFires';
 
+/**
+ * Units and structures are drawn ~1.7–2× their v0 size (art direction v1), so kill explosions
+ * are scaled to match (weapon-impact effects keep their gameplay radii).
+ */
+const UNIT_FX_SCALE = 1.7;
+
 /** Live counts for debug overlays. */
 export interface EffectsStats {
   particles: number;
@@ -198,12 +204,14 @@ export class EffectsDirector extends SimEventListener {
     const { x, y } = e.pos;
     const kit = this.kit;
     if (e.kind === 'infantry' || e.kind === 'friendlyInfantry') {
-      kit.flash('ground', x, y, 22, 0.1, 0xffd090, 0.7);
-      kit.smoke('ground', x, y, 3, { spread: 5, speed: 20, size0: 6, size1: 22, life: 1.4, alpha: 0.5, ramp: RAMPS.dust });
+      // Mechs: a small pop sized to the ~2× walker sprite.
+      kit.flash('ground', x, y, 22 * UNIT_FX_SCALE, 0.1, 0xffd090, 0.7);
+      kit.smoke('ground', x, y, 4, { spread: 9, speed: 26, size0: 11, size1: 38, life: 1.5, alpha: 0.55, ramp: RAMPS.dust });
       return;
     }
     const big = e.size === 'large' || e.size === 'huge';
-    kit.explosion(x, y, e.size, { crater: big });
+    // Explosions scale with the (bigger-than-life) sprites; screen shake keeps its tuning.
+    kit.explosion(x, y, e.size, { crater: big, scale: UNIT_FX_SCALE, shakeScale: 1 });
     if (big) this.wrecks.streamers(x, y, e.size === 'huge' ? 7 : 4, e.size === 'huge' ? 340 : 260, 'ground');
     this.wrecks.start(x, y, e.size);
     // Sprawling targets burn in several places.

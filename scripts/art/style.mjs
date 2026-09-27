@@ -1,12 +1,13 @@
-// "Chunky toy arcade" helpers for the WARTHOG sprite generator (art direction v1, 2026-09-26).
+// Unit style helpers for the WARTHOG sprite generator (art direction v1, 2026-09-26): bold,
+// outlined, saturated arcade units at ~2x scale that read instantly over the desert terrain.
 //
-// Recipe for every redesigned sprite:
+// Recipe for every unit sprite:
 //   1. soft contact shadow baked under ground units (blurred silhouette, slight down-right bias);
 //   2. one thick dark silhouette outline around the union of all parts (≈4 px at the 2× raster);
 //   3. flat saturated fills, each with ONE cel-shade crescent on the lower-right (light from the
 //      upper-left, like the terrain) and a small glossy highlight;
 //   4. thin interior lines only where parts overlap or for panel lines;
-//   5. glowing team accents: red/orange for enemies, blue/cyan for friendlies and the player.
+//   5. glowing team accents: red/orange for enemies, white/cyan on steel blue for friendlies.
 import { r2, rad, lin } from './lib.mjs';
 
 /** Outer outline width in world units (sprites are rasterised at 2×, so 2.0 → 4 px). */
@@ -17,7 +18,7 @@ export const IW = 0.9;
 export const T = {
   ink: '#1b1522',
   inkSoft: 'rgba(27,21,34,0.55)',
-  shadow: '#0c1a08',
+  shadow: '#1a1206',
 
   // Enemy armour: dark crimson-maroon with charcoal running gear.
   eHi: '#c4545c',
@@ -32,20 +33,25 @@ export const T = {
   glow: '#ff5a1e',
   glowHi: '#ffd35a',
 
-  // Friendly armour: light grey with bright blue (a touch greyer than pure white: grounded).
-  fHi: '#f4f7fa',
-  fL: '#e2e8ee',
-  f: '#c9d2db',
-  fD: '#97a5b3',
-  fDD: '#6e7c8c',
-  blue: '#2f7df6',
-  blueL: '#5aa0ff',
-  blueD: '#1b4fb4',
+  // Friendly armour: steel blue (the complement of the tan desert, far from enemy crimson) with
+  // white ID stripes and cyan lights.
+  fHi: '#b9d0ec',
+  fL: '#86a8d2',
+  f: '#5f84b4',
+  fD: '#44648e',
+  fDD: '#304a6c',
+  blue: '#eef4fb',
+  blueL: '#ffffff',
+  blueD: '#c4d2e2',
   cyan: '#4fe3ff',
   cyanHi: '#e2fdff',
   steel: '#4c5463',
   steelL: '#6c7586',
   steelD: '#323845',
+
+  // Cab glass.
+  glassD: '#17394f',
+  glassHi: '#bfe6ff',
 
   // AA: hazard orange, pale radar dish, sandbags, concrete, crates.
   hazard: '#ffa11a',
@@ -59,27 +65,21 @@ export const T = {
   crate: '#6f7a45',
   crateD: '#4c5530',
 
+  // Burnt wrecks.
+  bHi: '#6e645b',
+  bL: '#544b44',
+  b: '#3c3531',
+  bD: '#28231f',
+  rust: '#7c4426',
+  rustL: '#9c5c34',
+  soot: '#120e0b',
+
   // Running gear / metal.
   trk: '#2b2833',
   trkL: '#4a4656',
   gun: '#3a3744',
   gunL: '#5a5668',
   gunD: '#24212b',
-
-  // Player (toy A-10): light grey with blue team trim + shark mouth.
-  pHi: '#f7fafc',
-  pL: '#e2e8ee',
-  p: '#c3ccd6',
-  pD: '#96a3b1',
-  pDD: '#6f7c8b',
-  glass: '#2f9ff0',
-  glassD: '#17548f',
-  glassHi: '#d4f1ff',
-  mouth: '#e8343c',
-  mouthD: '#9e1b25',
-  tooth: '#ffffff',
-  yellow: '#ffcc33',
-  yellowD: '#c98f12',
 };
 
 // ---------------------------------------------------------------------------

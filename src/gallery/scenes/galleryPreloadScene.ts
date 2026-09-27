@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { loadAllSprites } from '../../render/sprites';
+import { loadFonts } from '../../ui/fonts';
 
-/** Loads every sprite, then starts the requested gallery view scene. */
+/** Loads every sprite and the game's fonts (the HUD uses them), then starts the requested view. */
 export class GalleryPreloadScene extends Phaser.Scene {
   constructor(private readonly nextScene: string) {
     super('GalleryPreload');
@@ -18,6 +19,8 @@ export class GalleryPreloadScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start(this.nextScene);
+    void loadFonts()
+      .catch((err: unknown) => console.warn('[gallery] fonts failed to load', err))
+      .then(() => this.scene.start(this.nextScene));
   }
 }

@@ -1,8 +1,13 @@
 import { riverCrossing } from '../../content/levels';
 import type { Projectile, PlayerState } from '../../sim/entities';
 import type { SimEvent } from '../../sim/events';
+import { NO_INPUT } from '../../sim/input';
+import type { EntitySpawn } from '../../sim/level';
 import type { Vec2 } from '../../sim/math';
+import { spawnFromDefinition } from '../../sim/spawning';
+import { SpottingSystem, WeaponSystem, initObjectives } from '../../sim/systems';
 import type { ProjectileKind } from '../../sim/types';
+import { World } from '../../sim/world';
 import type { WorldView } from '../../sim/world';
 
 /** Extra bookkeeping the fake simulator needs per projectile. */
@@ -16,6 +21,8 @@ interface FakeProjectile extends Projectile {
   homing: (() => Vec2) | null;
   onArrive: ((p: FakeProjectile) => void) | null;
   decoyedTo: FakeProjectile | null;
+  /** SAM acceleration override (u/s²). */
+  accel?: number;
 }
 
 function makePlayer(pos: Vec2): PlayerState {
@@ -48,48 +55,52 @@ function makePlayer(pos: Vec2): PlayerState {
 }
 
 /**
- * A toy stand-in for the simulation, just enough to drive the EffectsDirector in the gallery:
- * a plane flying circles, projectiles that fly/home/fall, and the events they would emit.
+ * A toy stand-in for the simulation, just enough to drive the gallery's EffectsDirector, entity
+ * renderer, targeting overlays and HUD: a plane flying circles, projectiles that fly/home/fall, and
+ * the events they would emit.
+ *
+ * The view is a real sim `World` for River Crossing (level entities + objectives, plus any extra
+ * staged units), so every renderer reads genuine state. The real `WeaponSystem` (never firing)
+ * computes the reticle, weapon availability and Maverick lock; the real `SpottingSystem` spots
+ * units for IFF markers and threat rings. Everything else is scripted by the gallery.
  */
 export class FakeBattle {
   readonly player: PlayerState;
   readonly projectiles: FakeProjectile[] = [];
+  /** Mutable world state (scenarios poke it); renderers read it as `world`. */
+  readonly state: World;
   readonly world: WorldView;
   private events: SimEvent[] = [];
   private readonly timers: Array<{ at: number; fn: () => void }> = [];
+  private readonly weapons = new WeaponSystem();
+  private readonly spotting = new SpottingSystem();
   private nextId = 1;
-  private time = 0;
   private orbitAngle = 0;
+  /** Current orbit radius (eases back to `orbitRadius` after an attack run). */
+  private radius: number;
+  /** Straight attack run toward a target, until sim time `until`. */
+  private run: { until: number; target: Vec2 } | null = null;
 
   constructor(
     readonly centre: Vec2,
     private readonly orbitRadius: number,
+    extraUnits: readonly EntitySpawn[] = [],
   ) {
     this.player = makePlayer({ x: centre.x + orbitRadius, y: centre.y });
-    const self = this;
-    this.world = {
-      level: riverCrossing,
-      get time() {
-        return self.time;
-      },
-      width: riverCrossing.width,
-      height: riverCrossing.height,
-      player: this.player,
-      entities: [],
-      projectiles: this.projectiles,
-      objectives: [],
-      reticle: { weapon: 'gun', impact: null, ready: true, onTarget: false, blockedReason: null },
-      score: 0,
-      rtb: false,
-      ended: false,
-      results: null,
-      rtbAt: null,
-    };
+    this.player.heading = Math.PI / 2;
+    this.radius = orbitRadius;
+    this.state = new World(riverCrossing);
+    for (const spawn of riverCrossing.entities) spawnFromDefinition(this.state, spawn);
+    for (const spawn of extraUnits) spawnFromDefinition(this.state, spawn);
+    initObjectives(this.state);
+    this.state.player = this.player;
+    this.state.projectiles = this.projectiles;
+    this.world = this.state;
   }
 
-  /** Events produced since the last call. */
+  /** Events produced since the last call (scripted ones + those from the real systems). */
   drain(): SimEvent[] {
-    const out = this.events;
+    const out = this.events.concat(this.state.drainEvents());
     this.events = [];
     return out;
   }
@@ -104,27 +115,26 @@ export class FakeBattle {
     this.player.band = alt < 0.5 ? 'low' : alt < 1.5 ? 'medium' : 'high';
   }
 
+  /** Turn onto `target` and fly straight at it for `seconds` (gun, rocket, Maverick, bomb runs). */
+  attackRun(target: Vec2, seconds: number): void {
+    this.run = { until: this.state.time + seconds, target: { ...target } };
+  }
+
   /** Run `fn` after `delay` seconds of simulated time. */
   later(delay: number, fn: () => void): void {
-    this.timers.push({ at: this.time + delay, fn });
+    this.timers.push({ at: this.state.time + delay, fn });
   }
 
   step(dt: number): void {
-    this.time += dt;
+    this.state.time += dt;
     for (let i = this.timers.length - 1; i >= 0; i--) {
       const t = this.timers[i];
-      if (t && t.at <= this.time) {
+      if (t && t.at <= this.state.time) {
         this.timers.splice(i, 1);
         t.fn();
       }
     }
-    // Plane orbits the centre clockwise.
-    const speed = 200;
-    this.orbitAngle += (speed / this.orbitRadius) * dt;
-    this.player.pos.x = this.centre.x + Math.cos(this.orbitAngle) * this.orbitRadius;
-    this.player.pos.y = this.centre.y + Math.sin(this.orbitAngle) * this.orbitRadius;
-    this.player.heading = this.orbitAngle + Math.PI / 2;
-    this.player.speed = speed;
+    this.fly(dt);
 
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
@@ -138,6 +148,42 @@ export class FakeBattle {
         if (p.kind === 'samMissile') this.emit({ type: 'samDetonated', missileId: p.id, pos: { ...p.pos }, hitPlayer: false });
       }
     }
+
+    // RWR: SAMs still homing on the player (not decoyed).
+    this.player.missilesTracking = this.projectiles.filter((p) => p.kind === 'samMissile' && !p.decoyedTo).length;
+    // Real reticle / weapon availability / Maverick lock, and real spotting (IFF + rings).
+    const ctx = { world: this.state, dt, input: NO_INPUT };
+    this.weapons.update(ctx);
+    this.spotting.update(ctx);
+  }
+
+  /** Orbit the centre clockwise, or fly an attack run; the heading turns smoothly (with bank). */
+  private fly(dt: number): void {
+    const p = this.player;
+    const speed = 200;
+    let desired: number;
+    if (this.run && this.state.time < this.run.until) {
+      desired = Math.atan2(this.run.target.y - p.pos.y, this.run.target.x - p.pos.x);
+      p.pos.x += Math.cos(p.heading) * speed * dt;
+      p.pos.y += Math.sin(p.heading) * speed * dt;
+    } else {
+      if (this.run) {
+        // Rejoin the orbit from wherever the run ended.
+        this.run = null;
+        this.orbitAngle = Math.atan2(p.pos.y - this.centre.y, p.pos.x - this.centre.x);
+        this.radius = Math.max(60, Math.hypot(p.pos.x - this.centre.x, p.pos.y - this.centre.y));
+      }
+      this.radius += (this.orbitRadius - this.radius) * Math.min(1, dt * 0.8);
+      this.orbitAngle += (speed / this.radius) * dt;
+      p.pos.x = this.centre.x + Math.cos(this.orbitAngle) * this.radius;
+      p.pos.y = this.centre.y + Math.sin(this.orbitAngle) * this.radius;
+      desired = this.orbitAngle + Math.PI / 2;
+    }
+    const diff = Math.atan2(Math.sin(desired - p.heading), Math.cos(desired - p.heading));
+    const turn = Math.max(-3 * dt, Math.min(3 * dt, diff));
+    p.heading += turn;
+    p.turnInput = Math.max(-1, Math.min(1, turn / dt / 1.5));
+    p.speed = speed;
   }
 
   /** Returns true when the projectile has arrived (and should be removed). */
@@ -153,7 +199,7 @@ export class FakeBattle {
     }
     if (p.homing) {
       const target = p.decoyedTo ? p.decoyedTo.pos : p.homing();
-      if (p.kind === 'samMissile') p.speed = Math.min(700, p.speed + 600 * dt);
+      if (p.kind === 'samMissile') p.speed = Math.min(700, p.speed + (p.accel ?? 600) * dt);
       const desired = Math.atan2(target.y - p.pos.y, target.x - p.pos.x);
       let d = desired - p.heading;
       d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -260,8 +306,10 @@ export class FakeBattle {
     }
   }
 
-  samLaunch(site: Vec2): void {
+  /** SAM launch at the player; `accel` (u/s²) lets the gallery slow the intercept to show the RWR. */
+  samLaunch(site: Vec2, accel = 600): void {
     const missile = this.spawn('samMissile', site, Math.atan2(this.player.pos.y - site.y, this.player.pos.x - site.x), 120, {
+      accel,
       alt: 0,
       endAlt: Math.max(1, this.player.alt) + 0.35,
       life: 6,
