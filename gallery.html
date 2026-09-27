@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WARTHOG — Art Gallery (dev)</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #0d0f0a; overflow: hidden; font-family: system-ui, sans-serif; }
+      #nav { position: fixed; top: 0; left: 0; right: 0; height: 32px; display: flex; gap: 4px; align-items: center; padding: 0 10px;
+             background: #161a12; color: #c8d0a0; font-size: 13px; z-index: 10; border-bottom: 1px solid #2c3322; }
+      #nav a { color: #c8d0a0; text-decoration: none; padding: 4px 10px; border-radius: 4px; }
+      #nav a.active { background: #3a4428; color: #fff; }
+      #nav .hint { margin-left: auto; opacity: 0.7; }
+      #game { position: absolute; top: 33px; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="nav">
+      <strong style="margin-right: 10px">WARTHOG art gallery</strong>
+      <a href="?view=sprites" data-view="sprites">Sprites</a>
+      <a href="?view=terrain" data-view="terrain">Terrain</a>
+      <a href="?view=effects" data-view="effects">Effects</a>
+      <a href="?view=board" data-view="board">Style board</a>
+      <span class="hint" id="hint"></span>
+    </div>
+    <div id="game"></div>
+    <script type="module" src="/src/gallery/main.ts"></script>
+  </body>
+</html>

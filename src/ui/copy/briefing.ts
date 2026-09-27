@@ -1,0 +1,176 @@
+import type { EntityKind } from '../../sim/types';
+import type { LevelDefinition, ObjectiveDefinition } from '../../sim/level';
+import type { Vec2 } from '../../sim/math';
+import { formatClock } from '../format';
+import { compassDirection, compassWord, objectiveStartMarker } from '../model';
+
+export interface BriefingObjective {
+  id: string;
+  number: number;
+  primary: boolean;
+  title: string;
+  text: string;
+  marker: Vec2 | null;
+  defend: boolean;
+}
+
+export type IntelKind = 'sam' | 'aa' | 'armor';
+
+export interface IntelItem {
+  kind: IntelKind;
+  text: string;
+  /** Map positions to mark for this line (suspected sites, route starts). */
+  positions: Vec2[];
+  /** Expected route for armor groups, else null. */
+  route: Vec2[] | null;
+}
+
+export interface Briefing {
+  operation: string;
+  tagline: string;
+  objectives: BriefingObjective[];
+  intel: IntelItem[];
+}
+
+/** Hand-written briefing lines per level and objective id. */
+const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
+  'river-crossing': {
+    column:
+      'An armor column is rolling down the river road toward the only bridge. Drop the bridge with bombs from MEDIUM or HIGH before they cross — or kill every vehicle.',
+    bridgeIntact: 'HQ wants that bridge for the counter-attack. Kill the column if you can; drop the bridge if you must.',
+    outpost:
+      'Outpost Bravo is under assault from the east, and a second wave is on its way. Break both waves before Bravo falls.',
+    sam: 'SAM site Tango covers the bridge. Kill it and the sky over the river is yours.',
+    dump: 'Enemy ammo dump, far north-west. Blow it and every AA gun on the map fires at half rate.',
+  },
+};
+
+function fallbackNote(def: ObjectiveDefinition): string {
+  switch (def.kind) {
+    case 'stopColumn':
+      return 'Stop the column before it crosses the river: destroy the bridge or every vehicle.';
+    case 'defend':
+      return 'Protect the position until every attacker is destroyed.';
+    case 'destroy':
+      return 'Destroy the target.';
+  }
+}
+
+const LANDMARK_NAME: Partial<Record<EntityKind, string>> = {
+  bridge: 'the bridge',
+  outpost: 'the outpost',
+  ammoDump: 'the ammo dump',
+  homeBase: 'home base',
+  samSite: 'the SAM site',
+};
+
+interface Landmark {
+  pos: Vec2;
+  name: string;
+  refId: string;
+}
+
+function landmarks(level: LevelDefinition): Landmark[] {
+  const out: Landmark[] = [];
+  for (const e of level.entities) {
+    const name = LANDMARK_NAME[e.kind];
+    if (name && e.refId) out.push({ pos: e.pos, name, refId: e.refId });
+  }
+  return out;
+}
+
+function nearest(pos: Vec2, candidates: Landmark[]): Landmark | null {
+  let best: Landmark | null = null;
+  let bestD = Infinity;
+  for (const c of candidates) {
+    const d = Math.hypot(c.pos.x - pos.x, c.pos.y - pos.y);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
+function englishList(items: string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1] ?? ''}`;
+}
+
+/** Threat intel derived from level data: SAM sites, AA clusters, and timed armor groups. */
+export function deriveIntel(level: LevelDefinition): IntelItem[] {
+  const marks = landmarks(level);
+  const intel: IntelItem[] = [];
+
+  for (const sam of level.entities.filter((e) => e.kind === 'samSite')) {
+    const anchor = nearest(sam.pos, marks.filter((m) => m.refId !== sam.refId && m.name !== 'the SAM site'));
+    const where = anchor ? ` ${compassWord(compassDirection(anchor.pos, sam.pos))} of ${anchor.name}` : '';
+    intel.push({
+      kind: 'sam',
+      text: `SAM site suspected${where}. Its radar reaches MEDIUM and HIGH — stay LOW inside the ring.`,
+      positions: [{ ...sam.pos }],
+      route: null,
+    });
+  }
+
+  const aa = level.entities.filter((e) => e.kind === 'aaGun' || e.kind === 'mobileAa');
+  if (aa.length > 0) {
+    const near: string[] = [];
+    for (const gun of aa) {
+      const anchor = nearest(gun.pos, marks);
+      if (anchor && !near.includes(anchor.name)) near.push(anchor.name);
+    }
+    intel.push({
+      kind: 'aa',
+      text: `Triple-A near ${englishList(near)}. Deadly at LOW, weaker at MEDIUM, can't reach HIGH.`,
+      positions: aa.map((g) => ({ ...g.pos })),
+      route: null,
+    });
+  }
+
+  const centre = { x: level.width / 2, y: level.height / 2 };
+  for (const group of level.groups) {
+    if (group.trigger.kind !== 'time') continue;
+    const path = level.paths[group.pathId];
+    const start = path?.[0];
+    if (!start) continue;
+    const from = compassWord(compassDirection(centre, start));
+    intel.push({
+      kind: 'armor',
+      text: `${group.units.length} vehicles expected from the ${from} around ${formatClock(group.trigger.at)}.`,
+      positions: [{ ...start }],
+      route: path ? briefingRoute(level, group.tags, path).map((p) => ({ ...p })) : null,
+    });
+  }
+  return intel;
+}
+
+/**
+ * The part of a group's path worth drawing on the briefing map. A column that a stop-column
+ * objective is about to intercept is drawn only to just past its crossing point.
+ */
+function briefingRoute(level: LevelDefinition, tags: readonly string[], path: readonly Vec2[]): readonly Vec2[] {
+  for (const def of level.objectives) {
+    if (def.kind === 'stopColumn' && tags.includes(def.columnTag)) return path.slice(0, def.crossedWaypoint + 2);
+  }
+  return path;
+}
+
+/** Everything the briefing screen shows for a level. */
+export function briefingFor(level: LevelDefinition): Briefing {
+  const notes = OBJECTIVE_NOTES[level.id] ?? {};
+  return {
+    operation: `OPERATION ${level.name.toUpperCase()}`,
+    tagline: level.tagline,
+    objectives: level.objectives.map((def, i) => ({
+      id: def.id,
+      number: i + 1,
+      primary: def.primary,
+      title: def.title,
+      text: notes[def.id] ?? fallbackNote(def),
+      marker: objectiveStartMarker(level, def.id),
+      defend: def.kind === 'defend',
+    })),
+    intel: deriveIntel(level),
+  };
+}
