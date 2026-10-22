@@ -82,6 +82,8 @@ const FOOTPRINT_SPRITES: Partial<Record<EntityKind, { key: SpriteKey; margin: nu
   bridge: { key: 'bridge', margin: 6 },
   aaGun: { key: 'aaHull', margin: 10 },
   cache: { key: 'cache', margin: 6 },
+  enemyHq: { key: 'enemyHq', margin: 24 },
+  friendlyHq: { key: 'friendlyHq', margin: 24 },
 };
 
 /** Canopy sprite variants available to the painter (families × shapes). */
