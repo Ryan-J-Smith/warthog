@@ -312,7 +312,7 @@ export class TitleScene extends Phaser.Scene {
     // Controls.
     add(this.add.text(x + 50, y + 170, 'CONTROLS', textStyle({ size: 22, color: COLOR.greenDim, glow: false })));
     drawRule(g, x + 50, y + 204, 600);
-    add(createControlsCard(this, x + 50, y + 222, 220, 54, 21));
+    add(createControlsCard(this, x + 50, y + 222, 220, 48, 21));
 
     // Altitude primer.
     const px = x + 730;
@@ -336,7 +336,7 @@ export class TitleScene extends Phaser.Scene {
     const ty = y + 222 + 3 * 128 + 16;
     add(this.add.text(px, ty, 'TIPS', textStyle({ size: 22, color: COLOR.greenDim, glow: false })));
     PLAY_TIPS.forEach((tip, i) => {
-      add(this.add.text(px, ty + 36 + i * 32, `▸ ${tip}`, textStyle({ size: 19, color: COLOR.white, glow: false })));
+      add(this.add.text(px, ty + 34 + i * 28, `▸ ${tip}`, textStyle({ size: 17, color: COLOR.white, glow: false })));
     });
     return container;
   }
