@@ -1,1 +1,1 @@
-export { saveStoreFor, loadoutForGame } from './sharedSave';
+export { saveStoreFor, loadoutForGame, difficultyForGame } from './sharedSave';

@@ -1,5 +1,6 @@
 import type { SimEvent } from '../events';
 import type { ControlInput } from '../input';
+import type { Difficulty } from '../difficulty';
 import type { LevelDefinition } from '../level';
 import type { PlayerLoadout } from '../loadout';
 import { spawnFromDefinition } from '../spawning';
@@ -45,8 +46,14 @@ export class Simulation {
   /** Edge-triggered inputs buffered until a fixed step consumes them. */
   private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null };
 
-  constructor(level: LevelDefinition, seed?: number, systems?: SimSystem[], loadout?: Readonly<PlayerLoadout>) {
-    this.world = new World(level, seed, loadout);
+  constructor(
+    level: LevelDefinition,
+    seed?: number,
+    systems?: SimSystem[],
+    loadout?: Readonly<PlayerLoadout>,
+    difficulty?: Readonly<Difficulty>,
+  ) {
+    this.world = new World(level, seed, loadout, difficulty);
     for (const spawn of level.entities) spawnFromDefinition(this.world, spawn);
     initObjectives(this.world);
     initZones(this.world);

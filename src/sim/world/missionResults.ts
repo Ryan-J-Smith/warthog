@@ -1,3 +1,4 @@
+import type { DifficultyId } from '../difficulty';
 import type { EntityKind, MissionOutcome, ObjectiveStatus } from '../types';
 
 export interface ObjectiveResult {
@@ -31,6 +32,8 @@ export interface MissionResults {
   bonusPoints: number;
   /** Optional so results saved by older builds still parse. */
   feats?: MissionFeats;
+  /** Difficulty flown (absent on results from before difficulty existed: regular). */
+  difficulty?: DifficultyId;
   objectives: ObjectiveResult[];
   objectivePoints: number;
   timeBonus: number;

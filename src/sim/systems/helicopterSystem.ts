@@ -186,7 +186,7 @@ function updateSalvo(
       if (off > degToRad(stats.fireConeDeg) || !inRange) return;
       state.phase = 'aiming';
       state.phaseTime = stats.aimTime;
-      state.cooldown = stats.salvoInterval;
+      state.cooldown = stats.salvoInterval / world.difficulty.enemyFireRate;
       state.aimPoint = { ...aimAt };
       world.emit({ type: 'heliAiming', entityId: heli.id, pos: { ...heli.pos }, atPlayer });
       return;

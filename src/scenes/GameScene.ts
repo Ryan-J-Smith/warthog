@@ -3,7 +3,7 @@ import { AudioDirector, MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
 import { KeyboardControls } from '../controls';
-import { loadoutForGame } from '../meta/session';
+import { difficultyForGame, loadoutForGame } from '../meta/session';
 import { CameraRig } from '../render/camera';
 import { CloudLayer } from '../render/clouds';
 import { EntityRenderer, PlayerRenderer } from '../render/entities';
@@ -52,7 +52,7 @@ export class GameScene extends Phaser.Scene {
   create(data: GameSceneData): void {
     this.levelId = data.levelId;
     const level = getLevel(data.levelId);
-    this.sim = new Simulation(level, undefined, undefined, loadoutForGame(this.game));
+    this.sim = new Simulation(level, undefined, undefined, loadoutForGame(this.game), difficultyForGame(this.game));
     this.finishing = false;
     this.hitStopMs = 0;
     this.slowMoMs = 0;

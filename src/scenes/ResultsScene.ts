@@ -5,6 +5,7 @@ import { getLevel } from '../content/levels';
 import { CHALLENGE_BOUNTY, type Challenge } from '../meta/challenges';
 import type { MissionAward } from '../meta/save';
 import { saveStoreFor } from '../meta/session';
+import { DIFFICULTIES } from '../sim/difficulty';
 import type { MissionResults } from '../sim/world';
 import { GRADE_TITLE } from '../ui/copy';
 import { formatClock, formatScore, formatSigned, shareLine } from '../ui/format';
@@ -89,7 +90,7 @@ export class ResultsScene extends Phaser.Scene {
       .text(
         width / 2,
         202,
-        `OPERATION ${level.name.toUpperCase()}   ·   MISSION TIME ${formatClock(r.time)}   ·   PAR ${formatClock(level.parTime)}`,
+        `OPERATION ${level.name.toUpperCase()}   ·   ${DIFFICULTIES[r.difficulty ?? 'regular'].label}   ·   MISSION TIME ${formatClock(r.time)}   ·   PAR ${formatClock(level.parTime)}`,
         textStyle({ size: 24, color: COLOR.greenDim, glow: false, letterSpacing: 2 }),
       )
       .setOrigin(0.5);

@@ -1,6 +1,7 @@
 import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, PLAYER } from '../../config';
 import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { SimEvent } from '../events';
+import { DEFAULT_DIFFICULTY, type Difficulty } from '../difficulty';
 import type { LevelDefinition } from '../level';
 import { DEFAULT_LOADOUT, type PlayerLoadout } from '../loadout';
 import { Rng, degToRad, type Vec2 } from '../math';
@@ -71,7 +72,7 @@ export class World implements WorldView {
   results: MissionResults | null = null;
 
   /** Global AA fire-rate multiplier (ammo dump destroyed → 0.5). */
-  aaFireRate = 1;
+  aaFireRate: number;
   pendingRounds: PendingRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
@@ -85,8 +86,14 @@ export class World implements WorldView {
   private events: SimEvent[] = [];
   private nextEntityId = 1;
 
-  constructor(level: LevelDefinition, seed: number = level.seed, loadout: Readonly<PlayerLoadout> = DEFAULT_LOADOUT) {
+  constructor(
+    level: LevelDefinition,
+    seed: number = level.seed,
+    loadout: Readonly<PlayerLoadout> = DEFAULT_LOADOUT,
+    readonly difficulty: Readonly<Difficulty> = DEFAULT_DIFFICULTY,
+  ) {
     this.level = level;
+    this.aaFireRate = difficulty.enemyFireRate;
     this.loadout = loadout;
     this.width = level.width;
     this.height = level.height;

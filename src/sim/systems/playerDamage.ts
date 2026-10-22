@@ -11,6 +11,7 @@ import type { World } from '../world';
 export function damagePlayer(world: World, amount: number, source: PlayerDamageSource, at: Vec2): void {
   const p = world.player;
   if (!p.alive || p.invulnerable > 0 || amount <= 0) return;
+  amount *= world.difficulty.damageTaken;
   p.shieldRegenIn = world.loadout.shieldRegenDelay;
 
   const absorbed = Math.min(p.shield, amount);

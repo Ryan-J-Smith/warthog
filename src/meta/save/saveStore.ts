@@ -1,3 +1,4 @@
+import { DIFFICULTIES, type Difficulty, type DifficultyId } from '../../sim/difficulty';
 import type { PlayerLoadout } from '../../sim/loadout';
 import type { MissionResults } from '../../sim/world';
 import {
@@ -74,6 +75,17 @@ export class SaveStore {
   /** The level's challenges, each marked earned or not. */
   challengeStatus(levelId: string): ChallengeStatus[] {
     return challengeStatuses(levelId, this.completedChallenges(levelId), this.catalog);
+  }
+
+  /** The difficulty the player last picked. */
+  get difficulty(): Difficulty {
+    return DIFFICULTIES[this.data.difficulty];
+  }
+
+  setDifficulty(id: DifficultyId): void {
+    if (this.data.difficulty === id) return;
+    this.data.difficulty = id;
+    this.persist();
   }
 
   /** The aircraft as currently upgraded. */

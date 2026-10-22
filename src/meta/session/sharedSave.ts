@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { REGISTRY } from '../../assets';
+import type { Difficulty } from '../../sim/difficulty';
 import type { PlayerLoadout } from '../../sim/loadout';
 import { LocalSaveStorage, SaveStore } from '../save';
 
@@ -18,4 +19,9 @@ export function saveStoreFor(game: Phaser.Game): SaveStore {
 /** The player's upgraded aircraft, for `new Simulation(level, seed, systems, loadout)`. */
 export function loadoutForGame(game: Phaser.Game): PlayerLoadout {
   return saveStoreFor(game).loadout();
+}
+
+/** The difficulty the player picked, for `new Simulation(..., loadout, difficulty)`. */
+export function difficultyForGame(game: Phaser.Game): Difficulty {
+  return saveStoreFor(game).difficulty;
 }

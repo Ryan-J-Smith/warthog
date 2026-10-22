@@ -134,7 +134,7 @@ function startBarrage(world: World, launcher: Entity, state: MlrsState, stats: M
       atPlayer,
     };
   });
-  state.cooldown = stats.barrageInterval;
+  state.cooldown = stats.barrageInterval / world.difficulty.enemyFireRate;
   state.barrages += 1;
   // A ripple launch gives its position away.
   if (!launcher.spotted) {

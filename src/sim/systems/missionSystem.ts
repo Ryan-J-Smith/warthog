@@ -63,6 +63,7 @@ export function computeResults(world: World, outcome: MissionOutcome): MissionRe
     killPoints: world.stats.killPoints,
     kills: world.stats.kills,
     bonusPoints: world.stats.bonusPoints,
+    difficulty: world.difficulty.id,
     feats: {
       bestChain: world.stats.bestChain,
       missilesDefeated: world.stats.missilesDefeated,

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { LEVELS } from '../content/levels';
 import { saveStoreFor } from '../meta/session';
+import { DIFFICULTY_ORDER } from '../sim/difficulty';
 import type { LevelDefinition } from '../sim/level';
 import { formatClock, formatScore } from '../ui/format';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
@@ -23,6 +24,8 @@ import { SCENES, type BriefingSceneData } from './sceneKeys';
 const LIST = { x: 96, y: 236, w: 820, row: 132, gap: 14, viewH: 724 } as const;
 const PREVIEW = { x: 980, y: 236, w: 844, h: 724 } as const;
 /** Preview map area inside the panel (the baked briefing map is 4:3). */
+/** Difficulty selector, under the mission list. */
+const DIFFICULTY = { x: LIST.x + 20, y: 720 } as const;
 const MAP = { x: PREVIEW.x + 30, y: PREVIEW.y + 104, w: 784, h: 320 } as const;
 /** The challenge list's first row, under the best line. */
 const CHALLENGES_Y = MAP.y + MAP.h + 170;
@@ -46,6 +49,8 @@ export class LevelSelectScene extends Phaser.Scene {
   /** One row per challenge of the selected mission: tick, title, description. */
   private previewChallenges: Array<{ tick: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; description: Phaser.GameObjects.Text }> = [];
   private leaving = false;
+  private difficultyLabel!: Phaser.GameObjects.Text;
+  private difficultyBlurb!: Phaser.GameObjects.Text;
 
   constructor() {
     super(SCENES.levelSelect);
@@ -109,7 +114,14 @@ export class LevelSelectScene extends Phaser.Scene {
       };
     });
 
-    this.add.text(100, height - 64, '↑↓  SELECT     ENTER  BRIEFING     ESC  BACK     M  MUTE ALL', textStyle({ size: 18, color: COLOR.greenDim, glow: false }));
+    // Difficulty (under the mission list): ←/→ cycles, remembered in the save.
+    this.add.text(DIFFICULTY.x, DIFFICULTY.y, 'DIFFICULTY', textStyle({ size: 17, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
+    drawRule(g, DIFFICULTY.x, DIFFICULTY.y + 28, LIST.w - 40, COLOR.green, 0.25);
+    this.difficultyLabel = this.add.text(DIFFICULTY.x, DIFFICULTY.y + 42, '', textStyle({ size: 34, color: COLOR.amber, glow: 8 }));
+    this.difficultyBlurb = this.add.text(DIFFICULTY.x, DIFFICULTY.y + 92, '', textStyle({ size: 20, color: COLOR.greenDim, glow: false, wrap: LIST.w - 40 }));
+    this.showDifficulty();
+
+    this.add.text(100, height - 64, '↑↓  SELECT     ←→  DIFFICULTY     ENTER  BRIEFING     ESC  BACK     M  MUTE ALL', textStyle({ size: 18, color: COLOR.greenDim, glow: false }));
 
     this.list.select(Math.min(lastIndex, Math.max(0, LEVELS.length - 1)), false);
     this.cameras.main.fadeIn(350, 0, 0, 0);
@@ -118,8 +130,33 @@ export class LevelSelectScene extends Phaser.Scene {
       down: () => this.list.move(1),
       confirm: () => this.list.confirm(),
       back: () => this.back(),
+      left: () => this.cycleDifficulty(-1),
+      right: () => this.cycleDifficulty(1),
       actions: { mute: () => audioSettingsFor(this.game).toggleAll() },
     });
+  }
+
+  private cycleDifficulty(step: 1 | -1): void {
+    if (this.leaving) return;
+    const save = saveStoreFor(this.game);
+    const index = DIFFICULTY_ORDER.indexOf(save.difficulty.id) + step;
+    const next = DIFFICULTY_ORDER[index];
+    if (!next) {
+      this.uiSound.back();
+      return;
+    }
+    save.setDifficulty(next);
+    this.uiSound.move();
+    this.showDifficulty();
+  }
+
+  private showDifficulty(): void {
+    const current = saveStoreFor(this.game).difficulty;
+    const index = DIFFICULTY_ORDER.indexOf(current.id);
+    const left = index > 0 ? '◀' : ' ';
+    const right = index < DIFFICULTY_ORDER.length - 1 ? '▶' : ' ';
+    this.difficultyLabel.setText(`${left}  ${current.label}  ${right}`);
+    this.difficultyBlurb.setText(current.blurb);
   }
 
   private buildRow(row: Phaser.GameObjects.Container, i: number): (selected: boolean) => void {

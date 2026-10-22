@@ -171,7 +171,7 @@ describe('save migration', () => {
   it('loads a save from before challenges existed, keeping everything else', () => {
     const old = { version: SAVE_VERSION, credits: 4200, upgrades: { armor: 1 }, levels: { lvl: { bestScore: 9000, bestGrade: 'B' } }, missionsFlown: 2 };
     const save = parseSave(JSON.stringify(old));
-    expect(save).toEqual({ ...old, challenges: {} });
+    expect(save).toEqual({ ...old, challenges: {}, difficulty: 'regular' });
     const store = new SaveStore(new MemorySaveStorage(JSON.stringify(old)));
     expect(store.credits).toBe(4200);
     expect(store.completedChallenges('river-crossing')).toEqual([]);

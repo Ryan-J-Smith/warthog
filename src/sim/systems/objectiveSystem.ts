@@ -214,7 +214,7 @@ function destroy(world: World, def: DestroyObjective, state: ObjectiveState): Ob
   if (targets.length > 1) state.detail = `${targets.length - alive.length}/${targets.length}`;
   if (alive.length === 0) {
     state.detail = 'Destroyed';
-    if (def.effect === 'aaFireRateHalved') world.aaFireRate = 0.5;
+    if (def.effect === 'aaFireRateHalved') world.aaFireRate = world.difficulty.enemyFireRate * 0.5;
     return 'completed';
   }
   return 'active';

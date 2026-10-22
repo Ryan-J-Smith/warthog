@@ -1,4 +1,5 @@
 import { SCORING } from '../../config';
+import { isDifficultyId, type DifficultyId } from '../../sim/difficulty';
 import { UPGRADE_TRACKS, levelOf, type UpgradeLevels } from '../upgrades';
 
 /** Bump when the save format changes incompatibly (older saves are then discarded). */
@@ -23,10 +24,12 @@ export interface SaveData {
    * a save without it simply has none completed.
    */
   challenges: Record<string, string[]>;
+  /** Preferred difficulty (picked on Select Mission). Older saves default to regular. */
+  difficulty: DifficultyId;
 }
 
 export function emptySave(): SaveData {
-  return { version: SAVE_VERSION, credits: 0, upgrades: {}, levels: {}, missionsFlown: 0, challenges: {} };
+  return { version: SAVE_VERSION, credits: 0, upgrades: {}, levels: {}, missionsFlown: 0, challenges: {}, difficulty: 'regular' };
 }
 
 export function serializeSave(data: SaveData): string {
@@ -75,6 +78,7 @@ export function parseSave(text: string | null): SaveData {
       if (ids.length > 0) save.challenges[id] = ids;
     }
   }
+  if (isDifficultyId(raw['difficulty'])) save.difficulty = raw['difficulty'];
   return save;
 }
 

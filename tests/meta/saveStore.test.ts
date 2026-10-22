@@ -144,3 +144,18 @@ describe('LocalSaveStorage', () => {
     expect(storage.read()).toBe('{"version":1}');
   });
 });
+
+describe('difficulty preference', () => {
+  it('defaults to regular, persists a change, and survives a reload', () => {
+    const { store, storage } = storeWith(null);
+    expect(store.difficulty.id).toBe('regular');
+    store.setDifficulty('ace');
+    expect(new SaveStore(storage).difficulty.id).toBe('ace');
+  });
+
+  it('an older save without the field, or a bad value, loads as regular', () => {
+    const old = { ...emptySave(), difficulty: undefined, credits: 500 };
+    expect(storeWith(old).store.difficulty.id).toBe('regular');
+    expect(storeWith({ ...emptySave(), difficulty: 'nightmare' }).store.difficulty.id).toBe('regular');
+  });
+});

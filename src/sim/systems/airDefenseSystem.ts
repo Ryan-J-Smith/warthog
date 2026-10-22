@@ -115,7 +115,7 @@ export class AirDefenseSystem extends SimSystem {
       });
       world.projectiles.push(missile);
       sam.missilesInFlight += 1;
-      sam.reload = stats.reload;
+      sam.reload = stats.reload / world.difficulty.enemyFireRate;
       sam.lock = 0.5;
       world.emit({ type: 'samLaunched', siteId: site.id, missileId: missile.id, pos: { ...site.pos } });
     }

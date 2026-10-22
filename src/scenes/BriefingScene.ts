@@ -173,7 +173,8 @@ export class BriefingScene extends Phaser.Scene {
   // --- Layout --------------------------------------------------------------
 
   private buildHeader(briefing: Briefing): void {
-    this.add.text(70, 40, 'MISSION BRIEFING  ·  WARTHOG 1-1  ·  CAS', textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
+    const difficulty = saveStoreFor(this.game).difficulty.label;
+    this.add.text(70, 40, `MISSION BRIEFING  ·  WARTHOG 1-1  ·  CAS  ·  ${difficulty}`, textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
     this.add.text(66 - 14, 64 - 14, briefing.operation, textStyle({ size: 66, font: 'display', color: COLOR.green, glow: 14 }));
     this.add.text(TEXT.x + TEXT.w, 142, `“${briefing.tagline}”`, textStyle({ size: 22, color: COLOR.amber, glow: false })).setOrigin(1, 0);
   }
