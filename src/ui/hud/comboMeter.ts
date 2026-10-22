@@ -6,7 +6,7 @@ import { HudWidget, type HudFrame } from './hudWidget';
 import { LAYOUT } from './layout';
 
 /**
- * Kill chain ("CHAIN 4 · ×1.75") with a draining window bar, and active power-up timers.
+ * Kill chain ("CHAIN 4 · NEXT ×1.75") with a draining window bar, and active power-up timers.
  * Pops when the chain grows; shows "CHAIN BROKEN" briefly when hull damage ends it.
  */
 export class ComboMeter extends HudWidget {
@@ -51,7 +51,8 @@ export class ComboMeter extends HudWidget {
     if (chaining) {
       this.lastChain = combo.chain;
       this.chainText.setText(`CHAIN ${combo.chain}`).setColor('#ffb627').setScale(1 + this.pop * 0.25);
-      this.multText.setText(`×${combo.multiplier.toFixed(2)}`);
+      // The multiplier applies to the next kill, so say so.
+      this.multText.setText(`NEXT ×${combo.multiplier.toFixed(2)}`);
     } else if (this.broken > 0) {
       this.chainText.setText(`CHAIN BROKEN (${this.lastChain})`).setColor('#ff3b30').setScale(1);
       this.multText.setText('');
