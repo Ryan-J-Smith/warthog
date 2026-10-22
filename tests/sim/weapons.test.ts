@@ -19,6 +19,8 @@ describe('weapons', () => {
     sim.step(input({ climb: true }));
     sim.step(input({ climb: true }));
     run(sim, 3);
+    // Climbing to High auto-selects bombs; pick the gun again by hand.
+    sim.step(input({ select: 'gun' }));
     run(sim, 0.5, { fire: true });
     expect(sim.world.player.ammo.gun).toBe(DEFAULT_LOADOUT.ammo.gun);
     expect(sim.world.reticle.blockedReason).toBe('OUT OF RANGE');

@@ -186,3 +186,23 @@ describe('rewards', () => {
     expect(sim.world.pickups.length).toBeGreaterThanOrEqual(ZONES.supplyDrop.length);
   });
 });
+
+describe('weapon follows altitude', () => {
+  it('switches to a usable weapon when a band change blocks the selected one', () => {
+    const sim = new Simulation(makeLevel({ width: 8000, height: 4000, player: { spawn: { x: 2000, y: 2000 }, headingDeg: 0 } }));
+    sim.step(input({ select: 'gun' }));
+    sim.step(input({ climb: true }));
+    run(sim, 1.2);
+    expect(sim.world.player.band).toBe('medium');
+    expect(sim.world.player.selectedWeapon).toBe('gun'); // still usable at Medium: kept
+    sim.step(input({ climb: true }));
+    run(sim, 1.2);
+    expect(sim.world.player.band).toBe('high');
+    expect(sim.world.player.selectedWeapon).toBe('bombs');
+    sim.step(input({ dive: true }));
+    sim.step(input({ dive: true }));
+    run(sim, 1.6);
+    expect(sim.world.player.band).toBe('low');
+    expect(sim.world.player.selectedWeapon).toBe('gun');
+  });
+});

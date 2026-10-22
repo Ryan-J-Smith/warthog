@@ -53,7 +53,9 @@ export function labFlight(
     for (const e of sim.drainEvents()) {
       events.push(e);
       timed.push({ t: sim.world.time, event: e });
+      // Incoming damage: hull hits plus what the shield absorbed (exposure, not just hull loss).
       if (e.type === 'playerHit') damage += e.damage;
+      if (e.type === 'shieldHit') damage += e.amount;
       if (e.type === 'playerDestroyed') dead = true;
     }
     if (stopWhen?.(sim)) break;

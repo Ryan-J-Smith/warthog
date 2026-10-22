@@ -22,7 +22,7 @@ import {
   sub,
   type Vec2,
 } from '../math';
-import { ALTITUDE_BANDS, type ProjectileKind, type WeaponId } from '../types';
+import { ALTITUDE_BANDS, type AltitudeBand, type ProjectileKind, type WeaponId } from '../types';
 import type { World } from '../world';
 import { SimSystem, type StepContext } from './simSystem';
 
@@ -46,9 +46,20 @@ const DAMAGE_TYPE: Record<WeaponId, 'gun' | 'rocket' | 'maverick' | 'bomb'> = {
   bombs: 'bomb',
 };
 
+/**
+ * When an altitude change makes the selected weapon unusable, switch to the first usable weapon
+ * in this order for the new band (so climbing/diving never leaves you holding a dead trigger).
+ */
+const BAND_WEAPON_PREFERENCE: Record<AltitudeBand, readonly WeaponId[]> = {
+  low: ['gun', 'rockets'],
+  medium: ['maverick', 'gun', 'rockets', 'bombs'],
+  high: ['bombs'],
+};
+
 /** Player weapons: selection, firing, Maverick lock, flares, and the reticle. */
 export class WeaponSystem extends SimSystem {
   private wasFiring = false;
+  private lastBand: AltitudeBand | null = null;
   private gunAccumulator = 0;
   private cooldowns: Record<WeaponId, number> = { gun: 0, rockets: 0, maverick: 0, bombs: 0 };
   private flareCooldown = 0;
@@ -57,11 +68,15 @@ export class WeaponSystem extends SimSystem {
     const p = world.player;
 
     if (input.select && input.select !== p.selectedWeapon) {
-      p.selectedWeapon = input.select;
-      p.lockTargetId = null;
-      p.lockProgress = 0;
-      world.emit({ type: 'weaponSelected', weapon: input.select });
+      this.select(world, input.select);
+    } else if (p.alive && this.lastBand !== null && p.band !== this.lastBand) {
+      const reason = blockReason(world, p.selectedWeapon);
+      if (reason === 'tooLow' || reason === 'tooHigh') {
+        const next = BAND_WEAPON_PREFERENCE[p.band].find((w) => blockReason(world, w) === null);
+        if (next) this.select(world, next);
+      }
     }
+    this.lastBand = p.band;
 
     for (const w of Object.keys(this.cooldowns) as WeaponId[]) {
       this.cooldowns[w] = Math.max(0, this.cooldowns[w] - dt);
@@ -119,6 +134,14 @@ export class WeaponSystem extends SimSystem {
     }
 
     this.updateReticle(world);
+  }
+
+  private select(world: World, weapon: WeaponId): void {
+    const p = world.player;
+    p.selectedWeapon = weapon;
+    p.lockTargetId = null;
+    p.lockProgress = 0;
+    world.emit({ type: 'weaponSelected', weapon });
   }
 
   // --- Gun -----------------------------------------------------------------

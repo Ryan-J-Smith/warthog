@@ -112,7 +112,8 @@ export class ProjectileSystem extends SimSystem {
       }
     }
 
-    const speed = Math.min(stats.missileMaxSpeed, Math.hypot(proj.vel.x, proj.vel.y) + stats.missileAccel * dt);
+    const maxSpeed = tracking && p.band === 'high' ? stats.missileMaxSpeedHigh : stats.missileMaxSpeed;
+    const speed = Math.min(maxSpeed, Math.hypot(proj.vel.x, proj.vel.y) + stats.missileAccel * dt);
     const turnRate = degToRad(stats.turnRateDeg);
     const playerHeight = p.alt + AIRCRAFT_BASE_HEIGHT;
 

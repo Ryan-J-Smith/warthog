@@ -39,8 +39,9 @@ export class AircraftFx {
   ) {
     const add = (tex: string, tint: number): Phaser.GameObjects.Image =>
       scene.add.image(0, 0, tex).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.air - 1).setVisible(false);
-    this.flames = NOZZLES.map(() => add('particleSoft', 0x4aa8ff));
-    this.cores = NOZZLES.map(() => add('particleSoft', 0xfff2d0));
+    // Above the airframe: the A-10's exhaust blows over its tailplane.
+    this.flames = NOZZLES.map(() => add('particleSoft', 0x3a8cff).setDepth(DEPTH.air + 0.5));
+    this.cores = NOZZLES.map(() => add('particleSoft', 0xfff2d0).setDepth(DEPTH.air + 0.6));
     this.shield = scene.add.image(0, 0, scene.textures.exists('shieldRing') ? 'shieldRing' : FX_TEXTURES.ring).setTint(SHIELD_COLOR).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.airFx).setVisible(false);
     this.overdrive = add('particleSoft', 0xff6a2a).setDepth(DEPTH.airFx);
   }
@@ -94,11 +95,11 @@ export class AircraftFx {
       core.setVisible(burning);
       if (!burning) return;
       const flicker = 0.85 + Math.sin(now * 50 + i * 2) * 0.1 + rand(-0.06, 0.06);
-      const len = 58 * flicker * scale;
-      const back = this.toWorld(view, n.x - len * 0.45, n.y);
-      flame.setPosition(back.x, back.y).setRotation(p.heading).setDisplaySize(len, 20 * scale).setAlpha(0.85);
-      const coreAt = this.toWorld(view, n.x - len * 0.2, n.y);
-      core.setPosition(coreAt.x, coreAt.y).setRotation(p.heading).setDisplaySize(len * 0.45, 9 * scale).setAlpha(0.95);
+      const len = 110 * flicker * scale;
+      const back = this.toWorld(view, n.x - len * 0.5, n.y);
+      flame.setPosition(back.x, back.y).setRotation(p.heading).setDisplaySize(len, 30 * scale).setAlpha(0.95);
+      const coreAt = this.toWorld(view, n.x - len * 0.25, n.y);
+      core.setPosition(coreAt.x, coreAt.y).setRotation(p.heading).setDisplaySize(len * 0.5, 13 * scale).setAlpha(1);
     });
     if (burning) {
       this.trailTick += dt;

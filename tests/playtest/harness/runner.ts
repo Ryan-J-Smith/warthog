@@ -25,7 +25,7 @@ export interface RunRecord {
   objectives: Record<string, ObjectiveRecord>;
   deaths: number;
   deathTimes: number[];
-  /** Damage taken and hits taken, by source. */
+  /** Incoming damage (shield + hull) and hull hits taken, by source. */
   damage: Record<PlayerDamageSource, number>;
   hits: Record<PlayerDamageSource, number>;
   ammoSpent: Record<WeaponId, number>;
@@ -139,6 +139,10 @@ class Recorder {
         case 'playerHit':
           r.damage[e.source] += e.damage;
           r.hits[e.source] += 1;
+          break;
+        case 'shieldHit':
+          // Incoming damage includes what the shield soaked up (it measures exposure).
+          r.damage[e.source] += e.amount;
           break;
         case 'rearmCompleted':
           r.rearms += 1;

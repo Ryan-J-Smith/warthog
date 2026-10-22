@@ -54,6 +54,8 @@ export interface SamStats {
   evadeBonus: number;
   /** Lead pursuit: aims at the aircraft's position this fraction of the time-to-go ahead. */
   leadFactor: number;
+  /** Top speed while chasing an aircraft at High (thin air: High is SAM country, not a safe haven). */
+  missileMaxSpeedHigh: number;
 }
 
 export interface EntityStats {
@@ -192,6 +194,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
       gimbalArmTime: 0.8,
       evadeBonus: 300,
       leadFactor: 0.3,
+      missileMaxSpeedHigh: 640,
     },
   },
   bridge: {
