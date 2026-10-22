@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { SCORING } from '../config';
 import { getLevel } from '../content/levels';
+import { CHALLENGE_BOUNTY, type Challenge } from '../meta/challenges';
 import type { MissionAward } from '../meta/save';
 import { saveStoreFor } from '../meta/session';
 import type { MissionResults } from '../sim/world';
@@ -11,7 +12,7 @@ import { countUpValue } from '../ui/model';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { TACMAP_BRIEFING, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, css, textStyle } from '../ui/theme';
-import { MenuList, bindMenuKeys, createBackdrop, drawPanel, drawRule, gradeColor } from '../ui/widgets';
+import { MEDAL_COLOR, MenuList, bindMenuKeys, createBackdrop, drawPanel, drawRule, gradeColor } from '../ui/widgets';
 import { SCENES, type GameSceneData, type HangarSceneData, type ResultsSceneData } from './sceneKeys';
 
 const LEDGER = { x: 150, y: 262, w: 1060, row: 54 } as const;
@@ -98,7 +99,7 @@ export class ResultsScene extends Phaser.Scene {
 
     // Ledger.
     const panel = this.add.graphics();
-    const rows = r.objectives.length + 4 + (r.bonusPoints > 0 ? 1 : 0);
+    const rows = r.objectives.length + 4 + (r.bonusPoints > 0 ? 1 : 0) + award.challenges.length;
     this.row = Math.min(LEDGER.row, Math.floor((LEDGER_MAX_H - LEDGER_CHROME_H) / rows));
     const panelH = rows * this.row + LEDGER_CHROME_H;
     drawPanel(panel, LEDGER.x - 30, LEDGER.y - 24, LEDGER.w + 60, panelH, { fillAlpha: 0.82 });
@@ -131,6 +132,11 @@ export class ResultsScene extends Phaser.Scene {
     y += 22;
     this.addTotal(y, r, award);
     y += 82;
+    // Challenges completed for the first time: each pays its bounty into CREDITS EARNED below.
+    for (const challenge of award.challenges) {
+      this.addChallenge(y, challenge);
+      y += this.row;
+    }
     this.addCredits(y, award, r.grade);
 
     this.stamp = this.buildStamp(r);
@@ -198,7 +204,22 @@ export class ResultsScene extends Phaser.Scene {
     this.lines.push({ container, value, target: r.total, signed: false, duration: 1.1 });
   }
 
-  /** "CREDITS EARNED  SORTIE 150 · SCORE 2,200 · GRADE A 400   +2,750 CR". */
+  /** "◆ CHALLENGE · CHAIN 10   Build a 10-kill chain   +600 CR". */
+  private addChallenge(y: number, challenge: Challenge): void {
+    const icon = this.add.text(0, 0, '◆', textStyle({ size: 24, color: MEDAL_COLOR, glow: 8 })).setOrigin(0.5, 0);
+    const label = this.add.text(34, 0, `CHALLENGE · ${challenge.title}`, textStyle({ size: 25, color: MEDAL_COLOR, glow: 4 }));
+    const note = this.add.text(LEDGER.w - 250, 3, challenge.description.toUpperCase(), textStyle({ size: 19, color: COLOR.amberDim, glow: false })).setOrigin(1, 0);
+    const value = this.add.text(LEDGER.w, 0, '', textStyle({ size: 28, color: MEDAL_COLOR, glow: 8 })).setOrigin(1, 0);
+    const container = this.add.container(LEDGER.x + 12, y, [icon, label, note, value]).setAlpha(0);
+    const line: LedgerLine = { container, value, target: CHALLENGE_BOUNTY, signed: true, suffix: ' CR', duration: 0.4 };
+    this.setValue(line, 0);
+    this.lines.push(line);
+  }
+
+  /**
+   * "CREDITS EARNED  SORTIE 150 · SCORE 2,200 · GRADE A 400   +3,350 CR". The value includes the
+   * challenge bounties listed just above (the note has no room for them).
+   */
   private addCredits(y: number, award: MissionAward, grade: string): void {
     const c = award.credits;
     const icon = this.add.text(0, 0, '◆', textStyle({ size: 24, color: COLOR.amber, glow: 6 })).setOrigin(0.5, 0);
@@ -208,13 +229,15 @@ export class ResultsScene extends Phaser.Scene {
     const note = this.add.text(LEDGER.w - 250, 3, parts.join('  ·  '), textStyle({ size: 19, color: COLOR.amberDim, glow: false })).setOrigin(1, 0);
     const value = this.add.text(LEDGER.w, 0, '', textStyle({ size: 30, color: COLOR.amber, glow: 10 })).setOrigin(1, 0);
     const container = this.add.container(LEDGER.x + 12, y, [icon, label, note, value]).setAlpha(0);
-    const line: LedgerLine = { container, value, target: c.total, signed: true, suffix: ' CR', duration: 0.6 };
+    const line: LedgerLine = { container, value, target: award.totalCredits, signed: true, suffix: ' CR', duration: 0.6 };
     this.setValue(line, 0);
     this.lines.push(line);
   }
 
   private showLine(line: LedgerLine): void {
     const x = line.container.x;
+    // Remembered so a skip mid-slide can put the line back in place.
+    line.container.setData('homeX', x);
     line.container.setAlpha(0).setX(x - 30);
     this.tweens.add({ targets: line.container, alpha: 1, x, duration: 180, ease: 'Cubic.easeOut' });
   }
@@ -231,6 +254,8 @@ export class ResultsScene extends Phaser.Scene {
   private skip(): void {
     for (const line of this.lines) {
       this.tweens.killTweensOf(line.container);
+      const homeX: unknown = line.container.getData('homeX');
+      if (typeof homeX === 'number') line.container.setX(homeX);
       line.container.setAlpha(1);
       this.setValue(line, line.target);
     }

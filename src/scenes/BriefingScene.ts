@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
+import { saveStoreFor } from '../meta/session';
 import type { LevelDefinition } from '../sim/level';
 import type { Vec2 } from '../sim/math';
 import { briefingFor, controlsReminder, type Briefing, type IntelItem } from '../ui/copy';
@@ -9,7 +10,7 @@ import { objectiveShortLabel } from '../ui/model';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { TACMAP_BRIEFING, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, textStyle } from '../ui/theme';
-import { TypewriterText, bindMenuKeys, blink, createBackdrop, drawPanel, drawRule, pulse } from '../ui/widgets';
+import { MEDAL_COLOR, TypewriterText, bindMenuKeys, blink, createBackdrop, drawPanel, drawRule, pulse } from '../ui/widgets';
 import { SCENES, type BriefingSceneData, type GameSceneData } from './sceneKeys';
 
 const MAP = { x: 64, y: 206, w: 1040, h: 780 } as const;
@@ -78,6 +79,7 @@ export class BriefingScene extends Phaser.Scene {
     createBackdrop(this, { grid: 60, scanlines: 0.25, vignette: 0.75 });
 
     this.buildHeader(briefing);
+    this.buildChallenges();
     this.buildMap(level, briefing);
     this.buildText(briefing);
     this.buildFooter();
@@ -174,6 +176,23 @@ export class BriefingScene extends Phaser.Scene {
     this.add.text(70, 40, 'MISSION BRIEFING  ·  WARTHOG 1-1  ·  CAS', textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
     this.add.text(66 - 14, 64 - 14, briefing.operation, textStyle({ size: 66, font: 'display', color: COLOR.green, glow: 14 }));
     this.add.text(TEXT.x + TEXT.w, 142, `“${briefing.tagline}”`, textStyle({ size: 22, color: COLOR.amber, glow: false })).setOrigin(1, 0);
+  }
+
+  /** Top right, above the tagline: the mission's three challenges, earned ones ticked. */
+  private buildChallenges(): void {
+    const statuses = saveStoreFor(this.game).challengeStatus(this.levelId);
+    if (statuses.length === 0) return;
+    const right = TEXT.x + TEXT.w;
+    const earned = statuses.filter((s) => s.earned).length;
+    this.add
+      .text(right, 34, `CHALLENGES  ${earned}/${statuses.length}`, textStyle({ size: 16, color: COLOR.greenDim, glow: false, letterSpacing: 3 }))
+      .setOrigin(1, 0);
+    statuses.forEach((s, i) => {
+      const y = 58 + i * 25;
+      const text = `${s.challenge.title}  ·  ${s.challenge.description.toUpperCase()}`;
+      this.add.text(right - 30, y, text, textStyle({ size: 16, color: s.earned ? MEDAL_COLOR : COLOR.greenDim, glow: false })).setOrigin(1, 0);
+      this.add.text(right, y - 1, s.earned ? '✔' : '◇', textStyle({ size: 18, color: s.earned ? MEDAL_COLOR : COLOR.greenFaint, glow: s.earned ? 6 : false })).setOrigin(1, 0);
+    });
   }
 
   private buildMap(level: LevelDefinition, briefing: Briefing): void {

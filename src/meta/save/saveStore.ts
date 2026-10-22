@@ -1,5 +1,14 @@
 import type { PlayerLoadout } from '../../sim/loadout';
 import type { MissionResults } from '../../sim/world';
+import {
+  CHALLENGE_BOUNTY,
+  CHALLENGE_CATALOG,
+  challengeStatuses,
+  evaluateChallenges,
+  type Challenge,
+  type ChallengeCatalog,
+  type ChallengeStatus,
+} from '../challenges';
 import { missionCredits, type CreditBreakdown } from '../credits';
 import { buildLoadout, checkPurchase, levelOf, type PurchaseCheck, type UpgradeId, type UpgradeLevels } from '../upgrades';
 import { gradeRank, parseSave, serializeSave, type LevelRecord, type SaveData } from './saveData';
@@ -12,6 +21,12 @@ export interface MissionAward {
   newBestGrade: boolean;
   /** The level's record before this mission (null on the first run). */
   previous: LevelRecord | null;
+  /** Challenges completed for the first time on this mission (each paid `CHALLENGE_BOUNTY`). */
+  challenges: Challenge[];
+  /** Credits paid for those challenges (on top of `credits.total`). */
+  bounty: number;
+  /** Everything this mission paid: `credits.total + bounty`. */
+  totalCredits: number;
 }
 
 /**
@@ -23,7 +38,11 @@ export class SaveStore {
   /** Awards by results object, so re-entering a results screen never pays twice. */
   private readonly awards = new WeakMap<MissionResults, MissionAward>();
 
-  constructor(private readonly storage: SaveStorage) {
+  /** @param catalog the per-level challenges (injectable for tests). */
+  constructor(
+    private readonly storage: SaveStorage,
+    private readonly catalog: ChallengeCatalog = CHALLENGE_CATALOG,
+  ) {
     this.data = parseSave(storage.read());
   }
 
@@ -47,6 +66,16 @@ export class SaveStore {
     return this.data.levels[levelId] ?? null;
   }
 
+  /** Ids of the level's completed challenges. */
+  completedChallenges(levelId: string): readonly string[] {
+    return this.data.challenges[levelId] ?? [];
+  }
+
+  /** The level's challenges, each marked earned or not. */
+  challengeStatus(levelId: string): ChallengeStatus[] {
+    return challengeStatuses(levelId, this.completedChallenges(levelId), this.catalog);
+  }
+
   /** The aircraft as currently upgraded. */
   loadout(): PlayerLoadout {
     return buildLoadout(this.data.upgrades);
@@ -63,8 +92,10 @@ export class SaveStore {
   }
 
   /**
-   * Pay out a finished mission and update the level's best. Idempotent per results object:
-   * calling it again with the same `results` returns the original award without paying again.
+   * Pay out a finished mission, update the level's best and pay the bounty of any challenge
+   * completed for the first time. Idempotent per results object: calling it again with the same
+   * `results` returns the original award without paying again. A challenge already held is never
+   * paid again by a later mission.
    */
   recordMission(levelId: string, results: MissionResults): MissionAward {
     const existing = this.awards.get(results);
@@ -82,11 +113,24 @@ export class SaveStore {
         bestGrade: newBestGrade ? results.grade : (previous?.bestGrade ?? results.grade),
       };
     }
-    this.data.credits += credits.total;
+    const held = this.completedChallenges(levelId);
+    const challenges = evaluateChallenges(levelId, results, this.catalog).filter((c) => !held.includes(c.id));
+    if (challenges.length > 0) this.data.challenges[levelId] = [...held, ...challenges.map((c) => c.id)];
+    const bounty = challenges.length * CHALLENGE_BOUNTY;
+    const totalCredits = credits.total + bounty;
+    this.data.credits += totalCredits;
     this.data.missionsFlown += 1;
     this.persist();
 
-    const award: MissionAward = { credits, newBestScore, newBestGrade, previous: previous ? { ...previous } : null };
+    const award: MissionAward = {
+      credits,
+      newBestScore,
+      newBestGrade,
+      previous: previous ? { ...previous } : null,
+      challenges,
+      bounty,
+      totalCredits,
+    };
     this.awards.set(results, award);
     return award;
   }

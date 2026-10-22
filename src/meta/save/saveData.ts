@@ -18,10 +18,15 @@ export interface SaveData {
   /** Best results by level id. */
   levels: Record<string, LevelRecord>;
   missionsFlown: number;
+  /**
+   * Completed challenge ids by level id. Added after version 1 shipped without a version bump:
+   * a save without it simply has none completed.
+   */
+  challenges: Record<string, string[]>;
 }
 
 export function emptySave(): SaveData {
-  return { version: SAVE_VERSION, credits: 0, upgrades: {}, levels: {}, missionsFlown: 0 };
+  return { version: SAVE_VERSION, credits: 0, upgrades: {}, levels: {}, missionsFlown: 0, challenges: {} };
 }
 
 export function serializeSave(data: SaveData): string {
@@ -60,6 +65,14 @@ export function parseSave(text: string | null): SaveData {
       const bestGrade = record['bestGrade'];
       if (typeof bestScore !== 'number' || !Number.isFinite(bestScore) || typeof bestGrade !== 'string') continue;
       save.levels[id] = { bestScore: Math.round(bestScore), bestGrade };
+    }
+  }
+  const challenges = raw['challenges'];
+  if (isRecord(challenges)) {
+    for (const [id, list] of Object.entries(challenges)) {
+      if (!Array.isArray(list)) continue;
+      const ids = [...new Set(list.filter((c): c is string => typeof c === 'string'))];
+      if (ids.length > 0) save.challenges[id] = ids;
     }
   }
   return save;

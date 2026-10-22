@@ -7,13 +7,26 @@ import { formatClock, formatScore } from '../ui/format';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { TACMAP_BRIEFING, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, css, textStyle } from '../ui/theme';
-import { RowList, bindMenuKeys, createBackdrop, createGradeBadge, drawPanel, drawRule, gradeColor } from '../ui/widgets';
+import {
+  MEDAL_COLOR,
+  RowList,
+  bindMenuKeys,
+  createBackdrop,
+  createGradeBadge,
+  createMedalPips,
+  drawPanel,
+  drawRule,
+  gradeColor,
+} from '../ui/widgets';
 import { SCENES, type BriefingSceneData } from './sceneKeys';
 
 const LIST = { x: 96, y: 236, w: 820, row: 132, gap: 14, viewH: 724 } as const;
 const PREVIEW = { x: 980, y: 236, w: 844, h: 724 } as const;
 /** Preview map area inside the panel (the baked briefing map is 4:3). */
-const MAP = { x: PREVIEW.x + 30, y: PREVIEW.y + 104, w: 784, h: 450 } as const;
+const MAP = { x: PREVIEW.x + 30, y: PREVIEW.y + 104, w: 784, h: 320 } as const;
+/** The challenge list's first row, under the best line. */
+const CHALLENGES_Y = MAP.y + MAP.h + 170;
+const CHALLENGE_ROW = 34;
 
 /** The list remembers its selection for the session (back from a briefing lands on the same mission). */
 let lastIndex = 0;
@@ -30,6 +43,8 @@ export class LevelSelectScene extends Phaser.Scene {
   private previewTagline!: Phaser.GameObjects.Text;
   private previewStats!: Phaser.GameObjects.Text;
   private previewBest!: Phaser.GameObjects.Text;
+  /** One row per challenge of the selected mission: tick, title, description. */
+  private previewChallenges: Array<{ tick: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; description: Phaser.GameObjects.Text }> = [];
   private leaving = false;
 
   constructor() {
@@ -83,6 +98,16 @@ export class LevelSelectScene extends Phaser.Scene {
     this.previewTagline = this.add.text(PREVIEW.x + 30, MAP.y + MAP.h + 22, '', textStyle({ size: 24, color: COLOR.white, glow: false, wrap: PREVIEW.w - 60 }));
     this.previewStats = this.add.text(PREVIEW.x + 30, MAP.y + MAP.h + 64, '', textStyle({ size: 20, color: COLOR.greenDim, glow: false }));
     this.previewBest = this.add.text(PREVIEW.x + 30, MAP.y + MAP.h + 100, '', textStyle({ size: 22, color: COLOR.green, glow: false }));
+    this.add.text(PREVIEW.x + 30, CHALLENGES_Y - 10, 'CHALLENGES', textStyle({ size: 17, color: COLOR.greenDim, glow: false, letterSpacing: 3 })).setOrigin(0, 1);
+    drawRule(g, PREVIEW.x + 30, CHALLENGES_Y - 4, MAP.w, COLOR.green, 0.25);
+    this.previewChallenges = [0, 1, 2].map((i) => {
+      const y = CHALLENGES_Y + 6 + i * CHALLENGE_ROW;
+      return {
+        tick: this.add.text(PREVIEW.x + 42, y, '', textStyle({ size: 22, color: MEDAL_COLOR, glow: false })).setOrigin(0.5, 0),
+        title: this.add.text(PREVIEW.x + 66, y, '', textStyle({ size: 22, color: COLOR.white, glow: false })),
+        description: this.add.text(PREVIEW.x + 30 + MAP.w, y + 3, '', textStyle({ size: 18, color: COLOR.greenDim, glow: false })).setOrigin(1, 0),
+      };
+    });
 
     this.add.text(100, height - 64, '↑↓  SELECT     ENTER  BRIEFING     ESC  BACK     M  MUTE ALL', textStyle({ size: 18, color: COLOR.greenDim, glow: false }));
 
@@ -109,7 +134,9 @@ export class LevelSelectScene extends Phaser.Scene {
     const bestText = this.add
       .text(LIST.w - 124, h / 2, best ? `BEST\n${formatScore(best.bestScore)}` : 'NOT\nFLOWN', textStyle({ size: 19, color: COLOR.greenDim, glow: false, align: 'right' }))
       .setOrigin(1, 0.5);
-    row.add([number, name, tagline, badge, bestText]);
+    // Challenge medals, after the name.
+    const medals = createMedalPips(this, 128 + name.width + 22, 26 + name.height / 2, saveStoreFor(this.game).challengeStatus(level.id).map((s) => s.earned), 18);
+    row.add([number, name, tagline, badge, bestText, medals]);
     return (selected) => {
       number.setColor(css(selected ? COLOR.green : COLOR.greenFaint));
       name.setColor(css(selected ? COLOR.greenBright : COLOR.greenDim));
@@ -145,6 +172,16 @@ export class LevelSelectScene extends Phaser.Scene {
       this.previewBest.setText('NOT FLOWN YET');
       this.previewBest.setColor(css(COLOR.greenDim));
     }
+    const statuses = saveStoreFor(this.game).challengeStatus(level.id);
+    this.previewChallenges.forEach((row, i) => {
+      const status = statuses[i];
+      row.tick.setText(status ? (status.earned ? '◆' : '◇') : '');
+      row.tick.setColor(css(status?.earned ? MEDAL_COLOR : COLOR.greenFaint));
+      row.title.setText(status ? status.challenge.title : '');
+      row.title.setColor(css(status?.earned ? MEDAL_COLOR : COLOR.white));
+      row.description.setText(status ? (status.earned ? `${status.challenge.description}  ✔` : status.challenge.description) : '');
+      row.description.setColor(css(status?.earned ? COLOR.amberDim : COLOR.greenDim));
+    });
   }
 
   private launch(index: number): void {

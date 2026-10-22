@@ -1,4 +1,5 @@
-import type { MissionResults } from '../../src/sim/world';
+import type { ObjectiveStatus } from '../../src/sim/types';
+import type { MissionFeats, MissionResults, ObjectiveResult } from '../../src/sim/world';
 
 /** A finished mission with the given outcome, total and grade (other fields are plausible filler). */
 export function missionResults(overrides: Partial<MissionResults> = {}): MissionResults {
@@ -17,4 +18,24 @@ export function missionResults(overrides: Partial<MissionResults> = {}): Mission
     grade: 'A',
     ...overrides,
   };
+}
+
+/** Feats for a run that earns no challenge (other fields are plausible filler). */
+export function missionFeats(overrides: Partial<MissionFeats> = {}): MissionFeats {
+  return {
+    bestChain: 4,
+    missilesDefeated: 0,
+    zonesCleared: 0,
+    pickupsCollected: 0,
+    killsByKind: {},
+    hullDamage: 120,
+    deaths: 0,
+    escapes: 6,
+    ...overrides,
+  };
+}
+
+/** An objective result with the given status. */
+export function objective(id: string, status: ObjectiveStatus, primary = false): ObjectiveResult {
+  return { id, title: id, primary, status, points: 1000 };
 }
