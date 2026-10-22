@@ -199,6 +199,76 @@ function bunker(level) {
   return svg(S, S, defs(), p.join(''));
 }
 
+// ---------------------------------------------------------------------------
+// Flak battery: twin-barrel AA mounts in sandbagged pits (shoots gunships only). The main mount is
+// at the pad centre (where the shells leave from); barrels point north-east, unrotated.
+// ---------------------------------------------------------------------------
+
+/** Sandbagged gun pit: a ring of bags around a dark floor. */
+function gunPit(id, x, y, r) {
+  let ink = '';
+  let fills = '';
+  const n = Math.round((r * 2 * Math.PI) / 7.5);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const tf = `translate(${(x + Math.cos(a) * r).toFixed(2)},${(y + Math.sin(a) * r).toFixed(2)}) rotate(${((a * 180) / Math.PI + 90).toFixed(1)})`;
+    ink += `<path d="${dRect(-5, -3.8, 10, 7.6, 3.2)}" transform="${tf}" fill="${T.ink}"/>`;
+    fills += `<path d="${dRect(-3.8, -2.7, 7.6, 5.4, 2.4)}" transform="${tf}" fill="${i % 3 ? T.bag : T.bagD}"/>`;
+  }
+  return fill(dEllipse(x, y, r - 1), '#5d5749', { stroke: T.ink, 'stroke-width': 0.9 }) + ink + fills;
+}
+
+/** Twin-barrel AA mount: steel-blue turret with a white band, two long barrels toward `deg`. */
+function flakMount(id, x, y, size, deg) {
+  const k = size / 20;
+  const body = dRound([[-12, -11], [6, -11], [11, -6], [11, 6], [6, 11], [-12, 11], [-15, 7], [-15, -7]].map(([u, v]) => [u * k, v * k]), 4 * k);
+  const barrels = [-5, 5].map((v) => dRect(8 * k, (v - 1.8) * k, 26 * k, 3.6 * k, 1.2 * k));
+  const brakes = [-5, 5].map((v) => dRect(30 * k, (v - 2.6) * k, 6 * k, 5.2 * k, 1.4 * k));
+  return (
+    `<g transform="translate(${x},${y}) rotate(${deg})">` +
+    fill(body, '#000', { opacity: 0.28, transform: `translate(${2 * k},${3 * k})` }) +
+    outline([...barrels, ...brakes, body], 1.8) +
+    barrels.map((d) => cel(id, d, T.gunL, T.gunD, { s: 1.2, sx: 0 })).join('') +
+    brakes.map((d) => cel(id, d, T.gun, T.gunD, { s: 1.2, sx: 0 })).join('') +
+    cel(id, body, team.roof, team.roofD, { s: 2.4 }) +
+    fill(dRect(-4 * k, -10.4 * k, 3.4 * k, 20.8 * k, 0.6), T.blue, { opacity: 0.95 }) +
+    cel(id, dEllipse(-8 * k, 0, 4 * k), team.roofD, T.fDD, { s: 1 }) +
+    lamp(4 * k, -6 * k, 1.5 * k, team.gid, team.glow, team.core) +
+    glint(`M${-12 * k},${-8.6 * k} H${4 * k}`, 1.2, '#ffffff', 0.5) +
+    `</g>`
+  );
+}
+
+function flak(level) {
+  const S = level === 2 ? 250 : 220;
+  const c = S / 2;
+  const id = ids(`pf${level}`);
+  const p = [];
+  p.push(slab(id, c, level === 2 ? 112 : 98));
+  // Main twin mount at the pad centre.
+  p.push(gunPit(id, c, c, level === 2 ? 38 : 37));
+  p.push(flakMount(id, c, c, level === 2 ? 30 : 29, -45));
+  // Ready-ammo crates, fire-control cabin with radar dish, flag.
+  p.push(crates(id, c - 62, c + 40, 3, 2, '#77827c', '#58625d'), crates(id, c + 34, c + 46, 3, 1, '#77827c', '#58625d'));
+  p.push(block(id, dRect(c - 70, c - 66, 34, 24, 2.4), CONC_L, CONC_D, 1.8, 1.6), cel(id, dRect(c - 66, c - 62, 26, 16, 1.6), team.roof, team.roofD, { s: 1.2 }));
+  p.push(fill(dRect(c - 66, c - 56, 26, 3, 0), T.blue, { opacity: 0.95 }));
+  p.push(dish(id, c - 26, c - 62, 11, 14, 40, team.glow, false));
+  p.push(flag(c + 52, c - 70, team));
+  if (level === 2) {
+    // Two more twin mounts east and west, a radar mast and MG nests.
+    for (const x of [c - 70, c + 70]) {
+      p.push(gunPit(id, x, c + 8, 22), flakMount(id, x, c + 8, 15, -45));
+    }
+    p.push(mast(id, c + 70, c - 62, 14, lamp(c + 70, c - 62, 2, team.gid, team.glow, team.core), false));
+    p.push(nest(c, c + 90, 90, false));
+  } else {
+    p.push(lamp(c + 60, c + 10, 1.6, team.gid, team.glow, team.core), lamp(c - 60, c + 10, 1.6, team.gid, team.glow, team.core));
+  }
+  return svg(S, S, defs(), p.join(''));
+}
+
+export const structFlak = () => flak(1);
+export const structFlak2 = () => flak(2);
 export const structBarracks = () => barracks(1);
 export const structBarracks2 = () => barracks(2);
 export const structDepot = () => depot(1);

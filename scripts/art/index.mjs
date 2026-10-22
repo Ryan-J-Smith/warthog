@@ -126,6 +126,8 @@ const FUNPASS = {
   structDepot2: PD.structDepot2,
   structBunker: PD.structBunker,
   structBunker2: PD.structBunker2,
+  structFlak: PD.structFlak,
+  structFlak2: PD.structFlak2,
   // Friendly bases restyled to v1 (2026-10-22; replace the v0 drawings in structures.mjs).
   outpost: BS.outpost,
   outpostDestroyed: BS.outpostDestroyed,

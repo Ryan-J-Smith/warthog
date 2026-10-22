@@ -8,10 +8,10 @@ import { withGalleryBiome } from './galleryBiome';
 /** Build-pad circle radius used by Hold the Line (world units). */
 const PAD_RADIUS = 150;
 const ROWS: Array<{ title: string; keys: SpriteKey[] }> = [
-  { title: 'LEVEL 1', keys: ['structBarracks', 'structDepot', 'structBunker'] },
-  { title: 'LEVEL 2', keys: ['structBarracks2', 'structDepot2', 'structBunker2'] },
+  { title: 'LEVEL 1', keys: ['structBarracks', 'structDepot', 'structBunker', 'structFlak'] },
+  { title: 'LEVEL 2', keys: ['structBarracks2', 'structDepot2', 'structBunker2', 'structFlak2'] },
 ];
-const ZOOM = 1.45;
+const ZOOM = 1.1;
 const INV_RES = 1 / SPRITE_RESOLUTION;
 
 /**

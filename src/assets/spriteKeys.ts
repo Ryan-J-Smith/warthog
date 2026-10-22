@@ -55,6 +55,8 @@ export const SPRITES = {
   structDepot2: { w: 250, h: 250, note: 'Tank depot level 2: four-bay shed, yellow gantry crane, second fuel tank, guard towers.' },
   structBunker: { w: 220, h: 220, note: 'Bunker: sandbag ring with three hull-down tank slots facing out around a concrete pillbox.' },
   structBunker2: { w: 250, h: 250, note: 'Bunker level 2: five tank slots, larger pillbox, corner bastions, MG nest, comms mast.' },
+  structFlak: { w: 220, h: 220, note: 'Flak battery (anti-gunship): twin-barrel AA mount in a sandbagged pit at the pad centre (shells leave from there), fire-control cabin + radar dish, ready ammo.' },
+  structFlak2: { w: 250, h: 250, note: 'Flak battery level 2: bigger central mount plus two side mounts, radar mast, MG nest.' },
 
   // Movement-cycle frames (same size/pivots as their unit's sprite; cycled by EntityRenderer by distance moved)
   infantryWalk1: { w: 52, h: 52, note: 'Enemy mech walk-cycle step 1 (stride 0.71; `infantry` is step 0, stride 1).' },
