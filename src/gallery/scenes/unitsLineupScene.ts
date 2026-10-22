@@ -6,6 +6,7 @@ import { ENTITY_VISUALS } from '../../render/entities';
 import { aircraftHeight, heightScale, shadowAlpha, shadowOffset, unitDisplayScale } from '../../render/layers';
 import { TerrainModel, TerrainPainter } from '../../render/terrain';
 import { degToRad } from '../../sim/math';
+import { withGalleryBiome } from './galleryBiome';
 
 /**
  * Static AA emplacement base. Generated to public/assets/sprites/aaSite.svg; not in the SPRITES
@@ -42,7 +43,7 @@ const HALO_ALPHA = 0.5;
 
 /**
  * Every unit composed the way the game draws it (hull + turret on its pivot + ground halo, the
- * player with its altitude shadow) on painted desert terrain, at a close-up and at the true
+ * player with its altitude shadow) on painted terrain (desert, or `?biome=winter`), at a close-up and at the true
  * on-screen size for Low / Medium / High. Each ground unit is shown facing east and turned 35°,
  * so tank vs AA can be checked by silhouette at every zoom.
  */
@@ -62,7 +63,7 @@ export class UnitsLineupScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor('#141610');
-    const painter = new TerrainPainter(new TerrainModel(riverCrossing));
+    const painter = new TerrainPainter(new TerrainModel(withGalleryBiome(riverCrossing)));
     const width = 1920;
     let y = 12;
     BANDS.forEach((band, i) => {
@@ -92,7 +93,7 @@ export class UnitsLineupScene extends Phaser.Scene {
     });
   }
 
-  /** Desert terrain behind a band, painted at the band's zoom (near LOD at ≥ 0.62, like the game). */
+  /** Terrain behind a band, painted at the band's zoom (near LOD at ≥ 0.62, like the game). */
   private paintBand(painter: TerrainPainter, key: string, y: number, w: number, h: number, zoom: number): void {
     const tex = this.textures.createCanvas(key, w, h);
     if (!tex) throw new Error(`Could not create ${key}`);

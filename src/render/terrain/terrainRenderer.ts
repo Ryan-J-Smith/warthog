@@ -4,7 +4,6 @@ import { DEPTH } from '../layers';
 import { TerrainModel } from './terrainModel';
 import { TerrainPainter } from './terrainPainter';
 import type { PaintDetail } from './terrainPainter';
-import { TERRAIN_COLORS } from './terrainPalette';
 
 export interface TerrainRendererOptions {
   /** Pixels per world unit of the always-resident whole-map layer (good for zoom ≤ ~0.6). */
@@ -130,7 +129,7 @@ export class TerrainRenderer {
     this.model = new TerrainModel(this.level);
     this.painter = new TerrainPainter(this.model);
 
-    const avg = TERRAIN_COLORS.average;
+    const avg = this.model.palette.average;
     const pad = 4000;
     this.backdrop = this.scene.add
       .rectangle(-pad, -pad, this.level.width + pad * 2, this.level.height + pad * 2, Phaser.Display.Color.GetColor(avg[0], avg[1], avg[2]))

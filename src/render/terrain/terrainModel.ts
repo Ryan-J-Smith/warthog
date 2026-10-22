@@ -8,7 +8,8 @@ import { createCanvas, context2d, SpatialGrid } from './canvasUtil';
 import { sampleSpline } from './curves';
 import type { DenseCurve } from './curves';
 import { ValueNoise, smoothstep } from './noise';
-import { TERRAIN_COLORS, mixRgb } from './terrainPalette';
+import { mixRgb, terrainPalette } from './terrainPalette';
+import type { TerrainBiome, TerrainPalette } from './terrainPalette';
 
 /** Bit flags stored per mask cell. */
 export const MASK = {
@@ -99,6 +100,9 @@ export class TerrainModel {
   readonly height: number;
   readonly seed: number;
   readonly noise: ValueNoise;
+  readonly biome: TerrainBiome;
+  /** Colours for `biome`, shared with the painter. */
+  readonly palette: TerrainPalette;
   readonly rivers: RiverModel[];
   readonly roads: RoadModel[];
   readonly footprints: FootprintModel[];
@@ -137,6 +141,8 @@ export class TerrainModel {
     this.height = level.height;
     this.seed = level.seed;
     this.noise = new ValueNoise(level.seed);
+    this.biome = level.terrain.biome;
+    this.palette = terrainPalette(this.biome);
 
     const terrain = level.terrain;
     this.rivers = terrain.rivers.map((r, i) => this.buildRiver(r.points, r.width, i));
@@ -341,6 +347,7 @@ export class TerrainModel {
     const ly = -0.8 * Math.cos(el);
     const lz = Math.sin(el);
     const cell2 = this.shadeCell * 2;
+    const { shadeLight, shadeLightMax, shadeDark, shadeDarkMax } = this.palette;
     for (let gy = 0; gy < rows; gy++) {
       for (let gx = 0; gx < cols; gx++) {
         const i = gy * cols + gx;
@@ -355,15 +362,15 @@ export class TerrainModel {
         const diff = dot - lz;
         const o = i * 4;
         if (diff >= 0) {
-          data[o] = 255;
-          data[o + 1] = 244;
-          data[o + 2] = 214;
-          data[o + 3] = Math.min(190, diff * 255 * 2.8);
+          data[o] = shadeLight[0];
+          data[o + 1] = shadeLight[1];
+          data[o + 2] = shadeLight[2];
+          data[o + 3] = Math.min(shadeLightMax, diff * 255 * 2.8);
         } else {
-          data[o] = 92;
-          data[o + 1] = 74;
-          data[o + 2] = 50;
-          data[o + 3] = Math.min(95, -diff * 255 * 1.2);
+          data[o] = shadeDark[0];
+          data[o + 1] = shadeDark[1];
+          data[o + 2] = shadeDark[2];
+          data[o + 3] = Math.min(shadeDarkMax, -diff * 255 * 1.2);
         }
       }
     }
@@ -496,7 +503,7 @@ export class TerrainModel {
     const ctx = context2d(canvas);
     const img = ctx.createImageData(cols, rows);
     const data = img.data;
-    const C = TERRAIN_COLORS;
+    const C = this.palette;
     const col = [0, 0, 0];
     const tmp = [0, 0, 0];
     const noise = this.noise;
@@ -606,7 +613,7 @@ export class TerrainModel {
 
   private buildVillages(): void {
     const rng = new Rng(this.seed ^ 0x5eed);
-    const C = TERRAIN_COLORS;
+    const C = this.palette;
     this.level.terrain.villages.forEach((v) => {
       const theta = rng.range(0, Math.PI);
       const placed: BuildingModel[] = [];

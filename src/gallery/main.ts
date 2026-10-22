@@ -3,7 +3,8 @@ import { EffectsGalleryScene, GalleryPreloadScene, SpriteSheetScene, TerrainGall
 
 /**
  * Dev-only art gallery (served by Vite at /gallery.html; not part of the production build).
- * `?view=sprites|units|terrain|effects` picks the page (`units` = composed units at game scale).
+ * `?view=sprites|units|terrain|effects` picks the page (`units` = composed units at game scale);
+ * `&biome=winter` repaints the terrain views in the winter biome.
  */
 const VIEWS: Record<string, { key: string; scene: Phaser.Types.Scenes.SceneType }> = {
   sprites: { key: 'SpriteSheet', scene: SpriteSheetScene },
@@ -12,12 +13,21 @@ const VIEWS: Record<string, { key: string; scene: Phaser.Types.Scenes.SceneType 
   units: { key: 'UnitsLineup', scene: UnitsLineupScene },
 };
 
-const requested = new URLSearchParams(window.location.search).get('view') ?? 'sprites';
+const params = new URLSearchParams(window.location.search);
+const requested = params.get('view') ?? 'sprites';
 const view = VIEWS[requested] ?? VIEWS['sprites'];
 if (!view) throw new Error('No gallery views registered');
+const winter = params.get('biome') === 'winter';
 
-for (const link of document.querySelectorAll<HTMLAnchorElement>('#nav a')) {
+for (const link of document.querySelectorAll<HTMLAnchorElement>('#nav a[data-view]')) {
   link.classList.toggle('active', link.dataset['view'] === requested);
+  link.href = `?view=${link.dataset['view'] ?? ''}${winter ? '&biome=winter' : ''}`;
+}
+const biomeLink = document.getElementById('biome');
+if (biomeLink instanceof HTMLAnchorElement) {
+  biomeLink.textContent = `Biome: ${winter ? 'winter' : 'steppe'}`;
+  biomeLink.classList.toggle('active', winter);
+  biomeLink.href = `?view=${requested}${winter ? '' : '&biome=winter'}`;
 }
 
 const game = new Phaser.Game({
