@@ -12,6 +12,9 @@ export const COMBO = {
 export const PICKUPS = {
   /** Collected when the aircraft passes within this distance at Low or Medium. */
   collectRadius: 90,
+  /** Pickups within this distance drift toward the aircraft (arcade magnet), units / s. */
+  magnetRadius: 240,
+  magnetSpeed: 320,
   lifetime: 20,
   /** Ammo pickup: share of each weapon's maximum restored (at least one round/salvo/missile/bomb). */
   ammoShare: 0.35,
@@ -32,6 +35,7 @@ export const PICKUPS = {
     samSite: ['repair', 'ammo'],
     cache: ['overdrive', 'ammo'],
     ammoDump: ['ammo', 'ammo'],
+    helicopter: ['boost'],
   } as Partial<Record<EntityKind, readonly PickupKind[]>>,
   /** Spacing between several pickups dropped by one kill. */
   dropSpread: 46,

@@ -22,17 +22,23 @@ export function initZones(world: World): void {
 
 /** Kill-chain timeout, pickup collection/expiry, and defence-zone payouts. */
 export class RewardSystem extends SimSystem {
-  update({ world }: StepContext): void {
+  update({ world, dt }: StepContext): void {
     if (world.combo.chain > 0 && world.time > world.combo.expiresAt) endCombo(world, 'timeout');
-    this.updatePickups(world);
+    this.updatePickups(world, dt);
     this.updateZones(world);
   }
 
-  private updatePickups(world: World): void {
+  private updatePickups(world: World, dt: number): void {
     if (world.pickups.length === 0) return;
     const p = world.player;
     const canCollect = p.alive && p.band !== 'high';
     world.pickups = world.pickups.filter((pickup) => {
+      const d = distance(pickup.pos, p.pos);
+      if (canCollect && d <= PICKUPS.magnetRadius && d > 1) {
+        const step = Math.min(d, PICKUPS.magnetSpeed * dt);
+        pickup.pos.x += ((p.pos.x - pickup.pos.x) / d) * step;
+        pickup.pos.y += ((p.pos.y - pickup.pos.y) / d) * step;
+      }
       if (canCollect && distance(pickup.pos, p.pos) <= PICKUPS.collectRadius) {
         applyPickup(world, pickup);
         world.stats.pickupsCollected += 1;
