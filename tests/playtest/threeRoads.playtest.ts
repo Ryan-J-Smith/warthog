@@ -80,7 +80,7 @@ function print(title: string, t: Timeline): void {
 /** A road is critical when the enemy is this far down it (lane meter below 1 - x). */
 const CRITICAL = 0.3;
 /** Defend a road from this lane meter down. */
-const DEFEND_BELOW = 0.5;
+const DEFEND_BELOW = CRITICAL;
 
 function worstLane(view: WorldView): { id: string; control: number } | null {
   const war = view.level.laneWar;

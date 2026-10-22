@@ -194,7 +194,7 @@ export const threeRoads: LevelDefinition = {
         offset: 0,
         depotRefId: 'westDepot',
         depotBonus: ['tank'],
-        brokenBonus: ['friendlyTank', 'friendlyTank'],
+        brokenBonus: ['friendlyTank'],
         objectiveId: 'westDepot',
       },
       {
@@ -204,7 +204,7 @@ export const threeRoads: LevelDefinition = {
         offset: 12,
         depotRefId: 'centerDepot',
         depotBonus: ['tank'],
-        brokenBonus: ['friendlyTank', 'friendlyTank'],
+        brokenBonus: ['friendlyTank'],
         objectiveId: 'centerDepot',
       },
       {
@@ -214,7 +214,7 @@ export const threeRoads: LevelDefinition = {
         offset: 24,
         depotRefId: 'eastDepot',
         depotBonus: ['tank'],
-        brokenBonus: ['friendlyTank', 'friendlyTank'],
+        brokenBonus: ['friendlyTank'],
         objectiveId: 'eastDepot',
       },
     ],
@@ -232,8 +232,10 @@ export const threeRoads: LevelDefinition = {
           { at: 330, add: ['tank'] },
           { at: 420, add: ['infantry', 'infantry'] },
           { at: 510, add: ['tank'] },
+          { at: 600, add: ['tank', 'mobileAa'] },
+          { at: 720, add: ['tank', 'tank'] },
         ],
-        laneCap: 14,
+        laneCap: 16,
       },
       {
         team: 'friendly',

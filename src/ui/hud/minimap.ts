@@ -8,7 +8,7 @@ import { drawPanel, pulse } from '../widgets';
 import { HudWidget, type HudFrame } from './hudWidget';
 import { LAYOUT } from './layout';
 
-const STRUCTURES = new Set(['bridge', 'samSite', 'ammoDump', 'cache']);
+const STRUCTURES = new Set(['bridge', 'samSite', 'ammoDump', 'cache', 'enemyHq']);
 
 /**
  * Minimap: the level's terrain prerendered once to a texture, with the game camera's view,
@@ -143,7 +143,7 @@ export class Minimap extends HudWidget {
     const y = e.pos.y * this.sy;
     if (e.team === 'friendly') {
       g.fillStyle(COLOR.blue, 1);
-      if (e.kind === 'outpost') {
+      if (e.kind === 'outpost' || e.kind === 'friendlyHq') {
         g.fillRect(x - 5, y - 5, 10, 10);
         g.lineStyle(1, COLOR.white, 0.8);
         g.strokeRect(x - 5, y - 5, 10, 10);
