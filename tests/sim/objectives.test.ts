@@ -161,7 +161,7 @@ describe('River Crossing', () => {
     const sim = new Simulation(riverCrossing);
     const seen = new Set<string>();
     for (let i = 0; i < 60 * 60 * 9 && !sim.world.ended; i++) {
-      sim.step({ turn: 0.3, fire: false, climb: false, dive: false, flare: false, select: null });
+      sim.step({ turn: 0.3, fire: false, boost: false, brake: false, climb: false, dive: false, flare: false, select: null });
       for (const e of sim.drainEvents()) seen.add(e.type);
     }
     expect(sim.world.ended).toBe(true);
@@ -178,7 +178,7 @@ describe('River Crossing', () => {
     const sim = new Simulation(riverCrossing);
     let crossedAt: number | null = null;
     for (let i = 0; i < 60 * 60 * 6 && crossedAt === null; i++) {
-      sim.step({ turn: 0.3, fire: false, climb: false, dive: false, flare: false, select: null });
+      sim.step({ turn: 0.3, fire: false, boost: false, brake: false, climb: false, dive: false, flare: false, select: null });
       for (const e of sim.drainEvents()) {
         if (e.type === 'objectiveUpdated' && e.objectiveId === 'column') crossedAt = sim.world.time;
       }
@@ -192,7 +192,7 @@ describe('River Crossing', () => {
     const sim = new Simulation(riverCrossing);
     let fellAt: number | null = null;
     for (let i = 0; i < 60 * 60 * 6 && fellAt === null; i++) {
-      sim.step({ turn: 0.3, fire: false, climb: false, dive: false, flare: false, select: null });
+      sim.step({ turn: 0.3, fire: false, boost: false, brake: false, climb: false, dive: false, flare: false, select: null });
       for (const e of sim.drainEvents()) {
         if (e.type === 'objectiveUpdated' && e.objectiveId === 'outpost' && e.status === 'failed') fellAt = sim.world.time;
       }

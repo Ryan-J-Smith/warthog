@@ -5,6 +5,8 @@ import type {
   ExplosionSize,
   MissionOutcome,
   ObjectiveStatus,
+  PickupKind,
+  PlayerDamageSource,
   RadioTone,
   Team,
   WeaponId,
@@ -43,14 +45,43 @@ export type SimEvent =
   | { type: 'groundFire'; shooterKind: EntityKind; from: Vec2; to: Vec2 }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }
+  /** AA laser telegraph: the gun is painting the player (aim line), beam follows. */
+  | { type: 'aaAiming'; entityId: number; pos: Vec2 }
+  | { type: 'aaBeamStarted'; entityId: number; pos: Vec2 }
+  | { type: 'aaBeamStopped'; entityId: number }
   | { type: 'samLockStarted'; siteId: number; pos: Vec2 }
   | { type: 'samLockBroken'; siteId: number }
   | { type: 'samLaunched'; siteId: number; missileId: number; pos: Vec2 }
   | { type: 'samDecoyed'; missileId: number; pos: Vec2 }
   | { type: 'samLostLock'; missileId: number; pos: Vec2 }
   | { type: 'samDetonated'; missileId: number; pos: Vec2; hitPlayer: boolean }
+  /** The player out-turned a SAM (it overshot and its seeker lost the aircraft). Skill reward. */
+  | { type: 'samEvaded'; missileId: number; pos: Vec2; bonus: number }
+  // --- Rewards ----------------------------------------------------------------
+  | { type: 'pickupSpawned'; pickupId: number; kind: PickupKind; pos: Vec2 }
+  | { type: 'pickupCollected'; pickupId: number; kind: PickupKind; pos: Vec2 }
+  | { type: 'pickupExpired'; pickupId: number }
+  /** Kill chain grew. `multiplier` applies to kill points. */
+  | { type: 'comboChanged'; chain: number; multiplier: number }
+  /** Chain ended (timed out, or broken by hull damage). */
+  | { type: 'comboEnded'; chain: number; reason: 'timeout' | 'hit' }
+  /** Every unit in a named defence zone destroyed (e.g. the SAM/AA cluster). */
+  | { type: 'zoneCleared'; zoneId: string; name: string; pos: Vec2; bonus: number }
   // --- Player state ---------------------------------------------------------
-  | { type: 'playerHit'; pos: Vec2; damage: number; source: 'aa' | 'sam' | 'splash' }
+  /** Hull damage (after the shield). `source` 'beam' = AA laser. */
+  | { type: 'playerHit'; pos: Vec2; damage: number; source: PlayerDamageSource }
+  /** Damage absorbed by the shield. */
+  | { type: 'shieldHit'; pos: Vec2; amount: number; source: PlayerDamageSource }
+  | { type: 'shieldDown' }
+  /** The shield started regenerating after the regen delay. */
+  | { type: 'shieldRegenStarted' }
+  | { type: 'shieldFull' }
+  | { type: 'boostStarted' }
+  | { type: 'boostStopped' }
+  /** The boost meter ran dry while the key was held. */
+  | { type: 'boostEmpty' }
+  | { type: 'brakeStarted' }
+  | { type: 'brakeStopped' }
   | { type: 'playerDestroyed'; pos: Vec2 }
   | { type: 'playerRespawned'; pos: Vec2 }
   | { type: 'bandChanged'; from: AltitudeBand; to: AltitudeBand }

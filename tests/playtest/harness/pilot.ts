@@ -145,6 +145,8 @@ export class Pilot {
     return {
       turn,
       fire,
+      boost: false,
+      brake: false,
       climb: want > have,
       dive: want < have,
       flare,

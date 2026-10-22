@@ -35,7 +35,7 @@ export class Simulation {
   private readonly systems: SimSystem[];
   private accumulator = 0;
   /** Edge-triggered inputs buffered until a fixed step consumes them. */
-  private pendingEdges: Omit<ControlInput, 'turn' | 'fire'> = { climb: false, dive: false, flare: false, select: null };
+  private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null };
 
   constructor(level: LevelDefinition, seed?: number, systems?: SimSystem[]) {
     this.world = new World(level, seed);
@@ -100,7 +100,7 @@ export class Simulation {
 
   private stepOnce(input: ControlInput): void {
     if (this.world.ended) return;
-    const stepInput: ControlInput = { turn: input.turn, fire: input.fire, ...this.pendingEdges };
+    const stepInput: ControlInput = { turn: input.turn, fire: input.fire, boost: input.boost, brake: input.brake, ...this.pendingEdges };
     this.pendingEdges = { climb: false, dive: false, flare: false, select: null };
     this.world.time += SIM_STEP;
     const ctx = { world: this.world, dt: SIM_STEP, input: stepInput };

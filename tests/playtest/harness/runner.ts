@@ -1,7 +1,7 @@
 import type { SimEvent } from '../../../src/sim/events';
 import type { LevelDefinition } from '../../../src/sim/level';
 import { SIM_STEP, Simulation } from '../../../src/sim/simulation';
-import { WEAPON_ORDER, type AltitudeBand, type ObjectiveStatus, type WeaponId } from '../../../src/sim/types';
+import { WEAPON_ORDER, type AltitudeBand, type ObjectiveStatus, type PlayerDamageSource, type WeaponId } from '../../../src/sim/types';
 import type { SimSystem } from '../../../src/sim/systems';
 import type { MissionResults, World } from '../../../src/sim/world';
 import type { Bot } from './bot';
@@ -26,8 +26,8 @@ export interface RunRecord {
   deaths: number;
   deathTimes: number[];
   /** Damage taken and hits taken, by source. */
-  damage: Record<'aa' | 'sam' | 'splash', number>;
-  hits: Record<'aa' | 'sam' | 'splash', number>;
+  damage: Record<PlayerDamageSource, number>;
+  hits: Record<PlayerDamageSource, number>;
   ammoSpent: Record<WeaponId, number>;
   flaresSpent: number;
   rearms: number;
@@ -90,8 +90,8 @@ class Recorder {
       objectives: {},
       deaths: 0,
       deathTimes: [],
-      damage: { aa: 0, sam: 0, splash: 0 },
-      hits: { aa: 0, sam: 0, splash: 0 },
+      damage: { aa: 0, beam: 0, sam: 0, splash: 0 },
+      hits: { aa: 0, beam: 0, sam: 0, splash: 0 },
       ammoSpent: { gun: 0, rockets: 0, maverick: 0, bombs: 0 },
       flaresSpent: 0,
       rearms: 0,

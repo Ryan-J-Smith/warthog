@@ -179,7 +179,7 @@ describe('threat lab: SAM site', () => {
       p.band = 'high';
       p.speed = 360;
       for (let i = 0; i < 12 * 60; i++) {
-        sim2.step({ turn: 0, fire: false, climb: false, dive: false, flare: false, select: null });
+        sim2.step({ turn: 0, fire: false, boost: false, brake: false, climb: false, dive: false, flare: false, select: null });
         for (const e of sim2.drainEvents()) {
           if (!(e.type in times)) times[e.type] = sim2.world.time;
         }

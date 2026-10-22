@@ -54,6 +54,8 @@ export class KeyboardControls {
     const input: ControlInput = {
       turn,
       fire: this.down('fire'),
+      boost: this.down('boost'),
+      brake: this.down('brake'),
       climb: this.pressed('climb'),
       dive: this.pressed('dive'),
       flare: this.pressed('flare'),

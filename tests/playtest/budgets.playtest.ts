@@ -102,7 +102,7 @@ describe('River Crossing time budgets', () => {
         if (Math.abs(sim.world.time - 30) < 1e-6 || (sim.world.time > 30 && sim.world.time < 30 + 1 / 60)) {
           for (const e of sim.world.withTag('waveA')) killEntity(sim.world, e, false);
         }
-        sim.step({ turn: 0.3, fire: false, climb: false, dive: false, flare: false, select: null });
+        sim.step({ turn: 0.3, fire: false, boost: false, brake: false, climb: false, dive: false, flare: false, select: null });
         for (const e of sim.drainEvents()) {
           if (e.type === 'groundFire' && firing === null && sim.world.entities.some((u) => u.alive && u.tags.includes('waveB') && distance(u.pos, e.from) < 1)) firing = sim.world.time;
         }
