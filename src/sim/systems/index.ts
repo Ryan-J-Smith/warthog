@@ -32,3 +32,4 @@ export {
   pathLength,
 } from './laneFront';
 export { ConvoySystem, convoyUnits } from './convoySystem';
+export { DefenseSystem, DEFENSE_WAVE_TAG, DEFENSE_SORTIE_TAG, DEFENSE_GARRISON_TAG } from './defenseSystem';

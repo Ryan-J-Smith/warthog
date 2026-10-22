@@ -9,7 +9,7 @@ import { CloudLayer } from '../render/clouds';
 import { EntityRenderer, PlayerRenderer } from '../render/entities';
 import { EffectsDirector } from '../render/effects';
 import { TerrainRenderer } from '../render/terrain';
-import { WorldUiRenderer } from '../render/worldUi';
+import { DefenseOverlay, WorldUiRenderer } from '../render/worldUi';
 import type { SimEvent } from '../sim/events';
 import { Simulation } from '../sim/simulation';
 import type { EntityKind, ExplosionSize } from '../sim/types';
@@ -38,6 +38,7 @@ export class GameScene extends Phaser.Scene {
   private entities!: EntityRenderer;
   private player!: PlayerRenderer;
   private worldUi!: WorldUiRenderer;
+  private defense!: DefenseOverlay;
   private clouds!: CloudLayer;
   private audio!: AudioDirector;
   private music!: MusicManager;
@@ -69,6 +70,7 @@ export class GameScene extends Phaser.Scene {
     this.entities = new EntityRenderer(this);
     this.player = new PlayerRenderer(this);
     this.worldUi = new WorldUiRenderer(this);
+    this.defense = new DefenseOverlay(this);
     this.clouds = new CloudLayer(this, level);
     this.effects = new EffectsDirector(this);
     this.controls = new KeyboardControls(this);
@@ -100,6 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.cameraRig.update(delta, view);
     this.clouds.update(delta, view);
     this.worldUi.sync(view);
+    this.defense.sync(view);
     this.effects.handleEvents(events, view);
     this.effects.update(delta, view);
     this.audio.update(delta, view);
@@ -167,6 +170,7 @@ export class GameScene extends Phaser.Scene {
     this.entities.destroy();
     this.player.destroy();
     this.worldUi.destroy();
+    this.defense.destroy();
     this.clouds.destroy();
     this.audio.destroy();
     this.events.off(Phaser.Scenes.Events.RESUME, this.onResume, this);

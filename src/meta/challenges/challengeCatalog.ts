@@ -84,4 +84,20 @@ export const CHALLENGE_CATALOG: ChallengeCatalog = {
       test: objectivesCompleted(['depot', 'sam']),
     },
   ],
+  // Prototype base-defence mission: untuned guesses until it has been played.
+  'hold-the-line': [
+    {
+      id: 'tank-buster',
+      title: 'TANK BUSTER',
+      description: 'Destroy 20 tanks yourself',
+      test: (r) => (r.feats?.killsByKind.tank ?? 0) >= 20,
+    },
+    chainOf(15),
+    {
+      id: 'thick-skin',
+      title: 'THICK SKIN',
+      description: 'Win with under 60 hull damage',
+      test: (r) => r.feats !== undefined && r.feats.hullDamage < 60,
+    },
+  ],
 };

@@ -1,4 +1,5 @@
 import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, PLAYER } from '../../config';
+import { initDefense, type DefenseState } from '../defense';
 import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { SimEvent } from '../events';
 import { DEFAULT_DIFFICULTY, type Difficulty } from '../difficulty';
@@ -52,8 +53,8 @@ export class World implements WorldView {
   readonly width: number;
   readonly height: number;
   readonly rng: Rng;
-  /** The aircraft as upgraded in the hangar. */
-  readonly loadout: Readonly<PlayerLoadout>;
+  /** The aircraft as upgraded in the hangar (base defence swaps it for armory upgrades mid-mission). */
+  loadout: Readonly<PlayerLoadout>;
 
   time = 0;
   player: PlayerState;
@@ -78,6 +79,8 @@ export class World implements WorldView {
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
   /** Convoy vehicles that reached the end of their road (score-attack missions). */
   escapes = 0;
+  /** Base-defence state (null outside base-defence levels). */
+  defense: DefenseState | null;
   /** Group ids that have spawned. */
   spawnedGroups = new Set<string>();
   /** Indices of radio cues already played. */
@@ -99,6 +102,7 @@ export class World implements WorldView {
     this.height = level.height;
     this.rng = new Rng(seed);
     this.player = createPlayer(level, loadout);
+    this.defense = initDefense(level);
     this.reticle = { weapon: 'gun', impact: null, ready: true, onTarget: false, blockedReason: null };
   }
 

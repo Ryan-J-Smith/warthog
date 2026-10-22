@@ -8,6 +8,7 @@ import { AltitudeLadder } from './altitudeLadder';
 import { ArmorPanel } from './armorPanel';
 import { BannerDisplay } from './bannerDisplay';
 import { ComboMeter } from './comboMeter';
+import { DefensePanel } from './defensePanel';
 import type { HudWidget } from './hudWidget';
 import { Minimap } from './minimap';
 import { MissionStrip } from './missionStrip';
@@ -42,6 +43,7 @@ export class Hud {
       new WeaponBar(scene),
       new RadioTicker(scene),
       new ComboMeter(scene),
+      new DefensePanel(scene, level),
       new StatusMessages(scene),
       new ThreatWarnings(scene),
     ];
@@ -54,6 +56,14 @@ export class Hud {
     for (const e of events) {
       if (e.type === 'zoneCleared') {
         this.banners.show({ headline: `${e.name.toUpperCase()} CLEARED`, sub: `+${e.bonus} · SUPPLY DROP ON THE SITE`, tone: 'good' });
+        continue;
+      }
+      if (e.type === 'defenseWaveStarted') {
+        this.banners.show({ headline: `WAVE ${e.wave + 1} INBOUND`, sub: `${e.wave + 1} OF ${e.total} · HOLD THE BASE`, tone: 'bad' });
+        continue;
+      }
+      if (e.type === 'defenseWaveCleared' && e.wave + 1 < e.total) {
+        this.banners.show({ headline: `WAVE ${e.wave + 1} CLEARED`, sub: `+${e.bonus} GOLD · BUILD, THEN PRESS R`, tone: 'good' });
         continue;
       }
       if (e.type !== 'objectiveUpdated') continue;

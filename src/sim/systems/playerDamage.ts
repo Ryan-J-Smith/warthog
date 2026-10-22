@@ -39,9 +39,11 @@ export function destroyPlayer(world: World): void {
   if (p.firing) world.emit({ type: 'gunStopped' });
   p.alive = false;
   p.firing = false;
-  p.lives -= 1;
+  // Base defence has no life limit: being shot down only takes you out of the fight for a while.
+  const defense = world.level.defense;
+  if (!defense) p.lives -= 1;
   world.stats.deaths += 1;
-  p.respawnIn = PLAYER.respawnDelay;
+  p.respawnIn = defense?.respawnDelay ?? PLAYER.respawnDelay;
   p.rearm = 0;
   p.lockTargetId = null;
   p.lockProgress = 0;

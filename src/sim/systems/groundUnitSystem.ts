@@ -44,7 +44,7 @@ export class GroundUnitSystem extends SimSystem {
       const miss = world.rng.inDisc(target.radius * 0.8);
       const to = { x: target.pos.x + miss.x, y: target.pos.y + miss.y };
       world.emit({ type: 'groundFire', shooterKind: unit.kind, from: { ...unit.pos }, to });
-      damageEntity(world, target, stats.damage, 'ground');
+      damageEntity(world, target, stats.damage * attacker.damageMultiplier, 'ground');
     }
   }
 

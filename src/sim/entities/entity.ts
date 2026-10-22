@@ -112,6 +112,8 @@ export interface AttackerState {
   targetId: number | null;
   range: number;
   cooldown: number;
+  /** Scales this unit's damage per shot (base-defence structures field upgraded units). */
+  damageMultiplier: number;
 }
 
 export interface Entity {

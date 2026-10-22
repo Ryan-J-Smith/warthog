@@ -26,3 +26,9 @@ export type {
   SurgeDefinition,
   LaneWarDefinition,
 } from './laneWarDefinition';
+export type {
+  DefenseLaneDefinition,
+  BuildPadDefinition,
+  DefenseWaveDefinition,
+  DefenseDefinition,
+} from './defenseDefinition';

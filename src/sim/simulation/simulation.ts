@@ -7,6 +7,7 @@ import { spawnFromDefinition } from '../spawning';
 import {
   AirDefenseSystem,
   ConvoySystem,
+  DefenseSystem,
   FlightSystem,
   GroundUnitSystem,
   HelicopterSystem,
@@ -44,7 +45,7 @@ export class Simulation {
   private readonly systems: SimSystem[];
   private accumulator = 0;
   /** Edge-triggered inputs buffered until a fixed step consumes them. */
-  private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null };
+  private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null, ready: false };
 
   constructor(
     level: LevelDefinition,
@@ -79,6 +80,7 @@ export class Simulation {
       new SpottingSystem(),
       new ObjectiveSystem(),
       new LaneSystem(),
+      new DefenseSystem(),
       new RadioSystem(),
       new MissionSystem(),
     ];
@@ -117,13 +119,14 @@ export class Simulation {
     e.climb ||= input.climb;
     e.dive ||= input.dive;
     e.flare ||= input.flare;
+    e.ready ||= input.ready;
     e.select = input.select ?? e.select;
   }
 
   private stepOnce(input: ControlInput): void {
     if (this.world.ended) return;
     const stepInput: ControlInput = { turn: input.turn, fire: input.fire, boost: input.boost, brake: input.brake, ...this.pendingEdges };
-    this.pendingEdges = { climb: false, dive: false, flare: false, select: null };
+    this.pendingEdges = { climb: false, dive: false, flare: false, select: null, ready: false };
     this.world.time += SIM_STEP;
     const ctx = { world: this.world, dt: SIM_STEP, input: stepInput };
     for (const system of this.systems) system.update(ctx);

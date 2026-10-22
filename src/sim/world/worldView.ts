@@ -1,3 +1,4 @@
+import type { DefenseState } from '../defense';
 import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { MissionResults } from './missionResults';
 import type { LevelDefinition } from '../level';
@@ -81,4 +82,6 @@ export interface WorldView {
   rearmPoints(): Vec2[];
   /** Final results once the mission has ended. */
   readonly results: MissionResults | null;
+  /** Base-defence state (null outside base-defence levels). */
+  readonly defense: Readonly<DefenseState> | null;
 }

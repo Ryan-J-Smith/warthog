@@ -60,6 +60,7 @@ export class KeyboardControls {
       dive: this.pressed('dive'),
       flare: this.pressed('flare'),
       select: null,
+      ready: this.pressed('ready'),
     };
     if (this.pressed('weaponGun')) input.select = 'gun';
     if (this.pressed('weaponRockets')) input.select = 'rockets';

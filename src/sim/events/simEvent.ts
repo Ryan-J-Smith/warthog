@@ -1,3 +1,4 @@
+import type { ArmoryId, StructureId } from '../defense';
 import type { Vec2 } from '../math';
 import type {
   AltitudeBand,
@@ -43,6 +44,12 @@ export type SimEvent =
   | { type: 'entityRevealed'; entityId: number; kind: EntityKind; pos: Vec2 }
   /** Ambient ground battle: a unit fired at another ground unit/structure. */
   | { type: 'groundFire'; shooterKind: EntityKind; from: Vec2; to: Vec2 }
+  /** Base defence: a pad structure was built or upgraded. */
+  | { type: 'structureBuilt'; padId: string; structure: StructureId; level: number; pos: Vec2 }
+  /** Base defence: an armory upgrade was bought over the home base. */
+  | { type: 'armoryBought'; item: ArmoryId; level: number }
+  | { type: 'defenseWaveStarted'; wave: number; total: number }
+  | { type: 'defenseWaveCleared'; wave: number; total: number; bonus: number }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }
   /** AA laser telegraph: the gun is painting the player (aim line), beam follows. */
