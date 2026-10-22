@@ -195,6 +195,25 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
       route: path.map((p) => ({ ...p })),
     });
   }
+  const defense = level.defense;
+  if (defense) {
+    const firstHelo = defense.waves.findIndex((w) => w.lanes.some((l) => l.units.includes('helicopter')));
+    defense.lanes.forEach((lane, i) => {
+      const path = level.paths[lane.pathId];
+      const start = path?.[0];
+      if (!path || !start) return;
+      const from = compassWord(compassDirection(centre, start));
+      const waves = defense.waves.filter((w) => w.lanes.some((l) => l.laneId === lane.id && l.units.length > 0)).length;
+      const air = i === 0 && firstHelo >= 0 ? ` Gunships from wave ${firstHelo + 1}: only flak and your gun can touch them.` : '';
+      intel.push({
+        kind: 'armor',
+        routeLabel: 'WAVES',
+        text: `Attack road from the ${from}: used by ${waves} of ${defense.waves.length} waves.${air}`,
+        positions: [{ ...start }],
+        route: path.map((p) => ({ ...p })),
+      });
+    });
+  }
   return intel;
 }
 
