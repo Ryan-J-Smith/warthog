@@ -9,6 +9,7 @@ import { ArmorPanel } from './armorPanel';
 import { BannerDisplay } from './bannerDisplay';
 import { ComboMeter } from './comboMeter';
 import { DefensePanel } from './defensePanel';
+import { DraftCards } from './draftCards';
 import type { HudWidget } from './hudWidget';
 import { Minimap } from './minimap';
 import { MissionStrip } from './missionStrip';
@@ -44,6 +45,7 @@ export class Hud {
       new RadioTicker(scene),
       new ComboMeter(scene),
       new DefensePanel(scene, level),
+      new DraftCards(scene),
       new StatusMessages(scene),
       new ThreatWarnings(scene),
     ];

@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { ARMORY, ARMORY_ORDER, STRUCTURES, STRUCTURE_ORDER, type DefenseState } from '../../sim/defense';
+import { ARMORY, ARMORY_ORDER, STRUCTURES, STRUCTURE_ORDER, structureCost, type DefenseState } from '../../sim/defense';
 import type { LevelDefinition } from '../../sim/level';
 import type { EntityKind } from '../../sim/types';
 import { COLOR, css, textStyle } from '../theme';
@@ -57,7 +57,7 @@ export class DefensePanel extends HudWidget {
     this.gold.setText(`${state.gold} GOLD`);
 
     if (state.phase === 'build') {
-      this.phase.setText('BUILD PHASE · PRESS R TO LAUNCH').setColor(css(COLOR.amber)).setAlpha(blink(now, 1.2) ? 1 : 0.55);
+      this.phase.setText(state.offer ? 'PICK A CARD · 1 / 2 / 3' : 'BUILD PHASE · PRESS R TO LAUNCH').setColor(css(COLOR.amber)).setAlpha(blink(now, 1.2) ? 1 : 0.55);
       const next = def.waves[state.wave];
       const lines = ['NEXT WAVE'];
       for (const lane of def.lanes) {
@@ -74,7 +74,7 @@ export class DefensePanel extends HudWidget {
     }
 
     let y = this.body.y + (this.body.text ? this.body.height + 12 : 0);
-    const menu = state.phase === 'build' ? menuLines(state) : '';
+    const menu = state.phase === 'build' && !state.offer ? menuLines(state) : '';
     this.menu.setText(menu).setY(y);
     if (menu) y += this.menu.height + 10;
 
@@ -120,12 +120,12 @@ function menuLines(state: Readonly<DefenseState>): string {
   if (pad.structure === null) {
     const rows = STRUCTURE_ORDER.map((s, i) => {
       const item = STRUCTURES[s];
-      return `[${i + 1}] ${item.name} ${item.costs[0]}\n    ${item.blurb}`;
+      return `[${i + 1}] ${item.name} ${structureCost(state, s, 0) ?? ''}\n    ${item.blurb}`;
     });
     return [`PAD ${pad.id.toUpperCase()} · EMPTY`, ...rows].join('\n');
   }
   const item = STRUCTURES[pad.structure];
-  const cost = item.costs[pad.level];
+  const cost = structureCost(state, pad.structure, pad.level);
   const upgrade = cost === undefined ? 'FULLY UPGRADED' : `[1] UPGRADE TO LV ${pad.level + 1}  ${cost}`;
   return [`${item.name} · LV ${pad.level}`, `    ${item.blurb}`, upgrade].join('\n');
 }

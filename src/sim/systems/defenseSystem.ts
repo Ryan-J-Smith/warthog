@@ -8,7 +8,12 @@ import {
   REPAIR_FRACTION,
   STRUCTURES,
   STRUCTURE_ORDER,
+  PERKS,
+  PERK_ORDER,
+  DRAFT_SIZE,
+  structureCost,
   type ArmoryId,
+  type PerkId,
   type DefenseState,
   type PadState,
   type StructureDefinition,
@@ -65,6 +70,8 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
+  /** Fractional gold owed from kill points (perks multiply it). */
+  private goldCarry = 0;
   /** The weapon selected before this step (a build key also selects a weapon; this undoes that). */
   private lastWeapon: WeaponId | null = null;
   /** Next time each flak pad may fire. */
@@ -92,15 +99,18 @@ export class DefenseSystem extends SimSystem {
       // (and takes the number keys) until another pad is flown over.
       state.activePad = activePad(world, state) ?? state.activePad;
       const option = input.select ? OPTION_INDEX[input.select] : undefined;
-      if (option !== undefined && state.activePad) {
-        this.choose(world, def, state, state.activePad, option);
+      if (option !== undefined && (state.offer || state.activePad)) {
+        // A draft on offer takes the number keys first.
+        if (state.offer) this.takePerk(world, def, state, option);
+        else if (state.activePad) this.choose(world, def, state, state.activePad, option);
         // The number key was a build order, not a weapon change.
         if (weaponBefore) {
           world.player.selectedWeapon = weaponBefore;
           this.lastWeapon = weaponBefore;
         }
       }
-      if (input.ready) this.launchWave(world, def, state);
+      if (input.ready && state.offer) notice(world, state, 'PICK A CARD FIRST (1-3)', false);
+      else if (input.ready) this.launchWave(world, def, state);
     } else if (state.phase === 'wave') {
       state.activePad = null;
       this.updateFlak(world, state);
@@ -123,7 +133,7 @@ export class DefenseSystem extends SimSystem {
       const flak = pad.structure ? STRUCTURES[pad.structure].flak : undefined;
       if (!flak || (this.flakReady.get(pad.id) ?? 0) > world.time) continue;
       const i = pad.level - 1;
-      const range = flak.range[i] ?? 0;
+      const range = (flak.range[i] ?? 0) * state.mods.flakRange;
       let target: Entity | null = null;
       let best = range;
       for (const e of world.entities) {
@@ -135,7 +145,7 @@ export class DefenseSystem extends SimSystem {
         }
       }
       if (!target || !target.heli) continue;
-      this.flakReady.set(pad.id, world.time + (flak.cooldown[i] ?? 1));
+      this.flakReady.set(pad.id, world.time + (flak.cooldown[i] ?? 1) / state.mods.flakRate);
       // Lead the gunship by its current velocity over the shell's flight time.
       const flight = best / FLAK_SPEED;
       const to = { x: target.pos.x + target.heli.vel.x * flight, y: target.pos.y + target.heli.vel.y * flight };
@@ -147,9 +157,97 @@ export class DefenseSystem extends SimSystem {
 
   private payKills(world: World, def: DefenseDefinition, state: DefenseState): void {
     const points = world.stats.killPoints;
-    const owed = Math.floor(points * def.goldPerKillPoint) - Math.floor(this.paidKillPoints * def.goldPerKillPoint);
+    this.goldCarry += (points - this.paidKillPoints) * def.goldPerKillPoint * state.mods.goldMultiplier;
     this.paidKillPoints = points;
-    if (owed > 0) state.gold += owed;
+    const owed = Math.floor(this.goldCarry);
+    if (owed > 0) {
+      state.gold += owed;
+      this.goldCarry -= owed;
+    }
+  }
+
+  /** Take draft card `option` and apply it. */
+  private takePerk(world: World, def: DefenseDefinition, state: DefenseState, option: number): void {
+    const id = state.offer?.[option];
+    if (!id) return;
+    const m = state.mods;
+    const base = world.findByRef(def.baseRefId);
+    switch (id) {
+      case 'warBonds':
+        m.goldMultiplier *= 1.5;
+        break;
+      case 'veterans':
+        m.unitDamage *= 1.3;
+        break;
+      case 'sandbags':
+        m.unitHp *= 1.4;
+        break;
+      case 'discount':
+        m.costMultiplier *= 0.75;
+        break;
+      case 'supplyDrop':
+        state.gold += 150;
+        break;
+      case 'gunOverdrive':
+        m.gunDamage *= 1.4;
+        this.applyGun(world, state);
+        break;
+      case 'hardpoints': {
+        const ammo = { ...world.loadout.ammo, bombs: world.loadout.ammo.bombs + 4, maverick: world.loadout.ammo.maverick + 2 };
+        world.loadout = { ...world.loadout, ammo };
+        world.player.ammo = { ...world.player.ammo, bombs: world.player.ammo.bombs + 4, maverick: world.player.ammo.maverick + 2 };
+        break;
+      }
+      case 'reinforcedBase':
+        if (base) {
+          base.maxHp *= 1.25;
+          base.hp = Math.min(base.maxHp, base.hp + base.maxHp * 0.25);
+        }
+        break;
+      case 'quickTurnaround':
+        state.respawnDelay = 3;
+        break;
+      case 'longFlak':
+        m.flakRange *= 1.3;
+        m.flakRate *= 1.3;
+        break;
+      case 'reinforcements':
+        m.sortieExtra += 2;
+        break;
+    }
+    state.perks.push(id);
+    state.offer = null;
+    // Garrisons pick up toughness / firepower perks at once.
+    for (const pad of state.pads) if (pad.structure && STRUCTURES[pad.structure].mode === 'garrison') this.reform(world, def, pad, state);
+    notice(world, state, `${PERKS[id].name} — ${PERKS[id].blurb.toUpperCase()}`, true);
+    world.emit({ type: 'perkTaken', perk: id });
+  }
+
+  /** GAU damage from the armory level and perks. */
+  private applyGun(world: World, state: DefenseState): void {
+    const stock = this.baseLoadout ?? world.loadout;
+    const armory = 1 + GUN_DAMAGE_STEP * state.armory.gun;
+    world.loadout = { ...world.loadout, gunDamageMultiplier: stock.gunDamageMultiplier * armory * state.mods.gunDamage };
+  }
+
+  /** Re-form a garrison from scratch (after an upgrade or a perk that changes its units). */
+  private reform(world: World, def: DefenseDefinition, pad: PadState, state: DefenseState): void {
+    const old = new Set(pad.garrison);
+    world.entities = world.entities.filter((e) => !old.has(e.id));
+    pad.garrison = [];
+    refillGarrison(world, def, pad, state);
+  }
+
+  /** Three different cards from the pool (non-repeatables already taken are left out). */
+  private draft(world: World, state: DefenseState): PerkId[] {
+    const pool = PERK_ORDER.filter((id) => PERKS[id].repeatable || !state.perks.includes(id));
+    const picks: PerkId[] = [];
+    while (picks.length < DRAFT_SIZE && pool.length > 0) {
+      const i = world.rng.int(0, pool.length - 1);
+      const [id] = pool.splice(i, 1);
+      if (id) picks.push(id);
+    }
+    return picks;
   }
 
   private updateObjective(world: World, def: DefenseDefinition, state: DefenseState): void {
@@ -179,22 +277,15 @@ export class DefenseSystem extends SimSystem {
 
   private build(world: World, def: DefenseDefinition, state: DefenseState, pad: PadState, id: StructureId): void {
     const s = STRUCTURES[id];
-    const cost = s.costs[pad.level];
+    const cost = structureCost(state, id, pad.level);
     if (cost === undefined) return notice(world, state, `${s.name} IS FULLY UPGRADED`, false);
     if (state.gold < cost) return notice(world, state, `NEED ${cost} GOLD FOR ${s.name}`, false);
     state.gold -= cost;
     const upgrade = pad.level > 0;
     pad.structure = id;
     pad.level += 1;
-    if (s.mode === 'garrison') {
-      // An upgrade re-forms the garrison on the bigger slot ring.
-      if (upgrade) {
-        const old = new Set(pad.garrison);
-        world.entities = world.entities.filter((e) => !old.has(e.id));
-        pad.garrison = [];
-      }
-      refillGarrison(world, def, pad);
-    }
+    // An upgrade re-forms the garrison on the bigger slot ring.
+    if (s.mode === 'garrison') this.reform(world, def, pad, state);
     notice(world, state, upgrade ? `${s.name} UPGRADED TO LEVEL ${pad.level}` : `${s.name} BUILT`, true);
     world.emit({ type: 'structureBuilt', padId: pad.id, structure: id, level: pad.level, pos: { ...pad.pos } });
   }
@@ -209,10 +300,9 @@ export class DefenseSystem extends SimSystem {
     if (state.gold < cost) return notice(world, state, `NEED ${cost} GOLD FOR ${a.name}`, false);
     state.gold -= cost;
     state.armory[id] = level + 1;
-    const stock = this.baseLoadout ?? world.loadout;
     const p = world.player;
     if (id === 'gun') {
-      world.loadout = { ...world.loadout, gunDamageMultiplier: stock.gunDamageMultiplier * (1 + GUN_DAMAGE_STEP * state.armory.gun) };
+      this.applyGun(world, state);
     } else if (id === 'ordnance') {
       const ammo = { ...world.loadout.ammo };
       ammo.bombs += ORDNANCE_STEP.bombs;
@@ -252,17 +342,17 @@ export class DefenseSystem extends SimSystem {
         );
       });
     }
-    for (const pad of state.pads) if (pad.structure) this.sortie(world, def, pad);
+    for (const pad of state.pads) if (pad.structure) this.sortie(world, def, pad, state);
     state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
     world.emit({ type: 'defenseWaveStarted', wave: state.wave, total: state.totalWaves });
   }
 
   /** A barracks or depot sends its units up its road toward the enemy. */
-  private sortie(world: World, def: DefenseDefinition, pad: PadState): void {
+  private sortie(world: World, def: DefenseDefinition, pad: PadState, state: DefenseState): void {
     const s = STRUCTURES[pad.structure ?? 'barracks'];
     if (s.mode !== 'sortie') return;
     const route = sortieRoute(world, def, pad);
-    const count = s.count[pad.level - 1] ?? 0;
+    const count = (s.count[pad.level - 1] ?? 0) + state.mods.sortieExtra;
     for (let i = 0; i < count; i++) {
       const offset = FILE_OFFSETS[i % FILE_OFFSETS.length] ?? 0;
       const filePath = offsetPath(route, offset);
@@ -277,7 +367,7 @@ export class DefenseSystem extends SimSystem {
         path: filePath,
         speed: SORTIE_SPEED[s.unit] ?? 30,
       });
-      strengthen(unit, s, pad.level);
+      strengthen(unit, s, pad.level, state);
       world.entities.push(unit);
     }
   }
@@ -292,7 +382,7 @@ export class DefenseSystem extends SimSystem {
       const ours = e.tags.some((t) => t === DEFENSE_WAVE_TAG || t === DEFENSE_SORTIE_TAG || t === DEFENSE_GARRISON_TAG);
       return !ours || e.diedAt === null || world.time - e.diedAt < WRECK_KEEP;
     });
-    for (const pad of state.pads) if (pad.structure && STRUCTURES[pad.structure].mode === 'garrison') refillGarrison(world, def, pad);
+    for (const pad of state.pads) if (pad.structure && STRUCTURES[pad.structure].mode === 'garrison') refillGarrison(world, def, pad, state);
     world.emit({ type: 'defenseWaveCleared', wave: state.wave, total: state.totalWaves, bonus });
     state.wave += 1;
     if (state.wave >= state.totalWaves) {
@@ -306,7 +396,8 @@ export class DefenseSystem extends SimSystem {
       return;
     }
     state.phase = 'build';
-    notice(world, state, `WAVE CLEARED · +${bonus} GOLD`, true);
+    state.offer = this.draft(world, state);
+    notice(world, state, `WAVE CLEARED · +${bonus} GOLD · PICK A CARD`, true);
   }
 }
 
@@ -348,7 +439,7 @@ function sortieRoute(world: World, def: DefenseDefinition, pad: PadState): Vec2[
 const SLOT_RADIUS = [62, 74] as const;
 
 /** Replace a bunker's fallen garrison (and add units after an upgrade), one per free slot. */
-function refillGarrison(world: World, def: DefenseDefinition, pad: PadState): void {
+function refillGarrison(world: World, def: DefenseDefinition, pad: PadState, state: DefenseState): void {
   const s = STRUCTURES[pad.structure ?? 'bunker'];
   const want = s.count[pad.level - 1] ?? 0;
   const ring = SLOT_RADIUS[Math.min(pad.level, SLOT_RADIUS.length) - 1] ?? SLOT_RADIUS[0];
@@ -365,16 +456,16 @@ function refillGarrison(world: World, def: DefenseDefinition, pad: PadState): vo
     const unit = createEntity(world, s.unit, pos, { headingRad: facing, tags: [DEFENSE_GARRISON_TAG, `pad:${pad.id}`] });
     unit.heading = a;
     unit.turretHeading = facing;
-    strengthen(unit, s, pad.level);
+    strengthen(unit, s, pad.level, state);
     world.entities.push(unit);
     pad.garrison.push(unit.id);
   }
 }
 
 /** Apply a structure's per-level toughness and firepower to one of its units. */
-function strengthen(unit: Entity, s: StructureDefinition, level: number): void {
-  const hp = s.hpMultiplier[level - 1] ?? 1;
+function strengthen(unit: Entity, s: StructureDefinition, level: number, state: DefenseState): void {
+  const hp = (s.hpMultiplier[level - 1] ?? 1) * state.mods.unitHp;
   unit.maxHp *= hp;
   unit.hp = unit.maxHp;
-  if (unit.attacker) unit.attacker.damageMultiplier = s.damageMultiplier[level - 1] ?? 1;
+  if (unit.attacker) unit.attacker.damageMultiplier = (s.damageMultiplier[level - 1] ?? 1) * state.mods.unitDamage;
 }

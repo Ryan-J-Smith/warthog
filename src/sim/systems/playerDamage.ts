@@ -43,7 +43,7 @@ export function destroyPlayer(world: World): void {
   const defense = world.level.defense;
   if (!defense) p.lives -= 1;
   world.stats.deaths += 1;
-  p.respawnIn = defense?.respawnDelay ?? PLAYER.respawnDelay;
+  p.respawnIn = world.defense?.respawnDelay ?? PLAYER.respawnDelay;
   p.rearm = 0;
   p.lockTargetId = null;
   p.lockProgress = 0;

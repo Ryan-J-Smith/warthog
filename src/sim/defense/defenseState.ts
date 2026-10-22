@@ -1,6 +1,7 @@
 import type { LevelDefinition } from '../level';
 import type { Vec2 } from '../math';
-import type { ArmoryId, StructureId } from './catalog';
+import { STRUCTURES, type ArmoryId, type StructureId } from './catalog';
+import { baseModifiers, type DefenseModifiers, type PerkId } from './perks';
 
 export type DefensePhase = 'build' | 'wave' | 'won' | 'lost';
 
@@ -31,6 +32,13 @@ export interface DefenseState {
   notice: { text: string; good: boolean; at: number } | null;
   /** Enemy wave units still alive this wave. */
   remaining: number;
+  /** Draft cards on offer (pick one before launching the next wave), or null. */
+  offer: PerkId[] | null;
+  /** Perks taken this run, in order. */
+  perks: PerkId[];
+  mods: DefenseModifiers;
+  /** Seconds out of the fight after being shot down. */
+  respawnDelay: number;
 }
 
 /** Radius the player must be within (on the ground plane) to use a pad. */
@@ -52,5 +60,15 @@ export function initDefense(level: LevelDefinition): DefenseState | null {
     activePad: null,
     notice: null,
     remaining: 0,
+    offer: null,
+    perks: [],
+    mods: baseModifiers(),
+    respawnDelay: def.respawnDelay,
   };
+}
+
+/** What building (or upgrading to) the next level of `id` costs right now, or undefined when maxed. */
+export function structureCost(state: Readonly<DefenseState>, id: StructureId, currentLevel: number): number | undefined {
+  const cost = STRUCTURES[id].costs[currentLevel];
+  return cost === undefined ? undefined : Math.round(cost * state.mods.costMultiplier);
 }
