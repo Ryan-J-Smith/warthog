@@ -70,6 +70,8 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
+  /** Roads dealt out for this run (once, on the first step). */
+  private dealt = false;
   /** Fractional gold owed from kill points (perks multiply it). */
   private goldCarry = 0;
   /** The weapon selected before this step (a build key also selects a weapon; this undoes that). */
@@ -82,6 +84,10 @@ export class DefenseSystem extends SimSystem {
     const state = world.defense;
     if (!def || !state || world.ended) return;
     this.baseLoadout ??= world.loadout;
+    if (!this.dealt) {
+      this.dealt = true;
+      if (def.shuffleLanes) shuffleLanes(world, def, state);
+    }
     this.payKills(world, def, state);
     const weaponBefore = this.lastWeapon;
     this.lastWeapon = world.player.selectedWeapon;
@@ -318,7 +324,7 @@ export class DefenseSystem extends SimSystem {
   }
 
   private launchWave(world: World, def: DefenseDefinition, state: DefenseState): void {
-    const wave = def.waves[state.wave];
+    const wave = state.waves[state.wave];
     if (!wave) return;
     state.phase = 'wave';
     state.activePad = null;
@@ -468,4 +474,20 @@ function strengthen(unit: Entity, s: StructureDefinition, level: number, state: 
   unit.maxHp *= hp;
   unit.hp = unit.maxHp;
   if (unit.attacker) unit.attacker.damageMultiplier = (s.damageMultiplier[level - 1] ?? 1) * state.mods.unitDamage;
+}
+
+/** Deal each wave's road groups to a random permutation of the roads (seeded, then previewed). */
+function shuffleLanes(world: World, def: DefenseDefinition, state: DefenseState): void {
+  const ids = def.lanes.map((l) => l.id);
+  for (const wave of state.waves) {
+    const perm = [...ids];
+    for (let i = perm.length - 1; i > 0; i--) {
+      const j = world.rng.int(0, i);
+      [perm[i], perm[j]] = [perm[j] as string, perm[i] as string];
+    }
+    for (const group of wave.lanes) {
+      const k = ids.indexOf(group.laneId);
+      group.laneId = perm[k] ?? group.laneId;
+    }
+  }
 }

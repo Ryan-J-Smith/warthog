@@ -42,4 +42,10 @@ export interface DefenseDefinition {
   respawnDelay: number;
   /** Speed of enemy wave units. */
   waveSpeed: number;
+  /**
+   * Each run deals every wave's road groups out to a random permutation of the roads (from the
+   * run seed). The preview always shows the result, so nothing is hidden; it just can't be
+   * memorised.
+   */
+  shuffleLanes?: boolean;
 }

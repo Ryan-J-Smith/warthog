@@ -113,6 +113,7 @@ export const holdTheLine: LevelDefinition = {
     goldPerKillPoint: 0.1,
     respawnDelay: 8,
     waveSpeed: 34,
+    shuffleLanes: true,
     lanes: [
       { id: 'west', name: 'WEST', pathId: 'westRoad' },
       { id: 'north', name: 'NORTH', pathId: 'northRoad' },
