@@ -18,6 +18,7 @@ import * as PL from './player.mjs';
 import * as PK from './pickups.mjs';
 import * as HQ from './hq.mjs';
 import * as PD from './pads.mjs';
+import * as BS from './bases.mjs';
 import { r2 } from './lib.mjs';
 
 const OUT = process.argv[2] ?? fileURLToPath(new URL('../../public/assets/sprites', import.meta.url));
@@ -125,6 +126,9 @@ const FUNPASS = {
   structDepot2: PD.structDepot2,
   structBunker: PD.structBunker,
   structBunker2: PD.structBunker2,
+  // Friendly bases restyled to v1 (2026-10-22; replace the v0 drawings in structures.mjs).
+  outpost: BS.outpost,
+  outpostDestroyed: BS.outpostDestroyed,
 };
 
 /** v0 drawings (scaled to the new native sizes until restyled). */
@@ -136,8 +140,6 @@ const LEGACY = {
   ammoDump: S.ammoDump,
   ammoDumpWreck: S.ammoDumpWreck,
   cache: S.cache,
-  outpost: S.outpost,
-  outpostDestroyed: S.outpostDestroyed,
   homeBase: S.homeBase,
   rocket: M.rocket,
   maverick: M.maverick,
