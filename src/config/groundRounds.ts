@@ -11,15 +11,17 @@ export interface GroundRoundProfile {
 }
 
 /**
- * Ground rounds fly in the simulation and deal their damage on arrival, so the tracer on screen is
- * the damage being traded. Units drive at ~30 units/s, so even a slow shell's target moves well
- * under its radius + slop in flight.
+ * Ground rounds fly in the simulation and deal their damage on arrival, so the bullet on screen is
+ * the damage being traded. They are slow on purpose (MOBA-style, watchable). Units drive at ~30
+ * units/s, so a cannon shell at full range (~1.7 s) can lose a moving target by ~50 units: its slop
+ * is wide enough to keep the hit rate where it was with fast rounds (~89% in Three Roads; most
+ * misses are targets that died in flight).
  */
 export const GROUND_ROUNDS: Record<GroundRoundKind, GroundRoundProfile> = {
-  /** Infantry: small, fast tracer. */
-  smallArms: { speed: 700, hitSlop: 10 },
-  /** Tanks: bigger, slower shell. */
-  cannon: { speed: 420, hitSlop: 14 },
+  /** Infantry: small, quick bullets. */
+  smallArms: { speed: 320, hitSlop: 14 },
+  /** Tanks: big, slow shell. */
+  cannon: { speed: 220, hitSlop: 32 },
   /** Mobile AA / AA guns (if they ever engage ground targets): quick, bright. */
   autocannon: { speed: 900, hitSlop: 10 },
 };
