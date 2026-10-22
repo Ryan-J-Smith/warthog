@@ -35,7 +35,7 @@ export const GUN = {
    * this distance of where it lands, for `beatenZoneShare` of its damage. Sweeps through a soft
    * group kill several units in one pass; armor only takes the direct hit.
    */
-  beatenZone: 10,
+  beatenZone: 20,
   beatenZoneShare: 0.5,
   /**
    * Gun tracking: while firing, the pipper slides back toward the nose by up to `maxDip`
