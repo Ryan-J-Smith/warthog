@@ -295,6 +295,10 @@ export class AudioDirectorCore {
       case 'samEvaded':
         this.playAt('samEvaded', ev.pos, { minGain: 0.6 });
         break;
+      case 'scoreAwarded':
+        // A STRAFE ×N pass is a skill reward too: same sting as out-turning a SAM.
+        if (ev.reason.startsWith('STRAFE') && ev.pos) this.playAt('samEvaded', ev.pos, { minGain: 0.6 });
+        break;
       case 'playerHit':
         this.onPlayerHit(ev.damage, ev.source);
         break;
