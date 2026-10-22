@@ -5,7 +5,8 @@ import { drawPanel } from '../widgets';
 import { HudWidget, type HudFrame } from './hudWidget';
 import { SCREEN } from './layout';
 
-const CARD = { w: 330, h: 190, gap: 30, y: 330 } as const;
+/** Below the banner band (LAYOUT.banner) so a WAVE CLEARED banner never covers the cards. */
+const CARD = { w: 330, h: 190, gap: 30, y: 500 } as const;
 
 /**
  * Base defence: after a wave, three draft cards across the middle of the screen. Press 1-3 to

@@ -65,7 +65,7 @@ export class Hud {
         continue;
       }
       if (e.type === 'defenseWaveCleared' && e.wave + 1 < e.total) {
-        this.banners.show({ headline: `WAVE ${e.wave + 1} CLEARED`, sub: `+${e.bonus} GOLD · BUILD, THEN PRESS R`, tone: 'good' });
+        this.banners.show({ headline: `WAVE ${e.wave + 1} CLEARED`, sub: `+${e.bonus} GOLD · PICK A CARD, BUILD, THEN PRESS R`, tone: 'good' });
         continue;
       }
       if (e.type !== 'objectiveUpdated') continue;
