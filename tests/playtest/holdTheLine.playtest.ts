@@ -9,11 +9,14 @@
  * gunship only when no ground unit is within DEFEND_RADIUS of the base (gun only), otherwise the
  * wave unit nearest the base (gun / rockets / Mavericks).
  *
+ * Draft cards (after every wave but the last): `first` always takes card 1; `greedy` takes the
+ * best card by GREEDY_ORDER (economy first).
+ *
  * Run with: npx vitest run --config tests/playtest/vitest.config.ts tests/playtest/holdTheLine.playtest.ts
  */
 import { describe, expect, it } from 'vitest';
 import { holdTheLine } from '../../src/content/levels';
-import { ARMORY, STRUCTURES, type ArmoryId, type DefenseState, type StructureId } from '../../src/sim/defense';
+import { ARMORY, structureCost, type ArmoryId, type DefenseState, type PerkId, type StructureId } from '../../src/sim/defense';
 import type { Entity } from '../../src/sim/entities';
 import { NO_INPUT, type ControlInput } from '../../src/sim/input';
 import { Rng, distance, type Vec2 } from '../../src/sim/math';
@@ -32,6 +35,42 @@ const MAX_TIME = 1500;
 const KEY: readonly WeaponId[] = ['gun', 'rockets', 'maverick', 'bombs'];
 const STRUCTURE_KEY: Record<StructureId, number> = { barracks: 0, depot: 1, bunker: 2, flak: 3 };
 const ARMORY_KEY: Record<ArmoryId, number> = { gun: 0, ordnance: 1, repair: 2 };
+
+type CardPolicy = 'first' | 'greedy';
+const POLICIES: readonly CardPolicy[] = ['first', 'greedy'];
+/** Greedy card preference: economy, then the army, then the aircraft. */
+const GREEDY_ORDER: readonly PerkId[] = [
+  'discount',
+  'supplyDrop',
+  'warBonds',
+  'veterans',
+  'reinforcements',
+  'sandbags',
+  'longFlak',
+  'gunOverdrive',
+  'reinforcedBase',
+  'quickTurnaround',
+  'hardpoints',
+];
+
+function pickCard(offer: readonly PerkId[], policy: CardPolicy): number {
+  if (policy === 'first') return 0;
+  let best = 0;
+  offer.forEach((id, i) => {
+    if (GREEDY_ORDER.indexOf(id) < GREEDY_ORDER.indexOf(offer[best] ?? id)) best = i;
+  });
+  return best;
+}
+
+/** Take a draft card if one is on offer; returns its id. */
+function takeCard(sim: Simulation, policy: CardPolicy): PerkId | null {
+  const offer = defense(sim).offer;
+  if (!offer) return null;
+  const i = pickCard(offer, policy);
+  sim.step({ ...NO_INPUT, select: KEY[i] ?? 'gun' });
+  sim.drainEvents();
+  return offer[i] ?? null;
+}
 
 /** One build-phase purchase: build / upgrade a structure on a pad, or buy an armory item. */
 type Action = { pad: string; structure: StructureId } | { armory: ArmoryId };
@@ -78,6 +117,7 @@ const PLANS: readonly Plan[] = [
 
 interface Result {
   plan: string;
+  policy: CardPolicy;
   skill: string;
   seed: number;
   outcome: 'won' | 'lost' | 'timeout';
@@ -92,6 +132,8 @@ interface Result {
   time: number;
   /** Wave units still alive when the run ended (kind×count, hp%). */
   left: string;
+  /** Draft cards taken, in order. */
+  cards: PerkId[];
 }
 
 function defense(sim: Simulation): DefenseState {
@@ -111,7 +153,7 @@ function costOf(state: DefenseState, action: Action): number | null {
   const pad = state.pads.find((p) => p.id === action.pad);
   if (!pad) return null;
   if (pad.structure !== null && pad.structure !== action.structure) return null;
-  return STRUCTURES[action.structure].costs[pad.level] ?? null;
+  return structureCost(state, action.structure, pad.level) ?? null;
 }
 
 /** Teleport over the pad (or the airstrip) and press the option key for one step. */
@@ -190,7 +232,7 @@ function urgent(view: WorldView, basePos: Vec2): Entity[] {
   return best ? [best] : [];
 }
 
-function play(plan: Plan, skill: SkillProfile, seed: number): Result {
+function play(plan: Plan, policy: CardPolicy, skill: SkillProfile, seed: number): Result {
   const sim = new Simulation(holdTheLine, seed);
   const builder = new BuildBot(plan);
   const pilot = new Pilot(skill, seed);
@@ -203,6 +245,7 @@ function play(plan: Plan, skill: SkillProfile, seed: number): Result {
   let deaths = 0;
   let events: SimEvent[] = [];
   let lastWave = -1;
+  const cards: PerkId[] = [];
 
   while (!sim.world.ended && sim.world.time < MAX_TIME) {
     const state = defense(sim);
@@ -215,6 +258,8 @@ function play(plan: Plan, skill: SkillProfile, seed: number): Result {
         events = sim.drainEvents();
         continue;
       }
+      const card = takeCard(sim, policy);
+      if (card) cards.push(card);
       builder.buildPhase(sim);
       const p = sim.world.player;
       p.pos = { ...holdTheLine.player.spawn };
@@ -242,6 +287,7 @@ function play(plan: Plan, skill: SkillProfile, seed: number): Result {
     .join(', ');
   return {
     plan: plan.name,
+    policy,
     skill: skill.name,
     seed,
     outcome: state.phase === 'won' ? 'won' : state.phase === 'lost' ? 'lost' : 'timeout',
@@ -252,6 +298,7 @@ function play(plan: Plan, skill: SkillProfile, seed: number): Result {
     deaths,
     time: Math.round(sim.world.time),
     left,
+    cards,
   };
 }
 
@@ -259,20 +306,22 @@ describe('Hold the Line: build plans × skill × seed', () => {
   it('plays every plan to a result and prints the table', () => {
     const results: Result[] = [];
     for (const plan of PLANS) {
-      for (const skill of [ACE, AVERAGE, ROOKIE]) {
-        for (const seed of SEEDS) {
-          const t0 = performance.now();
-          const r = play(plan, skill, seed);
-          results.push(r);
-          console.log(`${plan.name}/${skill.name}/${seed}: ${r.outcome} w${r.cleared} ${r.time}s sim, ${Math.round(performance.now() - t0)} ms`);
+      for (const policy of POLICIES) {
+        for (const skill of [ACE, AVERAGE, ROOKIE]) {
+          for (const seed of SEEDS) {
+            const t0 = performance.now();
+            const r = play(plan, policy, skill, seed);
+            results.push(r);
+            console.log(`${plan.name}/${policy}/${skill.name}/${seed}: ${r.outcome} w${r.cleared} ${r.time}s sim, ${Math.round(performance.now() - t0)} ms`);
+          }
         }
       }
     }
     console.log(
       '\n' +
         table(
-          ['plan', 'skill', 'seed', 'outcome', 'waves cleared', 'base % after each wave', 'gold left', 'gold spent', 'deaths', 'sim time', 'wave units left'],
-          results.map((r) => [r.plan, r.skill, String(r.seed), r.outcome, `${r.cleared}/8`, r.basePct.join(' '), String(r.gold), String(r.spent), String(r.deaths), `${r.time}s`, r.left || '—']),
+          ['plan', 'cards', 'skill', 'seed', 'outcome', 'waves cleared', 'base % after each wave', 'gold left', 'gold spent', 'deaths', 'sim time', 'wave units left', 'cards taken'],
+          results.map((r) => [r.plan, r.policy, r.skill, String(r.seed), r.outcome, `${r.cleared}/8`, r.basePct.join(' '), String(r.gold), String(r.spent), String(r.deaths), `${r.time}s`, r.left || '—', r.cards.join(' ') || '—']),
         ),
     );
     for (const r of results) {
