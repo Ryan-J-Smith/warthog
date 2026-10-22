@@ -125,8 +125,10 @@ export class RowList {
 
   /** A short horizontal shake of the selected row's highlight (refused action). */
   nudge(): void {
-    const x = this.bar.x;
-    this.scene.tweens.add({ targets: this.bar, x: x + 8, duration: 45, yoyo: true, repeat: 2, onComplete: () => this.bar.setX(x) });
+    // The bar's home is x = 0 (see applySelection); restart rather than stack on a running shake.
+    this.scene.tweens.killTweensOf(this.bar);
+    this.bar.setX(0);
+    this.scene.tweens.add({ targets: this.bar, x: 8, duration: 45, yoyo: true, repeat: 2, onComplete: () => this.bar.setX(0) });
   }
 
   private get contentHeight(): number {

@@ -72,12 +72,16 @@ export class SaveStore {
 
     const credits = missionCredits(results);
     const previous = this.bestFor(levelId);
-    const newBestScore = previous === null || results.total > previous.bestScore;
-    const newBestGrade = previous === null || gradeRank(results.grade) < gradeRank(previous.bestGrade);
-    this.data.levels[levelId] = {
-      bestScore: newBestScore ? results.total : (previous?.bestScore ?? results.total),
-      bestGrade: newBestGrade ? results.grade : (previous?.bestGrade ?? results.grade),
-    };
+    // Only victories set records (a defeat still pays credits).
+    const won = results.outcome === 'victory';
+    const newBestScore = won && (previous === null || results.total > previous.bestScore);
+    const newBestGrade = won && (previous === null || gradeRank(results.grade) < gradeRank(previous.bestGrade));
+    if (won) {
+      this.data.levels[levelId] = {
+        bestScore: newBestScore ? results.total : (previous?.bestScore ?? results.total),
+        bestGrade: newBestGrade ? results.grade : (previous?.bestGrade ?? results.grade),
+      };
+    }
     this.data.credits += credits.total;
     this.data.missionsFlown += 1;
     this.persist();

@@ -35,6 +35,9 @@ export interface KeyboardModel {
   deadbandDeg: number;
 }
 
+/** Bots boost toward goals further than this (world units). */
+const BOOST_TRANSIT = 1100;
+
 export const HUMAN_KEYBOARD: KeyboardModel = { minTap: 0.07, minGap: 0.05, deadbandDeg: 3 };
 
 export interface PilotOptions {
@@ -126,6 +129,11 @@ export class Pilot {
       turn = this.keyTurn;
     }
 
+    // --- Boost: on long, roughly straight transits and to burn out of a laser ------
+    const far = goal !== null && distance(p.pos, goal) > BOOST_TRANSIT;
+    const lined = Math.abs(error) < degToRad(30);
+    const boost = !intent.committed && p.boost > p.maxBoost * 0.25 && ((far && lined) || aaShooting(view));
+
     // --- Band keys (edge-triggered: press until the target band matches) --------
     const want = ALTITUDE_BANDS.indexOf(band);
     const have = ALTITUDE_BANDS.indexOf(p.targetBand);
@@ -145,7 +153,7 @@ export class Pilot {
     return {
       turn,
       fire,
-      boost: false,
+      boost,
       brake: false,
       climb: want > have,
       dive: want < have,

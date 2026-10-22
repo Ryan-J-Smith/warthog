@@ -83,11 +83,17 @@ export class FlightSystem extends SimSystem {
   private updateBoost(world: StepContext['world'], dt: number, wanted: boolean): void {
     const p = world.player;
     const free = p.boostFree > 0;
-    const can = wanted && (free || p.boost > 0);
+    // Running the meter dry latches boost off until the key is released (one sputter, and the
+    // meter visibly refills while the key is still held).
+    if (!wanted) this.spent = false;
+    const can = wanted && !this.spent && (free || p.boost > 0);
     if (can) {
       if (!free) {
         p.boost = Math.max(0, p.boost - dt);
-        if (p.boost === 0) world.emit({ type: 'boostEmpty' });
+        if (p.boost === 0) {
+          this.spent = true;
+          world.emit({ type: 'boostEmpty' });
+        }
       }
       this.regenIn = BOOST.regenDelay;
     } else {
@@ -98,6 +104,7 @@ export class FlightSystem extends SimSystem {
   }
 
   private regenIn = 0;
+  private spent = false;
 
   private setBoosting(world: StepContext['world'], on: boolean): void {
     const p = world.player;

@@ -86,7 +86,7 @@ export class AircraftFx {
     const now = view.time;
 
     // Afterburner.
-    const burning = p.alive && p.boosting;
+    const burning = p.alive && p.boosting && !view.ended;
     NOZZLES.forEach((n, i) => {
       const flame = this.flames[i];
       const core = this.cores[i];

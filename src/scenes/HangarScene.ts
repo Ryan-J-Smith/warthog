@@ -58,6 +58,7 @@ export class HangarScene extends Phaser.Scene {
   private shownCredits = 0;
   private feedback!: Phaser.GameObjects.Text;
   private plane!: Phaser.GameObjects.Image;
+  private planeScale = 1;
   private leaving = false;
 
   constructor() {
@@ -193,7 +194,8 @@ export class HangarScene extends Phaser.Scene {
     this.add.image(cx, cy, UI_TEX.glow).setDisplaySize(300, 220).setTint(COLOR.green).setAlpha(0.12);
     const key = artOr(this, 'a10', UI_TEX.a10);
     this.plane = this.add.image(cx, cy, key).setRotation(-Math.PI / 2);
-    this.plane.setScale(170 / Math.max(this.plane.width, this.plane.height));
+    this.planeScale = 170 / Math.max(this.plane.width, this.plane.height);
+    this.plane.setScale(this.planeScale);
     if (key === UI_TEX.a10) this.plane.setTint(0xa9b3b0);
 
     const top = PANEL.y + 268;
@@ -287,7 +289,10 @@ export class HangarScene extends Phaser.Scene {
       if (artOr(this, 'a10', UI_TEX.a10) === UI_TEX.a10) this.plane.setTint(0xa9b3b0);
       else this.plane.clearTint();
     });
-    this.tweens.add({ targets: this.plane, scale: this.plane.scale * 1.08, duration: 90, yoyo: true });
+    // Pulse from the resting scale so rapid purchases don't ratchet the plane up.
+    this.tweens.killTweensOf(this.plane);
+    this.plane.setScale(this.planeScale);
+    this.tweens.add({ targets: this.plane, scale: this.planeScale * 1.08, duration: 90, yoyo: true });
     this.cameras.main.shake(120, 0.0025);
   }
 

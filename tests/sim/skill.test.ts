@@ -31,6 +31,17 @@ describe('boost and air brake', () => {
     expect(sim.world.player.boosting).toBe(false);
   });
 
+  it('an empty meter sputters once and refills while the key is still held; re-press to boost', () => {
+    const sim = flyingSim();
+    const events = run(sim, DEFAULT_LOADOUT.boostCapacity + 6, { boost: true });
+    expect(events.filter((e) => e.type === 'boostEmpty').length).toBe(1);
+    expect(sim.world.player.boost).toBeGreaterThan(1);
+    expect(sim.world.player.boosting).toBe(false);
+    run(sim, 0.1);
+    run(sim, 0.1, { boost: true });
+    expect(sim.world.player.boosting).toBe(true);
+  });
+
   it('the air brake slows down and turns much tighter', () => {
     const plain = flyingSim();
     run(plain, 0.6, { turn: 1 });
