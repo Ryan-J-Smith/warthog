@@ -150,15 +150,15 @@ export class WorldUiRenderer {
       }
     }
 
-    // Rearm zone around home base, with a progress arc.
-    const home = view.entities.find((e) => e.refId === view.level.homeBaseRefId);
-    if (home && distance(home.pos, p.pos) < 2200) {
+    // Rearm zones (home base + forward points earned), with a progress arc on the one in use.
+    for (const at of view.rearmPoints()) {
+      if (distance(at, p.pos) >= 2200) continue;
       const dashes = dashCount(PLAYER.rearmRadius, px);
-      keylined(g, px, 2.5, COLORS.rearm, 0.6, (ext) => dashedCircle(g, home.pos.x, home.pos.y, PLAYER.rearmRadius, dashes, 0, ext));
-      if (p.rearm > 0) {
+      keylined(g, px, 2.5, COLORS.rearm, 0.6, (ext) => dashedCircle(g, at.x, at.y, PLAYER.rearmRadius, dashes, 0, ext));
+      if (p.rearm > 0 && distance(at, p.pos) <= PLAYER.rearmRadius) {
         g.lineStyle(8 * px, COLORS.rearm, 0.9);
         g.beginPath();
-        g.arc(home.pos.x, home.pos.y, PLAYER.rearmRadius, -Math.PI / 2, -Math.PI / 2 + p.rearm * Math.PI * 2);
+        g.arc(at.x, at.y, PLAYER.rearmRadius, -Math.PI / 2, -Math.PI / 2 + p.rearm * Math.PI * 2);
         g.strokePath();
       }
     }

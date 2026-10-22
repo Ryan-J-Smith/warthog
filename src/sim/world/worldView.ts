@@ -77,6 +77,8 @@ export interface WorldView {
   /** Sim time at which RTB was called (mission auto-ends `SCORING.rtbGrace` seconds later). */
   readonly rtbAt: number | null;
   readonly ended: boolean;
+  /** Where the player can rearm: the home base plus forward points earned this mission. */
+  rearmPoints(): Vec2[];
   /** Final results once the mission has ended. */
   readonly results: MissionResults | null;
 }

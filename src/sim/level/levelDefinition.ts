@@ -134,6 +134,8 @@ export interface DefendObjective extends ObjectiveBase {
   attackerTags: string[];
   /** Also fails if this other objective fails (e.g. "take the bridge intact" fails if the column crosses). */
   failsWith?: string;
+  /** Reward on success: the defended structure becomes a forward rearm/repair point. */
+  effect?: 'forwardRearm';
   /**
    * Open-ended defence (endless lane waves): completed when this other objective completes,
    * instead of when the attackers are all dead.

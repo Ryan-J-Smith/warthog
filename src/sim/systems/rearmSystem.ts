@@ -11,7 +11,7 @@ export class RearmSystem extends SimSystem {
 
   update({ world, dt }: StepContext): void {
     const p = world.player;
-    const inZone = p.alive && p.band === 'low' && distance(p.pos, world.homeBasePos()) <= PLAYER.rearmRadius;
+    const inZone = p.alive && p.band === 'low' && world.rearmPoints().some((at) => distance(p.pos, at) <= PLAYER.rearmRadius);
 
     if (!inZone) {
       this.satisfied = false;

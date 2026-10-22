@@ -7,6 +7,9 @@ import { Rng, degToRad, type Vec2 } from '../math';
 import type { MissionResults } from './missionResults';
 import type { ComboState, ObjectiveState, ReticleState, WorldView, ZoneState } from './worldView';
 
+/** Tag on a friendly structure that has become a forward rearm point. */
+export const FORWARD_REARM_TAG = 'forwardRearm';
+
 /** A GAU-8 round in flight (not rendered as a projectile; lands after the travel time). */
 export interface PendingRound {
   landsAt: number;
@@ -109,6 +112,13 @@ export class World implements WorldView {
 
   withTag(tag: string): Entity[] {
     return this.entities.filter((e) => e.tags.includes(tag));
+  }
+
+  /** Where the player can rearm: the home base plus any forward points earned this mission. */
+  rearmPoints(): Vec2[] {
+    const points = [this.homeBasePos()];
+    for (const e of this.entities) if (e.alive && e.tags.includes(FORWARD_REARM_TAG)) points.push(e.pos);
+    return points;
   }
 
   /** Home base position (rearm + respawn). */

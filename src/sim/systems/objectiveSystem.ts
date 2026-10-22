@@ -4,7 +4,7 @@ import type { Entity } from '../entities';
 import type { DefendObjective, DestroyObjective, ObjectiveDefinition, StopColumnObjective } from '../level';
 import { distance, type Vec2 } from '../math';
 import type { ObjectiveStatus } from '../types';
-import type { ObjectiveState, World } from '../world';
+import { FORWARD_REARM_TAG, type ObjectiveState, type World } from '../world';
 import { SimSystem, type StepContext } from './simSystem';
 
 const DIVERTED_TAG = 'diverted';
@@ -155,7 +155,16 @@ function defend(world: World, def: DefendObjective, state: ObjectiveState): Obje
     return 'completed';
   }
   if (!pending && attackers.length === 0) {
-    state.detail = 'Attack broken';
+    state.detail = def.effect === 'forwardRearm' ? 'Held · rearm pad open' : 'Attack broken';
+    if (def.effect === 'forwardRearm' && !target.tags.includes(FORWARD_REARM_TAG)) {
+      target.tags.push(FORWARD_REARM_TAG);
+      world.emit({
+        type: 'radio',
+        speaker: 'BRAVO',
+        tone: 'good',
+        text: 'Bravo holds! Our pad is yours, Warthog: come in LOW over the outpost to rearm and patch up.',
+      });
+    }
     return 'completed';
   }
   return 'active';

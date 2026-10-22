@@ -206,3 +206,27 @@ describe('weapon follows altitude', () => {
     expect(sim.world.player.selectedWeapon).toBe('gun');
   });
 });
+
+describe('objective rewards', () => {
+  it('holding a defended outpost opens a forward rearm pad there', () => {
+    const sim = new Simulation(
+      makeLevel({
+        player: { spawn: { x: 3000, y: 1000 }, headingDeg: 0 },
+        entities: [
+          { refId: 'bravo', kind: 'outpost', pos: { x: 3000, y: 1000 } },
+          { kind: 'tank', pos: { x: 3600, y: 1000 }, tags: ['assault'] },
+        ],
+        objectives: [{ id: 'hold', kind: 'defend', title: 'Hold Bravo', primary: true, targetRefId: 'bravo', attackerTags: ['assault'], effect: 'forwardRearm' }],
+      }),
+    );
+    expect(sim.world.rearmPoints()).toHaveLength(1);
+    damageEntity(sim.world, sim.world.entities.find((e) => e.kind === 'tank')!, 999, 'bomb');
+    sim.world.player.ammo.bombs = 0;
+    const events = run(sim, 0.2);
+    expect(events.some((e) => e.type === 'radio' && e.speaker === 'BRAVO')).toBe(true);
+    expect(sim.world.rearmPoints()).toHaveLength(2);
+    // Circle low over the outpost: it rearms there.
+    const rearmed = run(sim, 4, { brake: true, turn: 1 });
+    expect(rearmed.some((e) => e.type === 'rearmCompleted')).toBe(true);
+  });
+});

@@ -256,6 +256,7 @@ export const riverCrossing: LevelDefinition = {
       primary: true,
       targetRefId: 'outpost',
       attackerTags: ['assault'],
+      effect: 'forwardRearm',
     },
     {
       id: 'sam',
