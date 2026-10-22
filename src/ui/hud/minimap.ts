@@ -155,6 +155,12 @@ export class Minimap extends HudWidget {
       g.fillRect(x - 4, y - 4, 8, 8);
       g.lineStyle(1, COLOR.black, 0.8);
       g.strokeRect(x - 4, y - 4, 8, 8);
+    } else if (e.heli) {
+      // Helicopters: a red disc with a black keyline (they move fast; easy to pick out).
+      g.fillStyle(COLOR.black, 0.8);
+      g.fillCircle(x, y, 4.6);
+      g.fillStyle(COLOR.red, 1);
+      g.fillCircle(x, y, 3.4);
     } else if (e.aa) {
       g.fillStyle(COLOR.red, 1);
       g.fillTriangle(x, y - 4.5, x + 4.5, y + 3.5, x - 4.5, y + 3.5);

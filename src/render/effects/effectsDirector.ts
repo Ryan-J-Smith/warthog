@@ -9,6 +9,7 @@ import { RAMPS } from './colorRamp';
 import { FloatingTexts } from './floatingText';
 import { FxKit, rand } from './fxKit';
 import { ensureFxTextures } from './fxTextures';
+import { HeliFx } from './heliFx';
 import { PickupRenderer } from './pickupRenderer';
 import { ProjectileRenderer } from './projectileRenderer';
 import { WreckFires } from './wreckFires';
@@ -45,6 +46,7 @@ export class EffectsDirector extends SimEventListener {
   private readonly beams: BeamRenderer;
   private readonly pickups: PickupRenderer;
   private readonly aircraft: AircraftFx;
+  private readonly helis: HeliFx;
   private lastView: WorldView | null = null;
   private beamHitCooldown = 0;
   private gunTick = 0;
@@ -60,6 +62,7 @@ export class EffectsDirector extends SimEventListener {
     this.beams = new BeamRenderer(scene, this.kit);
     this.pickups = new PickupRenderer(scene, this.kit, this.texts);
     this.aircraft = new AircraftFx(scene, this.kit);
+    this.helis = new HeliFx(scene, this.kit, this.wrecks);
   }
 
   get stats(): EffectsStats {
@@ -78,6 +81,7 @@ export class EffectsDirector extends SimEventListener {
     for (const e of events) {
       this.handle(e);
       this.pickups.handleEvent(e);
+      this.helis.handleEvent(e);
       if (v) this.aircraft.handleEvent(e, v);
     }
   }
@@ -90,6 +94,7 @@ export class EffectsDirector extends SimEventListener {
     this.projectiles.update(dt, world.projectiles);
     if (world.pickups) this.pickups.update(world);
     if (world.entities) this.beams.update(dt, world);
+    if (world.entities) this.helis.update(dt, world);
     if (world.player.shield !== undefined) this.aircraft.update(dt, world);
     this.wrecks.update(dt);
     this.kit.update(dt);
@@ -103,6 +108,7 @@ export class EffectsDirector extends SimEventListener {
     this.beams.destroy();
     this.pickups.destroy();
     this.aircraft.destroy();
+    this.helis.destroy();
     this.wrecks.clear();
     this.kit.destroy();
     this.texts.destroy();
@@ -250,6 +256,8 @@ export class EffectsDirector extends SimEventListener {
   private entityDestroyed(e: SimEventOf<'entityDestroyed'>): void {
     const { x, y } = e.pos;
     const kit = this.kit;
+    // Shot-down helicopters burst in the air and crash a moment later (HeliFx).
+    if (e.kind === 'helicopter') return;
     if (e.kind === 'infantry' || e.kind === 'friendlyInfantry') {
       // Mechs: a small pop sized to the ~2× walker sprite.
       kit.flash('ground', x, y, 22 * UNIT_FX_SCALE, 0.1, 0xffd090, 0.7);

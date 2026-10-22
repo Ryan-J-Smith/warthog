@@ -58,6 +58,61 @@ export interface SamStats {
   missileMaxSpeedHigh: number;
 }
 
+/**
+ * Attack helicopter: flies its own height, closes to a stand-off and strafes, and fires telegraphed
+ * rocket salvos. Its nose turns at a finite rate (out-turn it with the brake), and the salvo goes
+ * exactly where the aim line showed: turn or boost off the line to dodge.
+ */
+export interface HeliStats {
+  /** Flying height above ground, band units (the player at Low is at 0.35, Medium 1.35). */
+  height: number;
+  /** Patrol / loiter speed, world units / s. */
+  cruiseSpeed: number;
+  /** Top speed while engaging (slower than the A-10 at Low, so you can always run it down). */
+  maxSpeed: number;
+  /** Velocity change rate, units / s² (helicopter inertia). */
+  accel: number;
+  /** Nose (yaw) turn rate, degrees / s. Rockets only fly where the nose points. */
+  yawRateDeg: number;
+  /** Starts attacking a target within this range… */
+  detectRange: number;
+  /** …and breaks off once it is further than this. */
+  leashRange: number;
+  /** Preferred distance from its target. */
+  standoff: number;
+  /** Sideways strafing speed around the target. */
+  strafeSpeed: number;
+  /** Seconds between strafing direction changes. */
+  strafeFlip: number;
+  /** Seconds from the start of one salvo telegraph to the next. */
+  salvoInterval: number;
+  /** Delay before the first salvo after it starts an attack. */
+  firstSalvoDelay: number;
+  /** Telegraph: seconds of nose glow + aim line before the rockets fly. */
+  aimTime: number;
+  /** Last part of the telegraph where the aim stops tracking and flashes (the dodge window). */
+  lockTime: number;
+  /** Only starts a telegraph when its nose is within this angle of the aim point, degrees. */
+  fireConeDeg: number;
+  rockets: number;
+  /** Seconds between rockets in a salvo (ripple fire). */
+  rippleInterval: number;
+  /** Fixed angular spacing between the rockets of a salvo, degrees (no random scatter). */
+  spreadDeg: number;
+  rocketSpeed: number;
+  /** Rockets aimed at the aircraft fly this far, then fall away. */
+  rocketRange: number;
+  rocketDamage: number;
+  /** A rocket hits the aircraft when it passes within this distance. */
+  hitRadius: number;
+  /** Blast radius against ground targets. */
+  groundSplash: number;
+  /** Fraction of the full intercept lead applied when aiming at the aircraft ("light lead"). */
+  leadFactor: number;
+  /** Orbit radius when loitering. */
+  loiterRadius: number;
+}
+
 export interface EntityStats {
   team: Team;
   armor: ArmorClass;
@@ -79,6 +134,9 @@ export interface EntityStats {
   attacker: AttackerStats | null;
   aa: AaStats | null;
   sam: SamStats | null;
+  /** Flies: immune to bombs, Maverick splash, secondaries and ground fire (the GAU-8 and rockets still hit). */
+  airborne: boolean;
+  heli: HeliStats | null;
 }
 
 const AA_LASER: AaStats = {
@@ -104,6 +162,8 @@ const base = {
   attacker: null,
   aa: null,
   sam: null,
+  airborne: false,
+  heli: null,
 } as const;
 
 export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
@@ -197,6 +257,44 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
       missileMaxSpeedHigh: 640,
     },
   },
+  helicopter: {
+    ...base,
+    team: 'enemy',
+    armor: 'soft',
+    hp: 45,
+    radius: 36,
+    explosion: 'medium',
+    score: 600,
+    airborne: true,
+    speed: 90,
+    heli: {
+      height: 0.6,
+      cruiseSpeed: 90,
+      maxSpeed: 125,
+      accel: 150,
+      yawRateDeg: 55,
+      detectRange: 900,
+      leashRange: 1150,
+      standoff: 380,
+      strafeSpeed: 75,
+      strafeFlip: 4.5,
+      salvoInterval: 3.5,
+      firstSalvoDelay: 1.2,
+      aimTime: 0.6,
+      lockTime: 0.25,
+      fireConeDeg: 25,
+      rockets: 3,
+      rippleInterval: 0.09,
+      spreadDeg: 3,
+      rocketSpeed: 480,
+      rocketRange: 600,
+      rocketDamage: 10,
+      hitRadius: 30,
+      groundSplash: 36,
+      leadFactor: 0.8,
+      loiterRadius: 200,
+    },
+  },
   bridge: {
     ...base,
     team: 'enemy',
@@ -229,7 +327,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     ...base,
     team: 'enemy',
     armor: 'hardened',
-    hp: 1500,
+    hp: 2400,
     radius: 140,
     explosion: 'huge',
     score: 5000,

@@ -12,6 +12,8 @@ export type {
   StopColumnObjective,
   DefendObjective,
   DestroyObjective,
+  InterdictObjective,
+  ConvoyStreamDefinition,
   ObjectiveDefinition,
   RadioCue,
   DefenceZoneDefinition,

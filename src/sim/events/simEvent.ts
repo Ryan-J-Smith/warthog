@@ -57,6 +57,13 @@ export type SimEvent =
   | { type: 'samDetonated'; missileId: number; pos: Vec2; hitPlayer: boolean }
   /** The player out-turned a SAM (it overshot and its seeker lost the aircraft). Skill reward. */
   | { type: 'samEvaded'; missileId: number; pos: Vec2; bonus: number }
+  // --- Attack helicopters ----------------------------------------------------
+  /** Salvo telegraph: nose glow + aim line. `atPlayer` = aimed at the aircraft (else at a friendly). */
+  | { type: 'heliAiming'; entityId: number; pos: Vec2; atPlayer: boolean }
+  /** First rocket of a salvo left the rails (the rest ripple after it). */
+  | { type: 'heliRocketsFired'; entityId: number; pos: Vec2; heading: number }
+  /** A helicopter rocket burst: on the aircraft (`hitPlayer`), on the ground, or at the end of its flight. */
+  | { type: 'heliRocketExploded'; pos: Vec2; hitPlayer: boolean; ground: boolean }
   // --- Rewards ----------------------------------------------------------------
   | { type: 'pickupSpawned'; pickupId: number; kind: PickupKind; pos: Vec2 }
   | { type: 'pickupCollected'; pickupId: number; kind: PickupKind; pos: Vec2 }

@@ -50,6 +50,12 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
     centerDepot: 'Feeds the Center road and hosts the SAM that guards their HQ. Blow it: their waves lose a tank, ours gain one.',
     eastDepot: 'Feeds the East road. Blow it: their waves there lose a tank and ours gain one.',
   },
+  'iron-sleet': {
+    interdict:
+      'Supply convoys run south down both highways for five minutes, heavier as the clock runs. More than twelve vehicles off the south edge and the line breaks. Chain kills for score.',
+    depot: 'The fuel depot north of the hills, ringed by triple-A. A long way from the roads: worth it only if you can spare the time.',
+    sam: 'A SAM site covers the east highway. Kill it and the whole road is yours at any altitude.',
+  },
 };
 
 function fallbackNote(def: ObjectiveDefinition): string {
@@ -60,6 +66,8 @@ function fallbackNote(def: ObjectiveDefinition): string {
       return 'Protect the position until every attacker is destroyed.';
     case 'destroy':
       return 'Destroy the target.';
+    case 'interdict':
+      return `Convoys stream down the roads for ${Math.round(def.timeLimit / 60)} minutes. Stop them: if more than ${def.maxEscapes} vehicles get away, the line breaks.`;
   }
 }
 
@@ -144,11 +152,31 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
     const start = path?.[0];
     if (!start) continue;
     const from = compassWord(compassDirection(centre, start));
+    const when = `from the ${from} around ${formatClock(group.trigger.at)}`;
+    // Attack helicopters are called out separately from ground vehicles.
+    const helis = group.units.filter((u) => u.kind === 'helicopter').length;
+    const vehicles = group.units.length - helis;
+    const parts: string[] = [];
+    if (vehicles > 0) parts.push(`${vehicles} vehicles expected ${when}.`);
+    if (helis > 0) parts.push(`${helis === 1 ? 'An attack helicopter' : `${helis} attack helicopters`} expected ${when}.`);
     intel.push({
       kind: 'armor',
-      text: `${group.units.length} vehicles expected from the ${from} around ${formatClock(group.trigger.at)}.`,
+      text: parts.join(' '),
       positions: [{ ...start }],
       route: path ? briefingRoute(level, group.tags, path).map((p) => ({ ...p })) : null,
+    });
+  }
+  for (const stream of level.convoys ?? []) {
+    const path = level.paths[stream.pathId];
+    const start = path?.[0];
+    if (!path || !start) continue;
+    const from = compassWord(compassDirection(centre, start));
+    const heavier = stream.escalation.length > 0 ? ', growing heavier' : '';
+    intel.push({
+      kind: 'armor',
+      text: `Convoys from the ${from} every ${Math.round(stream.interval)} s${heavier}.`,
+      positions: [{ ...start }],
+      route: path.map((p) => ({ ...p })),
     });
   }
   return intel;

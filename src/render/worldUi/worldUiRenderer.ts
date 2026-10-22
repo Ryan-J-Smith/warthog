@@ -47,7 +47,7 @@ const ZONE_STYLE = {
 type ZoneState = keyof typeof ZONE_STYLE;
 
 /** Kinds that get IFF markers (vehicles, infantry and air defences; not big structures). */
-const IFF_KINDS = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'samSite', 'friendlyTank', 'friendlyInfantry']);
+const IFF_KINDS = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'samSite', 'helicopter', 'friendlyTank', 'friendlyInfantry']);
 
 /**
  * World-space HUD: weapon reticle (Xevious-style light-up), bomb CCIP line, Maverick lock
@@ -207,7 +207,7 @@ export class WorldUiRenderer {
         continue;
       }
       if (!e.spotted) continue;
-      const threat = e.aa !== null || e.sam !== null;
+      const threat = e.aa !== null || e.sam !== null || e.heli !== null;
       const half = Math.max(e.radius * unitScale * 1.25, 9 * px);
       const arm = Math.max(half * 0.45, 4 * px);
       const x = e.pos.x;

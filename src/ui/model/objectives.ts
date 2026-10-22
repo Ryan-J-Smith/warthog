@@ -110,6 +110,8 @@ export function objectiveShortLabel(level: LevelDefinition, objectiveId: string)
       const kind = ref ? entityKindByRef(level, ref) : null;
       return (kind && KIND_LABEL[kind]) ?? 'TARGET';
     }
+    case 'interdict':
+      return 'CONVOY';
   }
 }
 
@@ -147,7 +149,8 @@ export function duplicateMarkers(positions: ReadonlyArray<Vec2 | null>, radius: 
 export function objectiveStartMarker(level: LevelDefinition, objectiveId: string): Vec2 | null {
   const def = level.objectives.find((o) => o.id === objectiveId);
   if (!def) return null;
-  const ref = def.kind === 'stopColumn' ? def.bridgeRefId : def.kind === 'defend' ? def.targetRefId : def.targetRefIds[0];
+  const ref =
+    def.kind === 'stopColumn' ? def.bridgeRefId : def.kind === 'defend' ? def.targetRefId : def.kind === 'destroy' ? def.targetRefIds[0] : undefined;
   const spawn = ref ? level.entities.find((e) => e.refId === ref) : undefined;
   return spawn ? { ...spawn.pos } : null;
 }

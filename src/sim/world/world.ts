@@ -69,6 +69,8 @@ export class World implements WorldView {
   pendingRounds: PendingRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0 };
+  /** Convoy vehicles that reached the end of their road (score-attack missions). */
+  escapes = 0;
   /** Group ids that have spawned. */
   spawnedGroups = new Set<string>();
   /** Indices of radio cues already played. */

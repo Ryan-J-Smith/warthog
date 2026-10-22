@@ -11,6 +11,12 @@ export class MissionSystem extends SimSystem {
     if (world.ended) return;
     const p = world.player;
 
+    if (world.level.endOnResolve && allPrimariesResolved(world)) {
+      const anyPrimaryFailed = world.objectives.some((o) => o.primary && o.status === 'failed');
+      endMission(world, anyPrimaryFailed ? 'defeat' : 'victory');
+      return;
+    }
+
     if (!world.rtb && allPrimariesResolved(world)) {
       world.rtb = true;
       world.rtbAt = world.time;

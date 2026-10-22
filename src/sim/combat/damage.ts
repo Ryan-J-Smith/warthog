@@ -12,6 +12,11 @@ function isPlayerSource(source: DamageSource): boolean {
   return source === 'gun' || source === 'rocket' || source === 'maverick' || source === 'bomb';
 }
 
+/** Airborne targets (helicopters) are only hit by the GAU-8 and rocket blasts. */
+function hitsAirborne(source: DamageSource): boolean {
+  return source === 'gun' || source === 'rocket';
+}
+
 /**
  * Apply damage to an entity, handling armor, death, scoring and friendly fire.
  * Returns the damage actually dealt after armor.
@@ -20,6 +25,7 @@ export function damageEntity(world: World, entity: Entity, rawDamage: number, so
   if (!entity.alive || entity.hidden) return 0;
   const stats = ENTITY_STATS[entity.kind];
   if (stats.invulnerable) return 0;
+  if (stats.airborne && !hitsAirborne(source)) return 0;
   const amount = rawDamage * ARMOR_MULTIPLIER[source][entity.armor];
   if (amount <= 0) return 0;
 
@@ -86,7 +92,9 @@ export function applySplash(world: World, center: Vec2, radius: number, damage: 
 
 /** Can `source` actually hurt this entity? */
 export function canDamage(entity: Entity, source: DamageSource): boolean {
-  return !ENTITY_STATS[entity.kind].invulnerable && ARMOR_MULTIPLIER[source][entity.armor] > 0;
+  const stats = ENTITY_STATS[entity.kind];
+  if (stats.airborne && !hitsAirborne(source)) return false;
+  return !stats.invulnerable && ARMOR_MULTIPLIER[source][entity.armor] > 0;
 }
 
 /**

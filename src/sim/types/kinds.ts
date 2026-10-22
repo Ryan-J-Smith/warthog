@@ -14,6 +14,8 @@ export type EntityKind =
   | 'aaGun'
   | 'mobileAa'
   | 'samSite'
+  /** Enemy attack helicopter: airborne, gun/rocket-only target. */
+  | 'helicopter'
   // enemy structures
   | 'bridge'
   | 'ammoDump'
@@ -35,7 +37,9 @@ export type ProjectileKind =
   | 'aaRound'
   | 'samMissile'
   | 'tankShell'
-  | 'flare';
+  | 'flare'
+  /** Enemy helicopter's unguided rockets. */
+  | 'heliRocket';
 
 export type WeaponId = 'gun' | 'rockets' | 'maverick' | 'bombs';
 

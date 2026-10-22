@@ -92,7 +92,7 @@ export const MIX: Record<AudioKey, MixSpec> = {
   comboEnd: { volume: 0.5, cap: 1 },
   zoneCleared: { volume: 0.9, cap: 1, policy: 'steal' },
 
-  // New enemies (not wired yet: helicopter / MLRS sim support pending)
+  // New enemies. heliLoop: one spatial loop per spotted helicopter (MLRS sim support pending)
   heliLoop: { volume: 0.6 },
   mlrsLaunch: { volume: 0.85, vary: 0.04, cap: 2 },
 };

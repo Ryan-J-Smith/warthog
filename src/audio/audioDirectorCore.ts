@@ -32,6 +32,8 @@ const COMBO_MAX_SEMITONES = 12;
 const BEAM_ON_TARGET_GAIN = 1.25;
 /** Boost roar fade-out after release (ms time constant). */
 const BOOST_RELEASE_MS = 90;
+/** A helicopter's rotor loop starts once it is audible (spatial gain) and stops when it falls silent. */
+const ROTOR_START_GAIN = 0.02;
 
 const EXPLOSION_BY_SIZE: Record<ExplosionSize, AudioKey> = {
   small: 'explosionSmall',
@@ -98,6 +100,8 @@ export class AudioDirectorCore {
   /** AA telegraph charge sounds and beam loops, by gun entity id. */
   private readonly charges = new Map<number, SoundVoice>();
   private readonly beams = new Map<number, BeamVoice>();
+  /** Rotor loops of spotted helicopters, by entity id (re-spatialised every update: they move). */
+  private readonly rotors = new Map<number, SoundVoice>();
   /** Director-level throttles (tag → last time played). */
   private readonly lastThrottleMs = new Map<string, number>();
 
@@ -151,6 +155,7 @@ export class AudioDirectorCore {
     if (this.boosting && (!p.boosting || !p.alive)) this.boosting = false;
     this.updateBoost(dtMs);
     this.updateAirDefence(world);
+    this.updateRotors(world);
 
     // Missile launch warning outranks the lock beeps.
     const launch = p.alive && p.missilesTracking > 0;
@@ -191,6 +196,7 @@ export class AudioDirectorCore {
     this.destroyed = true;
     this.boosting = false;
     this.stopAirDefence();
+    this.stopRotors();
     for (const slot of Object.keys(this.loops) as LoopSlot[]) this.stopLoop(slot);
     for (const v of this.limiter.all()) v.stop();
     this.limiter.clear();
@@ -240,6 +246,7 @@ export class AudioDirectorCore {
       case 'entityDestroyed':
         this.stopCharge(ev.entityId);
         this.stopBeam(ev.entityId);
+        this.stopRotor(ev.entityId);
         this.explode(ev.size, ev.pos);
         break;
       case 'secondaryExplosion':
@@ -262,6 +269,12 @@ export class AudioDirectorCore {
         break;
       case 'aaBeamStopped':
         this.stopBeam(ev.entityId);
+        break;
+      case 'heliRocketsFired':
+        this.playAt('rocketLaunch', ev.pos);
+        break;
+      case 'heliRocketExploded':
+        this.playAt('explosionSmall', ev.pos, { volume: ev.hitPlayer ? 1 : 0.75 });
         break;
       case 'samLockStarted':
         this.rwrNextBeepMs = this.nowMs; // first beep on the next update
@@ -364,6 +377,7 @@ export class AudioDirectorCore {
       this.stopGun(false);
       this.boosting = false;
       this.stopAirDefence();
+      this.stopRotors();
       for (const slot of Object.keys(this.loops) as LoopSlot[]) this.stopLoop(slot);
     }
     if (outcome) this.music?.playSting(outcome);
@@ -511,6 +525,46 @@ export class AudioDirectorCore {
       beam.voice.setVolume(Math.min(1, MIX.aaBeamLoop.volume * s.gain * onTarget * share));
       beam.voice.setPan(s.pan);
     }
+  }
+
+  /**
+   * One spatial rotor loop per live, spotted helicopter while it is within earshot. Several at once
+   * share the level so a pair doesn't double the drone.
+   */
+  private updateRotors(world: WorldView): void {
+    const listener = this.listener;
+    if (!listener) return;
+    const audible = new Map<number, { gain: number; pan: number }>();
+    for (const e of world.entities) {
+      if (!e.heli || !e.alive || e.hidden || !e.spotted) continue;
+      const s = spatialize(listener, this.listenerAlt, e.pos, this.spatial);
+      if (s.gain >= ROTOR_START_GAIN || (this.rotors.has(e.id) && s.gain > 0)) audible.set(e.id, s);
+    }
+    for (const id of [...this.rotors.keys()]) if (!audible.has(id)) this.stopRotor(id);
+    if (audible.size === 0) return;
+    const share = 1 / Math.sqrt(audible.size);
+    for (const [id, s] of audible) {
+      let voice = this.rotors.get(id);
+      if (!voice) {
+        voice = this.backend.create('heliLoop', { volume: 0, loop: true });
+        voice.play();
+        this.rotors.set(id, voice);
+      }
+      voice.setVolume(Math.min(1, MIX.heliLoop.volume * s.gain * share));
+      voice.setPan(s.pan);
+    }
+  }
+
+  private stopRotor(entityId: number): void {
+    const voice = this.rotors.get(entityId);
+    if (!voice) return;
+    voice.stop();
+    voice.destroy();
+    this.rotors.delete(entityId);
+  }
+
+  private stopRotors(): void {
+    for (const id of [...this.rotors.keys()]) this.stopRotor(id);
   }
 
   /** True (and restarts the timer) if `tag` was last allowed at least `intervalMs` ago. */

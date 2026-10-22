@@ -5,6 +5,7 @@ import type { SimEvent } from '../../sim/events';
 import type { WorldView } from '../../sim/world';
 import { DEPTH, unitDisplayScale } from '../layers';
 import { ENTITY_VISUALS } from './entityVisuals';
+import { HelicopterRenderer } from './helicopterRenderer';
 
 interface EntityVisual {
   base: Phaser.GameObjects.Image;
@@ -16,6 +17,12 @@ interface EntityVisual {
 }
 
 const INV_RES = 1 / SPRITE_RESOLUTION;
+
+function destroyVisual(visual: EntityVisual): void {
+  visual.base.destroy();
+  visual.top?.destroy();
+  visual.halo?.destroy();
+}
 const FLASH_MS = 70;
 /** Hit tint for structures (vehicles flash white instead). */
 const STRUCTURE_HIT_TINT = 0xffa090;
@@ -26,8 +33,12 @@ const HALO_ALPHA = 0.5;
 /** Keeps a sprite (plus optional turret and ground halo) in sync with every ground entity. */
 export class EntityRenderer {
   private readonly visuals = new Map<number, EntityVisual>();
+  /** Airborne units (helicopters) have their own renderer. */
+  private readonly helicopters: HelicopterRenderer;
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(private readonly scene: Phaser.Scene) {
+    this.helicopters = new HelicopterRenderer(scene);
+  }
 
   sync(view: WorldView, events: readonly SimEvent[]): void {
     const now = this.scene.time.now;
@@ -38,8 +49,12 @@ export class EntityRenderer {
       }
     }
 
+    this.helicopters.sync(view, events);
     const unitScale = unitDisplayScale(this.scene.cameras.main.zoom);
+    const live = new Set<number>();
     for (const entity of view.entities) {
+      live.add(entity.id);
+      if (ENTITY_VISUALS[entity.kind].airborne) continue;
       let visual = this.visuals.get(entity.id);
       if (!visual) {
         if (entity.hidden || !entity.alive) continue;
@@ -48,15 +63,18 @@ export class EntityRenderer {
       }
       this.update(entity, visual, now, unitScale);
     }
+    // Entities pruned from the world (expired wave wrecks, escaped convoys) take their sprites with them.
+    for (const [id, visual] of this.visuals) {
+      if (live.has(id)) continue;
+      destroyVisual(visual);
+      this.visuals.delete(id);
+    }
   }
 
   destroy(): void {
-    for (const v of this.visuals.values()) {
-      v.base.destroy();
-      v.top?.destroy();
-      v.halo?.destroy();
-    }
+    for (const v of this.visuals.values()) destroyVisual(v);
     this.visuals.clear();
+    this.helicopters.destroy();
   }
 
   private create(entity: Entity): EntityVisual {

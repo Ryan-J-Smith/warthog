@@ -49,7 +49,8 @@ export interface VillageDefinition {
 }
 
 export interface TerrainDefinition {
-  biome: 'steppe';
+  /** Visual palette and painter style (`steppe` = muted desert; `winter` = muted snowfield). Same feature set. */
+  biome: 'steppe' | 'winter';
   rivers: RiverDefinition[];
   roads: RoadDefinition[];
   forests: ForestDefinition[];
@@ -150,7 +151,35 @@ export interface DestroyObjective extends ObjectiveBase {
   effect?: 'aaFireRateHalved';
 }
 
-export type ObjectiveDefinition = StopColumnObjective | DefendObjective | DestroyObjective;
+/**
+ * Score attack: convoys (units tagged `convoyTag`) stream toward the map edge. Completed when
+ * `timeLimit` seconds have passed; failed the moment more than `maxEscapes` vehicles get away.
+ */
+export interface InterdictObjective extends ObjectiveBase {
+  kind: 'interdict';
+  convoyTag: string;
+  maxEscapes: number;
+  timeLimit: number;
+}
+
+export type ObjectiveDefinition = StopColumnObjective | DefendObjective | DestroyObjective | InterdictObjective;
+
+/**
+ * A road that keeps sending convoys: one every `interval` seconds from `firstAt`, in single file
+ * along `pathId`. Vehicles that reach the end of the path have escaped and leave the map.
+ */
+export interface ConvoyStreamDefinition {
+  id: string;
+  pathId: string;
+  firstAt: number;
+  interval: number;
+  speed: number;
+  spacing: number;
+  units: EntityKind[];
+  /** Units added to every convoy from sim time `at` onward. */
+  escalation: Array<{ at: number; add: EntityKind[] }>;
+  tags: string[];
+}
 
 /**
  * A defence zone: every enemy AA gun / SAM site within `radius` of `center` at mission start.
@@ -189,6 +218,10 @@ export interface LevelDefinition {
   radio: RadioCue[];
   /** Air-defence clusters that pay out when cleared. */
   zones?: DefenceZoneDefinition[];
+  /** Roads that keep sending convoys (score-attack missions). */
+  convoys?: ConvoyStreamDefinition[];
+  /** End the mission the moment every primary is resolved (no RTB leg). */
+  endOnResolve?: boolean;
   /** Repeating waves pushing down roads between two HQs (lane missions). */
   laneWar?: LaneWarDefinition;
   /** Target mission time for the time bonus, seconds. */

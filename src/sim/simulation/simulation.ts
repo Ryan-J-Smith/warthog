@@ -5,8 +5,10 @@ import type { PlayerLoadout } from '../loadout';
 import { spawnFromDefinition } from '../spawning';
 import {
   AirDefenseSystem,
+  ConvoySystem,
   FlightSystem,
   GroundUnitSystem,
+  HelicopterSystem,
   LaneSystem,
   MissionSystem,
   ObjectiveSystem,
@@ -53,6 +55,7 @@ export class Simulation {
   static defaultSystems(): SimSystem[] {
     return [
       new SpawnSystem(),
+      new ConvoySystem(),
       new WaveSystem(),
       new PlayerLifeSystem(),
       new FlightSystem(),
@@ -60,6 +63,7 @@ export class Simulation {
       new WeaponSystem(),
       new GroundUnitSystem(),
       new AirDefenseSystem(),
+      new HelicopterSystem(),
       new ProjectileSystem(),
       new PendingFireSystem(),
       new RewardSystem(),

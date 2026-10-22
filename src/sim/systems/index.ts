@@ -7,6 +7,7 @@ export { RearmSystem } from './rearmSystem';
 export { WeaponSystem, blockReason, gunPipper, bombImpact, bombFallTime, rocketRange } from './weaponSystem';
 export { GroundUnitSystem } from './groundUnitSystem';
 export { AirDefenseSystem, leadPoint, beamHits } from './airDefenseSystem';
+export { HelicopterSystem } from './helicopterSystem';
 export { ProjectileSystem } from './projectileSystem';
 export { PendingFireSystem } from './pendingFireSystem';
 export { SpottingSystem } from './spottingSystem';
@@ -29,3 +30,4 @@ export {
   moverProgress,
   pathLength,
 } from './laneFront';
+export { ConvoySystem, convoyUnits } from './convoySystem';

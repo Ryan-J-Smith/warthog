@@ -1,7 +1,7 @@
 import { SCORING } from '../../config';
 import { killEntity } from '../combat';
 import type { Entity } from '../entities';
-import type { DefendObjective, DestroyObjective, ObjectiveDefinition, StopColumnObjective } from '../level';
+import type { DefendObjective, DestroyObjective, InterdictObjective, ObjectiveDefinition, StopColumnObjective } from '../level';
 import { distance, type Vec2 } from '../math';
 import type { ObjectiveStatus } from '../types';
 import { FORWARD_REARM_TAG, type ObjectiveState, type World } from '../world';
@@ -47,9 +47,45 @@ export class ObjectiveSystem extends SimSystem {
         case 'destroy':
           status = destroy(world, def, state);
           break;
+        case 'interdict':
+          status = this.interdict(world, def, state);
+          break;
       }
       if (state.status === 'active' && status !== 'active') resolve(world, def, state, status);
     }
+  }
+
+  /** Escape counts already announced on the radio (half / last few). */
+  private escapeCallouts = new Set<string>();
+
+  private interdict(world: World, def: InterdictObjective, state: ObjectiveState): ObjectiveStatus {
+    const convoy = world.withTag(def.convoyTag).filter((u) => u.alive);
+    // Point at the vehicle closest to getting away (furthest along its road).
+    let lead: Entity | null = null;
+    for (const u of convoy) if (u.mover && (!lead || (lead.mover && u.mover.waypoint > lead.mover.waypoint))) lead = u;
+    state.marker = lead ? { ...lead.pos } : null;
+    if (state.status !== 'active') return state.status;
+    const left = Math.max(0, def.timeLimit - world.time);
+    state.meter = Math.max(0, 1 - world.escapes / (def.maxEscapes + 1));
+    state.detail = `${formatClock(left)} left · ${world.escapes}/${def.maxEscapes} escaped`;
+    const half = Math.ceil(def.maxEscapes / 2);
+    if (world.escapes >= half && !this.escapeCallouts.has(`${def.id}:half`)) {
+      this.escapeCallouts.add(`${def.id}:half`);
+      world.emit({ type: 'radio', speaker: 'OVERLORD', tone: 'urgent', text: `${world.escapes} vehicles have slipped through! Watch the roads, Warthog.` });
+    }
+    if (world.escapes >= def.maxEscapes - 2 && !this.escapeCallouts.has(`${def.id}:last`)) {
+      this.escapeCallouts.add(`${def.id}:last`);
+      world.emit({ type: 'radio', speaker: 'OVERLORD', tone: 'bad', text: 'They are almost through! A couple more and the line breaks!' });
+    }
+    if (world.escapes > def.maxEscapes) {
+      state.detail = 'Line broken';
+      return 'failed';
+    }
+    if (world.time >= def.timeLimit) {
+      state.detail = `Held · ${world.escapes} escaped`;
+      return 'completed';
+    }
+    return 'active';
   }
 
   private stopColumn(world: World, def: StopColumnObjective, state: ObjectiveState): ObjectiveStatus {
@@ -241,4 +277,10 @@ function pathDistanceTo(pos: Vec2, path: Vec2[], fromWaypoint: number, toWaypoin
     cursor = wp;
   }
   return total;
+}
+
+/** 192 → "3:12". */
+function formatClock(seconds: number): string {
+  const s = Math.ceil(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

@@ -36,7 +36,7 @@ export class Hud {
       new OffscreenArrows(scene, level),
       new Minimap(scene, level),
       objectives,
-      new MissionStrip(scene, level.parTime),
+      new MissionStrip(scene, level.parTime, missionCountdown(level)),
       new AltitudeLadder(scene, objectives.bottom + 14),
       new ArmorPanel(scene),
       new WeaponBar(scene),
@@ -87,4 +87,10 @@ export class Hud {
     for (const widget of this.widgets) widget.destroy();
     this.banners.destroy();
   }
+}
+
+/** A score-attack mission's time limit (the clock counts down), else null. */
+function missionCountdown(level: LevelDefinition): number | null {
+  for (const def of level.objectives) if (def.kind === 'interdict' && def.primary) return def.timeLimit;
+  return null;
 }

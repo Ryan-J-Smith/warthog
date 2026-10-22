@@ -9,7 +9,7 @@ import type { ObjectiveStatus, WeaponId } from '../types';
 export interface ObjectiveState {
   id: string;
   /** Objective type from the level definition (defend objectives are drawn blue, attack amber). */
-  kind: 'stopColumn' | 'defend' | 'destroy';
+  kind: 'stopColumn' | 'defend' | 'destroy' | 'interdict';
   title: string;
   primary: boolean;
   status: ObjectiveStatus;

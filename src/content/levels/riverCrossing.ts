@@ -167,6 +167,22 @@ export const riverCrossing: LevelDefinition = {
       { x: 5700, y: 3900 },
       { x: 5350, y: 3900 },
     ],
+    // Attack helicopters: the wave-2 pair flies in from the east and circles over Bravo's attackers
+    // (an open route: flown once, then they loiter at its end); one gunship patrols the ammo dump
+    // (a closed route: looped).
+    hindsInbound: [
+      { x: 7450, y: 3050 },
+      { x: 6500, y: 3300 },
+      { x: 5750, y: 3600 },
+    ],
+    dumpPatrol: [
+      { x: 1300, y: 450 },
+      { x: 1500, y: 1000 },
+      { x: 950, y: 1300 },
+      { x: 450, y: 1000 },
+      { x: 500, y: 420 },
+      { x: 1250, y: 430 },
+    ],
   },
 
   entities: [
@@ -200,6 +216,7 @@ export const riverCrossing: LevelDefinition = {
     { kind: 'aaGun', pos: { x: 1120, y: 860 }, headingDeg: 135 },
     { kind: 'truck', pos: { x: 1020, y: 600 }, headingDeg: 90 },
     { kind: 'truck', pos: { x: 760, y: 820 }, headingDeg: 30 },
+    { refId: 'hindDump', kind: 'helicopter', pos: { x: 1300, y: 450 }, headingDeg: 70, pathId: 'dumpPatrol', tags: ['hinds'] },
 
     // Hidden caches (Xevious nod) — revealed by overflying at Low.
     { refId: 'cache1', kind: 'cache', pos: { x: 1950, y: 3620 }, hidden: true },
@@ -235,6 +252,15 @@ export const riverCrossing: LevelDefinition = {
       speed: 34,
       tags: ['assault', 'waveB'],
       units: [{ kind: 'tank' }, { kind: 'truck' }, { kind: 'tank' }, { kind: 'truck' }],
+    },
+    {
+      id: 'hinds',
+      trigger: { kind: 'time', at: 120 },
+      pathId: 'hindsInbound',
+      spacing: 150,
+      speed: 0,
+      tags: ['hinds'],
+      units: [{ kind: 'helicopter' }, { kind: 'helicopter' }],
     },
     {
       // Reward for taking the bridge intact: friendly armour crosses and assaults the Tango nest.
@@ -338,6 +364,18 @@ export const riverCrossing: LevelDefinition = {
       speaker: 'BRAVO',
       tone: 'urgent',
       text: 'More armor on the east road, one minute out!',
+    },
+    {
+      trigger: { kind: 'time', at: 121 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Hinds inbound from the east! When a gunship lines up on you, break across its nose.',
+    },
+    {
+      trigger: { kind: 'entitySpotted', refId: 'hindDump' },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Gunship patrolling the ammo dump! Gun it down — it carries a boost pickup.',
     },
     {
       trigger: { kind: 'objectiveResolved', objectiveId: 'column', status: 'completed' },

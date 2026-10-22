@@ -31,6 +31,9 @@ export class ProjectileSystem extends SimSystem {
         case 'aaRound':
           done = this.updateAaRound(world, proj, dt);
           break;
+        case 'heliRocket':
+          done = this.updateHeliRocket(world, proj, dt);
+          break;
         case 'flare':
         case 'tankShell':
           proj.pos.x += proj.vel.x * dt;
@@ -147,6 +150,39 @@ export class ProjectileSystem extends SimSystem {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Helicopter rockets fly straight. Air-to-air ones (no aim point) burst within `splashRadius` of a
+   * Low/Medium aircraft, else fall away at the end of their range; ground salvos burst at the aim
+   * point and hurt friendlies only.
+   */
+  private updateHeliRocket(world: World, proj: Projectile, dt: number): boolean {
+    const p = world.player;
+    proj.pos.x += proj.vel.x * dt;
+    proj.pos.y += proj.vel.y * dt;
+    const t = clamp(proj.age / proj.life, 0, 1);
+    if (proj.aimPoint === null) {
+      // Holds height most of the way, then drops as the motor burns out.
+      proj.alt = proj.startAlt * (1 - t * t * t);
+      if (p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= proj.splashRadius) {
+        world.emit({ type: 'heliRocketExploded', pos: { ...proj.pos }, hitPlayer: true, ground: false });
+        damagePlayer(world, proj.damage, 'splash', proj.pos);
+        return true;
+      }
+      if (proj.age < proj.life) return false;
+      world.emit({ type: 'heliRocketExploded', pos: { ...proj.pos }, hitPlayer: false, ground: true });
+      return true;
+    }
+    proj.alt = proj.startAlt * (1 - t);
+    if (proj.age < proj.life) return false;
+    const at = proj.aimPoint;
+    for (const entity of world.entities) {
+      if (!entity.alive || entity.hidden || entity.team !== 'friendly') continue;
+      if (distance(entity.pos, at) <= proj.splashRadius + entity.radius * 0.6) damageEntity(world, entity, proj.damage, 'ground');
+    }
+    world.emit({ type: 'heliRocketExploded', pos: { ...at }, hitPlayer: false, ground: true });
+    return true;
   }
 
   private updateAaRound(world: World, proj: Projectile, dt: number): boolean {

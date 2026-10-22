@@ -45,6 +45,38 @@ export interface SamState {
   launcherHeading: number;
 }
 
+/**
+ * Attack-helicopter salvo cycle: `aiming` is the telegraph (nose glow + aim line; it tracks, then
+ * holds still for the last `lockTime` s), `firing` ripples the rockets down the held line.
+ */
+export type HeliPhase = 'idle' | 'aiming' | 'firing';
+
+/** Attack-helicopter brain state (see `HelicopterSystem`). */
+export interface HeliState {
+  /** Patrol route: looped if its ends meet, otherwise flown once (then it loiters at the end). Null = loiter. */
+  path: Vec2[] | null;
+  waypoint: number;
+  /** Point it circles when it has no route. */
+  loiter: Vec2;
+  /** Velocity, world units / s. Independent of the nose: gunships strafe sideways. */
+  vel: Vec2;
+  /** What it is attacking: -1 = the player, an entity id, or null. */
+  targetId: number | null;
+  phase: HeliPhase;
+  /** Seconds left in the current phase (aiming) or until the next rocket (firing). */
+  phaseTime: number;
+  /** Seconds until the next salvo telegraph may start. */
+  cooldown: number;
+  /** Where the current salvo is aimed (ground point or predicted aircraft position). */
+  aimPoint: Vec2;
+  rocketsLeft: number;
+  /** Strafing direction around the target (+1 / -1) and seconds until it flips. */
+  orbit: number;
+  orbitFlipIn: number;
+  /** Flying height above ground, band units. */
+  height: number;
+}
+
 /** Units that shoot at ground targets (tanks, infantry, friendly defenders). */
 export interface AttackerState {
   targetId: number | null;
@@ -81,4 +113,6 @@ export interface Entity {
   aa: AaState | null;
   sam: SamState | null;
   attacker: AttackerState | null;
+  /** Attack helicopters only (they fly; no `mover`). */
+  heli: HeliState | null;
 }
