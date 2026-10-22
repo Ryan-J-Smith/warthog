@@ -250,7 +250,8 @@ describe('Three Roads level', () => {
     }
     // Wrecks are pruned, so a long mission doesn't accumulate every unit ever spawned.
     expect(sim.world.entities.length).toBeLessThan(160);
-  });
+    // Four simulated minutes: ~2 s locally but ~6 s on the CI runner, past vitest's 5 s default.
+  }, 30_000);
 
   it("a depot's row keeps reporting its road after the depot falls", () => {
     const sim = new Simulation(threeRoads);
