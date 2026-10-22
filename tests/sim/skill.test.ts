@@ -4,6 +4,7 @@ import { damageEntity } from '../../src/sim/combat';
 import { DEFAULT_LOADOUT } from '../../src/sim/loadout';
 import { Simulation } from '../../src/sim/simulation';
 import { beamHits, damagePlayer } from '../../src/sim/systems';
+import { riverCrossing } from '../../src/content/levels';
 import { input, makeLevel, run } from './helpers';
 
 function flyingSim(): Simulation {
@@ -228,5 +229,18 @@ describe('objective rewards', () => {
     // Circle low over the outpost: it rearms there.
     const rearmed = run(sim, 4, { brake: true, turn: 1 });
     expect(rearmed.some((e) => e.type === 'rearmCompleted')).toBe(true);
+  });
+});
+
+describe('allies that matter', () => {
+  it('taking the bridge intact sends friendly armour across to assault the SAM nest', () => {
+    const sim = new Simulation(riverCrossing);
+    run(sim, 60);
+    for (const unit of sim.world.withTag('column')) damageEntity(sim.world, unit, 9999, 'bomb');
+    const events = run(sim, 1);
+    expect(events.some((e) => e.type === 'objectiveUpdated' && e.objectiveId === 'bridgeIntact' && e.status === 'completed')).toBe(true);
+    expect(sim.world.withTag('counterattack').length).toBe(4);
+    const later = run(sim, 90);
+    expect(later.some((e) => e.type === 'groundFire' && e.shooterKind === 'friendlyTank')).toBe(true);
   });
 });

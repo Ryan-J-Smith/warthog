@@ -150,6 +150,17 @@ export const riverCrossing: LevelDefinition = {
       { x: 4500, y: 3850 },
       { x: 4950, y: 3900 },
     ],
+    // Friendly counter-attack once the bridge is taken intact: across the span, north to the SAM nest.
+    counterattack: [
+      { x: 3400, y: 3800 },
+      { x: 3100, y: 3400 },
+      { x: 3000, y: 2880 },
+      { x: 3000, y: 2645 },
+      { x: 3000, y: 2420 },
+      { x: 3250, y: 2250 },
+      { x: 3500, y: 2080 },
+      { x: 3620, y: 1990 },
+    ],
     eastRoad: [
       { x: 7300, y: 3500 },
       { x: 6400, y: 3700 },
@@ -224,6 +235,16 @@ export const riverCrossing: LevelDefinition = {
       speed: 34,
       tags: ['assault', 'waveB'],
       units: [{ kind: 'tank' }, { kind: 'truck' }, { kind: 'tank' }, { kind: 'truck' }],
+    },
+    {
+      // Reward for taking the bridge intact: friendly armour crosses and assaults the Tango nest.
+      id: 'counterattack',
+      trigger: { kind: 'objectiveResolved', objectiveId: 'bridgeIntact', status: 'completed' },
+      pathId: 'counterattack',
+      spacing: 90,
+      speed: 34,
+      tags: ['counterattack'],
+      units: [{ kind: 'friendlyTank' }, { kind: 'friendlyTank' }, { kind: 'friendlyTank' }, { kind: 'friendlyTank' }],
     },
   ],
 
@@ -323,6 +344,12 @@ export const riverCrossing: LevelDefinition = {
       speaker: 'OVERLORD',
       tone: 'good',
       text: 'Column stopped! Good work, Warthog.',
+    },
+    {
+      trigger: { kind: 'objectiveResolved', objectiveId: 'bridgeIntact', status: 'completed' },
+      speaker: 'OVERLORD',
+      text: 'Bridge is ours! Second Armored is rolling across to hit the SAM nest. Cover them, Warthog!',
+      tone: 'good',
     },
     {
       trigger: { kind: 'objectiveResolved', objectiveId: 'column', status: 'failed' },
