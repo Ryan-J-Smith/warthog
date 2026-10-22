@@ -34,6 +34,16 @@ export class ProjectileSystem extends SimSystem {
         case 'heliRocket':
           done = this.updateHeliRocket(world, proj, dt);
           break;
+        case 'mlrsRocket': {
+          // Arcs onto its ring (the MLRS strike resolves the impact): straight ground track, parabolic height.
+          proj.pos.x += proj.vel.x * dt;
+          proj.pos.y += proj.vel.y * dt;
+          const t = clamp(proj.age / proj.life, 0, 1);
+          proj.alt = proj.startAlt * 4 * t * (1 - t);
+          done = proj.age >= proj.life - 1e-9;
+          if (done && proj.aimPoint) proj.pos = { ...proj.aimPoint };
+          break;
+        }
         case 'flare':
         case 'tankShell':
           proj.pos.x += proj.vel.x * dt;

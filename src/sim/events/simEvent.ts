@@ -64,6 +64,13 @@ export type SimEvent =
   | { type: 'heliRocketsFired'; entityId: number; pos: Vec2; heading: number }
   /** A helicopter rocket burst: on the aircraft (`hitPlayer`), on the ground, or at the end of its flight. */
   | { type: 'heliRocketExploded'; pos: Vec2; hitPlayer: boolean; ground: boolean }
+  // --- MLRS rocket artillery --------------------------------------------------
+  /** Barrage telegraph: its impact rings are on the ground (in `entity.mlrs.strikes`). `atPlayer` = aimed at the aircraft. */
+  | { type: 'mlrsTargeting'; entityId: number; pos: Vec2; atPlayer: boolean; center: Vec2 }
+  /** First rocket of a barrage left the tubes (the rest ripple after it). */
+  | { type: 'mlrsLaunched'; entityId: number; pos: Vec2; heading: number; atPlayer: boolean }
+  /** A rocket landed on its ring. `hitPlayer` = the aircraft was inside it. */
+  | { type: 'mlrsImpact'; pos: Vec2; radius: number; hitPlayer: boolean }
   // --- Rewards ----------------------------------------------------------------
   | { type: 'pickupSpawned'; pickupId: number; kind: PickupKind; pos: Vec2 }
   | { type: 'pickupCollected'; pickupId: number; kind: PickupKind; pos: Vec2 }

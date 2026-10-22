@@ -57,6 +57,13 @@ const SPECS: Record<ProjectileKind, KindSpec> = {
     glow: { tint: 0xff3a1e, size: 22, alpha: 1 },
     trail: { spacing: 6, size0: 4, size1: 17, life: 1.1, alpha: 0.6, ramp: RAMPS.smokeGrey },
   },
+  // MLRS artillery rockets: big, hot and smoky, so the arc onto the ring reads from far away.
+  mlrsRocket: {
+    sprite: 'rocket',
+    shadow: true,
+    glow: { tint: 0xff5a1e, size: 30, alpha: 1 },
+    trail: { spacing: 7, size0: 6, size1: 26, life: 1.6, alpha: 0.6, ramp: RAMPS.smokeGrey },
+  },
   bomb: { sprite: 'bomb', shadow: true, glow: null, trail: null },
   aaRound: { sprite: null, shadow: false, glow: { tint: 0xff6a24, size: 11, alpha: 0.5 }, trail: null },
   tankShell: { sprite: null, shadow: false, glow: null, trail: null },
@@ -170,6 +177,9 @@ export class ProjectileRenderer {
     } else if (p.kind === 'heliRocket') {
       this.kit.muzzleFlash('low', p.pos.x, p.pos.y, p.heading, 20, 0xff9a60, 0.06);
       this.kit.smoke('low', p.pos.x, p.pos.y, 2, { spread: 3, speed: 22, size0: 5, size1: 18, life: 0.9, alpha: 0.45, ramp: RAMPS.smokeGrey });
+    } else if (p.kind === 'mlrsRocket') {
+      this.kit.muzzleFlash('ground', p.pos.x, p.pos.y, p.heading, 26, 0xffb060, 0.08);
+      this.kit.smoke('ground', p.pos.x, p.pos.y, 3, { spread: 6, speed: 30, size0: 8, size1: 30, life: 1.6, alpha: 0.5, ramp: RAMPS.smokeGrey });
     } else if (p.kind === 'tankShell') {
       this.kit.muzzleFlash('ground', p.pos.x, p.pos.y, p.heading, 22, 0xffd080, 0.07);
       this.kit.smoke('ground', p.pos.x, p.pos.y, 3, { spread: 3, speed: 16, size0: 5, size1: 20, life: 1.2, alpha: 0.45, ramp: RAMPS.smokeGrey });
@@ -224,8 +234,9 @@ export class ProjectileRenderer {
       if (p.kind === 'samMissile') scale *= p.lostLock ? 1.6 : 1.9 + 0.15 * Math.sin(v.age * 18);
       if (p.kind === 'flare') scale *= 1.2 + 0.25 * Math.sin(v.age * 40);
       if (p.kind === 'heliRocket') scale *= 1.35;
+      if (p.kind === 'mlrsRocket') scale *= 1.7;
       v.sprite.setPosition(x, y).setRotation(p.kind === 'flare' ? 0 : p.heading).setScale(scale);
-      if (p.kind === 'heliRocket') v.sprite.setTint(0xffb0a0);
+      if (p.kind === 'heliRocket' || p.kind === 'mlrsRocket') v.sprite.setTint(0xffb0a0);
     }
 
     // --- shadow ------------------------------------------------------------

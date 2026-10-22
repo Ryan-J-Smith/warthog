@@ -42,6 +42,7 @@ export const ENTITY_VISUALS: Record<EntityKind, EntityVisualSpec> = {
   mobileAa: vehicle('aaHull', 'aaTurret', 'aaWreck'),
   samSite: { ...structure('samBase', 'samWreck'), top: 'samLauncher' },
   helicopter: { ...vehicle('heliBody', 'heliRotor', 'heliWreck'), airborne: true },
+  mlrs: vehicle('mlrs', null, 'mlrsWreck'),
   bridge: structure('bridge', 'bridgeDestroyed'),
   ammoDump: structure('ammoDump', 'ammoDumpWreck'),
   cache: structure('cache', null),

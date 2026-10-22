@@ -175,6 +175,12 @@ export const riverCrossing: LevelDefinition = {
       { x: 6500, y: 3300 },
       { x: 5750, y: 3600 },
     ],
+    // Rocket artillery drives down from the north-east and parks in range of Bravo.
+    mlrsBravo: [
+      { x: 7450, y: 2200 },
+      { x: 6700, y: 2450 },
+      { x: 6250, y: 2760 },
+    ],
     dumpPatrol: [
       { x: 1300, y: 450 },
       { x: 1500, y: 1000 },
@@ -261,6 +267,17 @@ export const riverCrossing: LevelDefinition = {
       speed: 0,
       tags: ['hinds'],
       units: [{ kind: 'helicopter' }, { kind: 'helicopter' }],
+    },
+    {
+      // Not an assault unit (Bravo's defence doesn't wait on it), but it shells Bravo until it is killed.
+      // Rolls in with the second wave.
+      id: 'mlrsBravo',
+      trigger: { kind: 'time', at: 125 },
+      pathId: 'mlrsBravo',
+      spacing: 80,
+      speed: 45,
+      tags: ['mlrs'],
+      units: [{ kind: 'mlrs', refId: 'mlrsBravo' }, { kind: 'infantry' }],
     },
     {
       // Reward for taking the bridge intact: friendly armour crosses and assaults the Tango nest.
@@ -358,6 +375,18 @@ export const riverCrossing: LevelDefinition = {
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'SAM radar north of the river! Stay on the deck near the bridge, or kill it.',
+    },
+    {
+      trigger: { kind: 'artilleryFiring', refId: 'mlrsBravo' },
+      speaker: 'BRAVO',
+      tone: 'urgent',
+      text: 'Rocket artillery shelling Bravo! It is coming from the north-east. Find that launcher!',
+    },
+    {
+      trigger: { kind: 'entityDestroyed', refId: 'mlrsBravo' },
+      speaker: 'BRAVO',
+      tone: 'good',
+      text: 'The rockets have stopped! Thanks, Warthog.',
     },
     {
       trigger: { kind: 'time', at: 110 },

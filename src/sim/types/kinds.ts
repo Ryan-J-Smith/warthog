@@ -16,6 +16,8 @@ export type EntityKind =
   | 'samSite'
   /** Enemy attack helicopter: airborne, gun/rocket-only target. */
   | 'helicopter'
+  /** Enemy MLRS rocket artillery: soft truck that shells telegraphed impact rings. */
+  | 'mlrs'
   // enemy structures
   | 'bridge'
   | 'ammoDump'
@@ -39,7 +41,9 @@ export type ProjectileKind =
   | 'tankShell'
   | 'flare'
   /** Enemy helicopter's unguided rockets. */
-  | 'heliRocket';
+  | 'heliRocket'
+  /** MLRS artillery rocket: arcs from the launcher onto its impact ring (visual; the strike resolves the damage). */
+  | 'mlrsRocket';
 
 export type WeaponId = 'gun' | 'rockets' | 'maverick' | 'bombs';
 

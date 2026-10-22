@@ -10,6 +10,7 @@ import { FloatingTexts } from './floatingText';
 import { FxKit, rand } from './fxKit';
 import { ensureFxTextures } from './fxTextures';
 import { HeliFx } from './heliFx';
+import { MlrsFx } from './mlrsFx';
 import { PickupRenderer } from './pickupRenderer';
 import { ProjectileRenderer } from './projectileRenderer';
 import { WreckFires } from './wreckFires';
@@ -47,6 +48,7 @@ export class EffectsDirector extends SimEventListener {
   private readonly pickups: PickupRenderer;
   private readonly aircraft: AircraftFx;
   private readonly helis: HeliFx;
+  private readonly mlrs: MlrsFx;
   private lastView: WorldView | null = null;
   private beamHitCooldown = 0;
   private gunTick = 0;
@@ -63,6 +65,7 @@ export class EffectsDirector extends SimEventListener {
     this.pickups = new PickupRenderer(scene, this.kit, this.texts);
     this.aircraft = new AircraftFx(scene, this.kit);
     this.helis = new HeliFx(scene, this.kit, this.wrecks);
+    this.mlrs = new MlrsFx(scene, this.kit, this.wrecks);
   }
 
   get stats(): EffectsStats {
@@ -82,6 +85,7 @@ export class EffectsDirector extends SimEventListener {
       this.handle(e);
       this.pickups.handleEvent(e);
       this.helis.handleEvent(e);
+      this.mlrs.handleEvent(e);
       if (v) this.aircraft.handleEvent(e, v);
     }
   }
@@ -95,6 +99,7 @@ export class EffectsDirector extends SimEventListener {
     if (world.pickups) this.pickups.update(world);
     if (world.entities) this.beams.update(dt, world);
     if (world.entities) this.helis.update(dt, world);
+    if (world.entities) this.mlrs.update(dt, world);
     if (world.player.shield !== undefined) this.aircraft.update(dt, world);
     this.wrecks.update(dt);
     this.kit.update(dt);
@@ -109,6 +114,7 @@ export class EffectsDirector extends SimEventListener {
     this.pickups.destroy();
     this.aircraft.destroy();
     this.helis.destroy();
+    this.mlrs.destroy();
     this.wrecks.clear();
     this.kit.destroy();
     this.texts.destroy();

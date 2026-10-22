@@ -155,10 +155,17 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
     const when = `from the ${from} around ${formatClock(group.trigger.at)}`;
     // Attack helicopters are called out separately from ground vehicles.
     const helis = group.units.filter((u) => u.kind === 'helicopter').length;
-    const vehicles = group.units.length - helis;
+    // So is rocket artillery (the vehicles with it are its escort).
+    const launchers = group.units.filter((u) => u.kind === 'mlrs').length;
+    const vehicles = launchers > 0 ? 0 : group.units.length - helis;
     const parts: string[] = [];
     if (vehicles > 0) parts.push(`${vehicles} vehicles expected ${when}.`);
     if (helis > 0) parts.push(`${helis === 1 ? 'An attack helicopter' : `${helis} attack helicopters`} expected ${when}.`);
+    if (launchers > 0) {
+      parts.push(
+        `${launchers === 1 ? 'Rocket artillery' : `${launchers} rocket launchers`} expected ${when}. Its rockets land on the red rings: fly out of them.`,
+      );
+    }
     intel.push({
       kind: 'armor',
       text: parts.join(' '),

@@ -36,6 +36,7 @@ export const PICKUPS = {
     cache: ['overdrive', 'ammo'],
     ammoDump: ['ammo', 'ammo'],
     helicopter: ['boost'],
+    mlrs: ['repair', 'ammo'],
   } as Partial<Record<EntityKind, readonly PickupKind[]>>,
   /** Spacing between several pickups dropped by one kill. */
   dropSpread: 46,

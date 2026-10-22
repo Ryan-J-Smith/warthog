@@ -159,6 +159,18 @@ export const threeRoads: LevelDefinition = {
       { x: 7300, y: 1800 },
       { x: 5700, y: 3000 },
     ],
+    // Rocket artillery drives in off the flanks and parks out wide of the West / East roads, in range
+    // of our waves pushing up them: a "go kill that" detour off the lane fight.
+    mlrsWest: [
+      { x: -100, y: 1500 },
+      { x: 500, y: 1750 },
+      { x: 800, y: 1980 },
+    ],
+    mlrsEast: [
+      { x: 7300, y: 1550 },
+      { x: 6700, y: 1800 },
+      { x: 6420, y: 2020 },
+    ],
   },
 
   entities: [
@@ -189,6 +201,25 @@ export const threeRoads: LevelDefinition = {
   ],
 
   groups: [
+    // MLRS: one per flank, each with a light escort (mobile triple-A west, infantry east).
+    {
+      id: 'mlrsWest',
+      trigger: { kind: 'time', at: 130 },
+      pathId: 'mlrsWest',
+      spacing: 90,
+      speed: 45,
+      tags: ['mlrs'],
+      units: [{ kind: 'mlrs', refId: 'mlrsWest' }, { kind: 'mobileAa' }],
+    },
+    {
+      id: 'mlrsEast',
+      trigger: { kind: 'time', at: 290 },
+      pathId: 'mlrsEast',
+      spacing: 80,
+      speed: 45,
+      tags: ['mlrs'],
+      units: [{ kind: 'mlrs', refId: 'mlrsEast' }, { kind: 'infantry' }, { kind: 'infantry' }],
+    },
     { id: 'hinds1', trigger: { kind: 'time', at: 200 }, pathId: 'hindsCenter', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }] },
     { id: 'hinds2', trigger: { kind: 'time', at: 380 }, pathId: 'hindsWest', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }, { kind: 'helicopter' }] },
     { id: 'hinds3', trigger: { kind: 'time', at: 560 }, pathId: 'hindsEast', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }, { kind: 'helicopter' }] },
@@ -345,6 +376,30 @@ export const threeRoads: LevelDefinition = {
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'Mobile triple-A rolling with their waves now. Watch the roads.',
+    },
+    {
+      trigger: { kind: 'artilleryFiring', refId: 'mlrsWest' },
+      speaker: 'HQ',
+      tone: 'urgent',
+      text: 'Rocket artillery shelling our armor on the West road! Launcher is out past the west tree line. Find it, Warthog.',
+    },
+    {
+      trigger: { kind: 'entityDestroyed', refId: 'mlrsWest' },
+      speaker: 'OVERLORD',
+      tone: 'good',
+      text: 'West launcher destroyed! Grab the supplies it left.',
+    },
+    {
+      trigger: { kind: 'artilleryFiring', refId: 'mlrsEast' },
+      speaker: 'HQ',
+      tone: 'urgent',
+      text: 'More rocket artillery, east flank! It is walking rockets onto the East road. Kill that launcher.',
+    },
+    {
+      trigger: { kind: 'entityDestroyed', refId: 'mlrsEast' },
+      speaker: 'OVERLORD',
+      tone: 'good',
+      text: 'East launcher is scrap. Nice shooting.',
     },
     {
       trigger: { kind: 'time', at: 330 },

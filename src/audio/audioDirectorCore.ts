@@ -276,6 +276,13 @@ export class AudioDirectorCore {
       case 'heliRocketExploded':
         this.playAt('explosionSmall', ev.pos, { volume: ev.hitPlayer ? 1 : 0.75 });
         break;
+      case 'mlrsLaunched':
+        // The ripple launch is the "incoming" cue: always audible when it's aimed at you.
+        this.playAt('mlrsLaunch', ev.pos, ev.atPlayer ? { minGain: 0.4 } : {});
+        break;
+      case 'mlrsImpact':
+        this.playAt('explosionSmall', ev.pos, { volume: ev.hitPlayer ? 1 : 0.8 });
+        break;
       case 'samLockStarted':
         this.rwrNextBeepMs = this.nowMs; // first beep on the next update
         break;

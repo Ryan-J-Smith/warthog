@@ -113,6 +113,53 @@ export interface HeliStats {
   loiterRadius: number;
 }
 
+/** One impact ring of a barrage pattern: offset from the aim point, in the pattern's frame. */
+export interface MlrsRingOffset {
+  /** Along the pattern heading (the aircraft's course, or launcher → target), world units. */
+  forward: number;
+  /** To the right of the pattern heading, world units. */
+  side: number;
+}
+
+/**
+ * MLRS rocket artillery: parks, then every `barrageInterval` s shows a pattern of impact rings on the
+ * ground and ripples rockets onto them. Rockets land exactly on the rings, `telegraphTime` (plus the
+ * ripple) after the rings appear; anything inside a ring when it lands is hit. Against the aircraft
+ * the pattern sits on a fixed, partial lead of its course: turn, boost or climb out of it.
+ */
+export interface MlrsStats {
+  /** Shells a Low/Medium aircraft within this range (but not inside `minRange`)… */
+  playerRange: number;
+  /** …it can't depress onto an aircraft this close (get in under the barrage). */
+  minRange: number;
+  /** …otherwise the nearest friendly ground unit or structure within this range. */
+  groundRange: number;
+  /** Seconds from the start of one barrage to the next. */
+  barrageInterval: number;
+  /** Delay before the first barrage after it finds a target (and parks). */
+  firstBarrageDelay: number;
+  /** Seconds the first ring is shown before its rocket lands. */
+  telegraphTime: number;
+  /** Extra delay per ring in pattern order (ripple fire). */
+  rippleInterval: number;
+  /** Seconds each rocket is in the air (it launches this long before its ring's impact). */
+  flightTime: number;
+  /** Peak height of the rocket arc, band units. */
+  arcHeight: number;
+  /** Ring radius: exactly the drawn ring. */
+  ringRadius: number;
+  /** Fixed impact pattern (last entry lands last). */
+  pattern: readonly MlrsRingOffset[];
+  /** Against friendlies the pattern is tightened by this factor (rockets carpet the target). */
+  groundPatternScale: number;
+  /** Fraction of the aircraft's course to the last impact used as lead (partial lead). */
+  leadFactor: number;
+  /** Damage to the aircraft per ring it is inside when that ring lands. */
+  playerDamage: number;
+  /** Damage to friendly units / structures per ring. */
+  groundDamage: number;
+}
+
 export interface EntityStats {
   team: Team;
   armor: ArmorClass;
@@ -137,6 +184,7 @@ export interface EntityStats {
   /** Flies: immune to bombs, Maverick splash, secondaries and ground fire (the GAU-8 and rockets still hit). */
   airborne: boolean;
   heli: HeliStats | null;
+  mlrs: MlrsStats | null;
 }
 
 const AA_LASER: AaStats = {
@@ -153,6 +201,11 @@ const AA_LASER: AaStats = {
   hitHalfWidth: 34,
 };
 
+/** Five rings on a 150 u circle at ±36°, ±108° and 180° off the pattern heading, then the centre. */
+const MLRS_FLOWER: readonly MlrsRingOffset[] = [180, -108, 108, -36, 36]
+  .map((deg) => ({ forward: Math.round(150 * Math.cos((deg * Math.PI) / 180)), side: Math.round(150 * Math.sin((deg * Math.PI) / 180)) }))
+  .concat([{ forward: 0, side: 0 }]);
+
 const base = {
   lockable: false,
   groundTarget: false,
@@ -164,6 +217,7 @@ const base = {
   sam: null,
   airborne: false,
   heli: null,
+  mlrs: null,
 } as const;
 
 export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
@@ -293,6 +347,37 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
       groundSplash: 36,
       leadFactor: 0.8,
       loiterRadius: 200,
+    },
+  },
+  mlrs: {
+    ...base,
+    team: 'enemy',
+    armor: 'soft',
+    hp: 40,
+    radius: 32,
+    explosion: 'large',
+    score: 800,
+    lockable: true,
+    groundTarget: true,
+    speed: 30,
+    mlrs: {
+      playerRange: 1400,
+      minRange: 320,
+      groundRange: 1600,
+      barrageInterval: 9,
+      firstBarrageDelay: 2.5,
+      telegraphTime: 1.6,
+      rippleInterval: 0.07,
+      flightTime: 1.15,
+      arcHeight: 3.2,
+      ringRadius: 60,
+      // A flower: five rings around the aim point (a gap dead ahead and to either side of the nose),
+      // then the bullseye on it.
+      pattern: MLRS_FLOWER,
+      groundPatternScale: 0.6,
+      leadFactor: 0.95,
+      playerDamage: 12,
+      groundDamage: 4,
     },
   },
   bridge: {

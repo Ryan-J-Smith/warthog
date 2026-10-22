@@ -21,6 +21,9 @@ export function isTriggerMet(world: World, trigger: Trigger): boolean {
       const entity = world.findByRef(trigger.refId);
       return entity !== undefined && entity.spotted;
     }
+    case 'artilleryFiring': {
+      return (world.findByRef(trigger.refId)?.mlrs?.barrages ?? 0) > 0;
+    }
     case 'allPrimariesResolved':
       return allPrimariesResolved(world);
   }

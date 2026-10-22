@@ -77,6 +77,36 @@ export interface HeliState {
   height: number;
 }
 
+/**
+ * One impact ring of an MLRS barrage. Shown from `shownAt`; its rocket launches at `launchAt` and
+ * lands at `impactAt` exactly on `pos`. Anything inside `radius` then is hit.
+ */
+export interface MlrsStrike {
+  pos: Vec2;
+  radius: number;
+  shownAt: number;
+  launchAt: number;
+  impactAt: number;
+  /** Its rocket is in the air (it lands even if the launcher dies). */
+  launched: boolean;
+  /** Projectile id of its rocket once launched (visual only), else null. */
+  rocketId: number | null;
+  /** Aimed at the aircraft (else at a friendly). */
+  atPlayer: boolean;
+}
+
+/** MLRS rocket-artillery brain state (see `MlrsSystem`). */
+export interface MlrsState {
+  /** What it is shelling: -1 = the player, an entity id, or null. */
+  targetId: number | null;
+  /** Seconds until the next barrage may start. */
+  cooldown: number;
+  /** Rings of the barrage in progress (pending and in flight), in impact order. */
+  strikes: MlrsStrike[];
+  /** Barrages started so far (radio cues fire on the first). */
+  barrages: number;
+}
+
 /** Units that shoot at ground targets (tanks, infantry, friendly defenders). */
 export interface AttackerState {
   targetId: number | null;
@@ -115,4 +145,6 @@ export interface Entity {
   attacker: AttackerState | null;
   /** Attack helicopters only (they fly; no `mover`). */
   heli: HeliState | null;
+  /** MLRS rocket artillery only. */
+  mlrs: MlrsState | null;
 }

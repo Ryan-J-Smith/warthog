@@ -64,6 +64,7 @@ export function createEntity(world: World, kind: EntityKind, pos: Vec2, options:
           height: stats.heli.height,
         }
       : null,
+    mlrs: stats.mlrs ? { targetId: null, cooldown: 0, strikes: [], barrages: 0 } : null,
   };
 }
 

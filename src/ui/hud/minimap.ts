@@ -161,6 +161,18 @@ export class Minimap extends HudWidget {
       g.fillCircle(x, y, 4.6);
       g.fillStyle(COLOR.red, 1);
       g.fillCircle(x, y, 3.4);
+    } else if (e.mlrs) {
+      // Rocket artillery: a bigger keylined red diamond (a priority target).
+      const d = [
+        { x, y: y - 5.5 },
+        { x: x + 5.5, y },
+        { x, y: y + 5.5 },
+        { x: x - 5.5, y },
+      ];
+      g.fillStyle(COLOR.red, 1);
+      g.lineStyle(1.5, COLOR.black, 0.9);
+      g.fillPoints(d, true);
+      g.strokePoints(d, true);
     } else if (e.aa) {
       g.fillStyle(COLOR.red, 1);
       g.fillTriangle(x, y - 4.5, x + 4.5, y + 3.5, x - 4.5, y + 3.5);

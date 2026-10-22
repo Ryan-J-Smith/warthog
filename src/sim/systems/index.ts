@@ -8,6 +8,7 @@ export { WeaponSystem, blockReason, gunPipper, bombImpact, bombFallTime, rocketR
 export { GroundUnitSystem } from './groundUnitSystem';
 export { AirDefenseSystem, leadPoint, beamHits } from './airDefenseSystem';
 export { HelicopterSystem } from './helicopterSystem';
+export { MlrsSystem, barragePattern } from './mlrsSystem';
 export { ProjectileSystem } from './projectileSystem';
 export { PendingFireSystem } from './pendingFireSystem';
 export { SpottingSystem } from './spottingSystem';

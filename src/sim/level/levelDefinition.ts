@@ -95,6 +95,8 @@ export type Trigger =
   | { kind: 'objectiveResolved'; objectiveId: string; status?: 'completed' | 'failed' }
   | { kind: 'entityDestroyed'; refId: string }
   | { kind: 'entitySpotted'; refId: string }
+  /** An MLRS has started its first barrage (radio: "find that launcher"). */
+  | { kind: 'artilleryFiring'; refId: string }
   | { kind: 'allPrimariesResolved' };
 
 // ---------------------------------------------------------------------------
