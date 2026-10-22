@@ -14,14 +14,14 @@ const H = 260;
 const SW = 1.7;
 
 const ENEMY = { roof: T.e, roofL: T.eL, roofD: T.eD, flag: '#d8392b', flagD: '#8c2118', glow: T.glow, core: T.glowHi, gid: 'gE' };
-const FRIEND = { roof: T.f, roofL: T.fL, roofD: T.fD, flag: '#3f8ef0', flagD: '#1f5aa8', glow: T.cyan, core: T.cyanHi, gid: 'gF' };
+export const FRIEND = { roof: T.f, roofL: T.fL, roofD: T.fD, flag: '#3f8ef0', flagD: '#1f5aa8', glow: T.cyan, core: T.cyanHi, gid: 'gF' };
 
-const CONC = '#a29f95';
-const CONC_D = '#7b786f';
-const CONC_L = '#bdbab0';
+export const CONC = '#a29f95';
+export const CONC_D = '#7b786f';
+export const CONC_L = '#bdbab0';
 
 /** An outlined, cel-shaded block. */
-const block = (id, d, base, shade, s = 2.4, ow = SW) => outline([d], ow) + cel(id, d, base, shade, { s });
+export const block = (id, d, base, shade, s = 2.4, ow = SW) => outline([d], ow) + cel(id, d, base, shade, { s });
 
 /** Soft ground apron + soot / crater gradients shared by both HQs. */
 function groundDefs(burnt) {
@@ -33,7 +33,7 @@ function groundDefs(burnt) {
 }
 
 /** Concrete T-wall slabs along a polyline; `skip(i)` leaves breaches/gates. Returns [ink, fills]. */
-function wallRun(pts, { thick = 5, slab = 7.2, color = CONC, colorD = CONC_D, cap = null, skip = () => false, rand = null } = {}) {
+export function wallRun(pts, { thick = 5, slab = 7.2, color = CONC, colorD = CONC_D, cap = null, skip = () => false, rand = null } = {}) {
   let ink = '';
   let fills = '';
   let k = 0;
@@ -62,7 +62,7 @@ function wallRun(pts, { thick = 5, slab = 7.2, color = CONC, colorD = CONC_D, ca
 }
 
 /** Square guard tower: concrete base, coloured roof, a lamp. */
-function tower(id, x, y, team, burnt) {
+export function tower(id, x, y, team, burnt) {
   const base = dRect(x - 9, y - 9, 18, 18, 2);
   const roof = dRect(x - 6.4, y - 6.4, 12.8, 12.8, 1.6);
   if (burnt) return block(id, base, '#3a3530', '#25211d', 1.6) + fill(roof, '#120f0d') + strokeD(`M${x - 5},${y - 3} L${x + 4},${y + 5}`, T.bL, 1.2);
@@ -74,7 +74,7 @@ function tower(id, x, y, team, burnt) {
 }
 
 /** Flag on a pole, with its ground shadow. */
-function flag(x, y, team, flip = 1) {
+export function flag(x, y, team, flip = 1) {
   const f = (dx, dy) =>
     `M${x + 1 + dx},${y - 4 + dy} Q${x + 6 * flip + dx},${y - 5.8 + dy} ${x + 10 * flip + dx},${y - 4.4 + dy} Q${x + 14 * flip + dx},${y - 3 + dy} ${x + 16 * flip + dx},${y - 4.6 + dy}` +
     ` L${x + 16 * flip + dx},${y + 4.4 + dy} Q${x + 13 * flip + dx},${y + 6 + dy} ${x + 9 * flip + dx},${y + 4.6 + dy} Q${x + 5 * flip + dx},${y + 3.4 + dy} ${x + 1 + dx},${y + 5 + dy}Z`;
@@ -88,7 +88,7 @@ function flag(x, y, team, flip = 1) {
 }
 
 /** Long shed with a corrugated roof. */
-function shed(id, x, y, w, h, roof, roofD, burnt) {
+export function shed(id, x, y, w, h, roof, roofD, burnt) {
   const d = dRect(x, y, w, h, 2);
   if (burnt) {
     let s = block(id, d, '#2a2521', '#1a1714', 1.6);
@@ -101,7 +101,7 @@ function shed(id, x, y, w, h, roof, roofD, burnt) {
 }
 
 /** Fuel tank (round, seen from above) with a coloured band. */
-function fuelTank(id, x, y, r, band, burnt) {
+export function fuelTank(id, x, y, r, band, burnt) {
   const d = dEllipse(x, y, r);
   if (burnt) return block(id, d, '#2a2622', '#171411', 1.6) + fill(dEllipse(x + 1, y + 1, r * 0.6, r * 0.5), '#0b0908') + strokeD(`M${x - r * 0.6},${y - r * 0.2} L${x + r * 0.2},${y + r * 0.7}`, T.rust, 1.2);
   return (
@@ -113,7 +113,7 @@ function fuelTank(id, x, y, r, band, burnt) {
 }
 
 /** Crate stack (cols × rows). */
-function crates(id, x, y, cols, rows, base = T.crate, shade = T.crateD) {
+export function crates(id, x, y, cols, rows, base = T.crate, shade = T.crateD) {
   let s = '';
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -125,7 +125,7 @@ function crates(id, x, y, cols, rows, base = T.crate, shade = T.crateD) {
 }
 
 /** Fuel drums (cols × rows). */
-function drums(id, x, y, cols, rows, color = '#5f6a4a', top = '#7d8a5f') {
+export function drums(id, x, y, cols, rows, color = '#5f6a4a', top = '#7d8a5f') {
   let s = '';
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -138,7 +138,7 @@ function drums(id, x, y, cols, rows, color = '#5f6a4a', top = '#7d8a5f') {
 }
 
 /** Helipad: concrete disc, team-coloured ring, white H. */
-function helipad(id, x, y, r, ring, burnt) {
+export function helipad(id, x, y, r, ring, burnt) {
   const d = dEllipse(x, y, r);
   if (burnt) return block(id, d, '#4a4640', '#34302b', 1.6) + fill(dEllipse(x + 3, y - 2, r * 0.45, r * 0.38), 'url(#crater)');
   return (
@@ -149,7 +149,7 @@ function helipad(id, x, y, r, ring, burnt) {
 }
 
 /** Lattice radio/radar mast (square base with X bracing). Fallen when burnt. */
-function mast(id, x, y, size, top, burnt) {
+export function mast(id, x, y, size, top, burnt) {
   const h = size / 2;
   if (burnt) {
     const len = size * 3.2;
@@ -173,7 +173,7 @@ function mast(id, x, y, size, top, burnt) {
 }
 
 /** Pale radar/comms dish at an angle. */
-function dish(id, x, y, rx, ry, deg, feed, burnt) {
+export function dish(id, x, y, rx, ry, deg, feed, burnt) {
   const d = dEllipse(0, 0, rx, ry);
   return (
     `<g transform="translate(${x},${y}) rotate(${deg})">` +
@@ -186,7 +186,7 @@ function dish(id, x, y, rx, ry, deg, feed, burnt) {
 }
 
 /** Sandbag fighting position: an arc of bags facing `deg` around a dark pit with an MG. */
-function nest(x, y, deg, burnt) {
+export function nest(x, y, deg, burnt) {
   let ink = '';
   let fills = '';
   for (let i = 0; i < 8; i++) {
@@ -323,7 +323,7 @@ export function enemyHqDestroyed() {
 // with white ID stripes and chevron panel, comms dish + mast, barracks, motor pool, helipad.
 // Gate (and the road out) on the east wall at y ≈ 130.
 // ---------------------------------------------------------------------------
-function bastion(id, x, y, team, burnt) {
+export function bastion(id, x, y, team, burnt) {
   const d = dEllipse(x, y, 15);
   if (burnt) return block(id, d, '#3b352c', '#2a2620', 1.6) + fill(dEllipse(x, y, 8), '#0f0c0a', { opacity: 0.85 });
   return (
