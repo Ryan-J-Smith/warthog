@@ -222,7 +222,8 @@ export class EffectsDirector extends SimEventListener {
         break;
       case 'scoreAwarded':
         if (e.pos && e.points !== 0) this.texts.spawn(e.pos.x, e.pos.y - 18, `${e.points > 0 ? '+' : ''}${e.points}`, e.points > 0);
-        if (e.pos && e.reason.startsWith('STRAFE')) this.texts.spawn(e.pos.x, e.pos.y - 60, e.reason, true);
+        // The pass banner sits above the per-kill "+N" pops (which rise ~75 units) and outlasts them.
+        if (e.pos && e.reason.startsWith('STRAFE')) this.texts.spawn(e.pos.x, e.pos.y - 110, e.reason, true, 1.7);
         break;
       case 'strafeKill':
         // Multi-kill on a gun pass: a dirt geyser where the unit went down.

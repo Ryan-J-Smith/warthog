@@ -277,4 +277,12 @@ describe('AudioDirectorCore — rewards', () => {
     expect(backend.played('zoneCleared')).toHaveLength(1);
     expect(music.ducks.length).toBeGreaterThan(0);
   });
+
+  it('stings a STRAFE ×N pass like a SAM evasion, but not ordinary kill points', () => {
+    const { backend, director } = setup();
+    director.handleEvents([{ type: 'scoreAwarded', points: 300, reason: 'infantry', pos: { x: 1300, y: 1000 } }]);
+    expect(backend.played('samEvaded')).toHaveLength(0);
+    director.handleEvents([{ type: 'scoreAwarded', points: 250, reason: 'STRAFE ×5', pos: { x: 1300, y: 1000 } }]);
+    expect(backend.played('samEvaded')).toHaveLength(1);
+  });
 });
