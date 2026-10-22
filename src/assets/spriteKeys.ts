@@ -48,6 +48,16 @@ export const SPRITES = {
   friendlyTankTurret: { w: 68, h: 30, note: 'Friendly tank turret. Pivot at x=24,y=15.' },
   friendlyInfantry: { w: 52, h: 52, note: 'Friendly MECH (replaces infantry): chunky bipedal walker from above, blue accents.' },
 
+  // Hold-the-Line build-pad structures (friendly; drawn on a 150 u pad circle, never rotated). Level 2 = upgraded.
+  structBarracks: { w: 220, h: 220, note: 'Barracks: concrete pad, steel-blue mech hangar with two south-facing gantry bays, crew huts, supplies, blue flag.' },
+  structBarracks2: { w: 250, h: 250, note: 'Barracks level 2: bigger pad, extra hut, north wall, comms mast + dish, MG nests.' },
+  structDepot: { w: 220, h: 220, note: 'Tank depot: vehicle shed with three roller-door bays onto a tracked hardstand, fuel tank, parts and crates.' },
+  structDepot2: { w: 250, h: 250, note: 'Tank depot level 2: four-bay shed, yellow gantry crane, second fuel tank, guard towers.' },
+  structBunker: { w: 220, h: 220, note: 'Bunker: sandbag ring with three hull-down tank slots facing out around a concrete pillbox.' },
+  structBunker2: { w: 250, h: 250, note: 'Bunker level 2: five tank slots, larger pillbox, corner bastions, MG nest, comms mast.' },
+  structFlak: { w: 220, h: 220, note: 'Flak battery (anti-gunship): twin-barrel AA mount in a sandbagged pit at the pad centre (shells leave from there), fire-control cabin + radar dish, ready ammo.' },
+  structFlak2: { w: 250, h: 250, note: 'Flak battery level 2: bigger central mount plus two side mounts, radar mast, MG nest.' },
+
   // Movement-cycle frames (same size/pivots as their unit's sprite; cycled by EntityRenderer by distance moved)
   infantryWalk1: { w: 52, h: 52, note: 'Enemy mech walk-cycle step 1 (stride 0.71; `infantry` is step 0, stride 1).' },
   infantryWalk2: { w: 52, h: 52, note: 'Enemy mech walk-cycle step 2 (stride 0: feet passing under the torso).' },

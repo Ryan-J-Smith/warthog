@@ -3,10 +3,10 @@ import type { EntityKind } from '../../sim/types';
 
 /**
  * Movement cycle for a ground unit (see `UnitMotion`): `walk` = stepping mech (stride frames,
- * torso twist and bob), `tracks` = scrolling tread frames + hull rumble, `wheels` = rumble only.
+ * body recoil), `tracks` = scrolling tread frames (turret recoil).
  */
 export interface MotionSpec {
-  style: 'walk' | 'tracks' | 'wheels';
+  style: 'walk' | 'tracks';
   /** Base-sprite frames played in order by distance moved; the first is the unit's own sprite. */
   frames: readonly SpriteKey[];
   /** World units moved per full pass through `frames`, at unit display scale 1. */
@@ -27,15 +27,10 @@ const walk = (idle: SpriteKey, w1: SpriteKey, w2: SpriteKey, w3: SpriteKey, w4: 
   cycleLength: 48,
 });
 
-const wheels = (base: SpriteKey): MotionSpec => ({ style: 'wheels', frames: [base], cycleLength: 1 });
-
 /** Movement cycles by entity kind (kinds not listed keep a static sprite). */
 export const MOTION_SPECS = {
   tank: tracks('tankHull', 'tankHullTread1', 'tankHullTread2'),
   friendlyTank: tracks('friendlyTankHull', 'friendlyTankHullTread1', 'friendlyTankHullTread2'),
   infantry: walk('infantry', 'infantryWalk1', 'infantryWalk2', 'infantryWalk3', 'infantryWalk4'),
   friendlyInfantry: walk('friendlyInfantry', 'friendlyInfantryWalk1', 'friendlyInfantryWalk2', 'friendlyInfantryWalk3', 'friendlyInfantryWalk4'),
-  truck: wheels('truck'),
-  mobileAa: wheels('aaHull'),
-  mlrs: wheels('mlrs'),
 } as const satisfies Partial<Record<EntityKind, MotionSpec>>;

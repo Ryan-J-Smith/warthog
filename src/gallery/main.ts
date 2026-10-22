@@ -1,10 +1,18 @@
 import Phaser from 'phaser';
-import { EffectsGalleryScene, GalleryPreloadScene, SpriteSheetScene, TerrainGalleryScene, UnitMotionScene, UnitsLineupScene } from './scenes';
+import {
+  EffectsGalleryScene,
+  GalleryPreloadScene,
+  PadStructuresScene,
+  SpriteSheetScene,
+  TerrainGalleryScene,
+  UnitMotionScene,
+  UnitsLineupScene,
+} from './scenes';
 
 /**
  * Dev-only art gallery (served by Vite at /gallery.html; not part of the production build).
- * `?view=sprites|units|motion|terrain|effects` picks the page (`units` = composed units at game scale,
- * `motion` = ground units driving through their walk / tread cycles);
+ * `?view=sprites|units|motion|pads|terrain|effects` picks the page (`units` = composed units at game scale,
+ * `motion` = ground units driving through their walk / tread cycles, `pads` = build-pad structures);
  * `&biome=winter` repaints the terrain views in the winter biome.
  */
 const VIEWS: Record<string, { key: string; scene: Phaser.Types.Scenes.SceneType }> = {
@@ -13,6 +21,7 @@ const VIEWS: Record<string, { key: string; scene: Phaser.Types.Scenes.SceneType 
   effects: { key: 'EffectsGallery', scene: EffectsGalleryScene },
   units: { key: 'UnitsLineup', scene: UnitsLineupScene },
   motion: { key: 'UnitMotion', scene: UnitMotionScene },
+  pads: { key: 'PadStructures', scene: PadStructuresScene },
 };
 
 const params = new URLSearchParams(window.location.search);

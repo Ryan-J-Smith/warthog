@@ -38,8 +38,8 @@ interface Driven {
 
 /**
  * Movement cycles test bed (`?view=motion`): real ground units drawn by the game's EntityRenderer,
- * driven back and forth over River Crossing terrain on a stop-and-go script, so the walk / tread /
- * rumble cycles, the stop-settle and the firing recoil (with the real EffectsDirector's tracers)
+ * driven back and forth over River Crossing terrain on a stop-and-go script, so the walk / tread frame
+ * cycles, the stop-settle and the firing recoil (with the real EffectsDirector's tracers)
  * can be checked at every zoom. Positions are scripted here; the sim's own systems never run.
  */
 export class UnitMotionScene extends Phaser.Scene {

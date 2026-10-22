@@ -1,24 +1,20 @@
 import type { Vec2 } from '../../sim/math';
 import type { MotionSpec } from './motionSpecs';
 
-/** How a ground unit's sprites are displaced this frame (all offsets in world units). */
+/** How a ground unit's sprites are drawn this frame (offsets in world units). */
 export interface MotionPose {
   /** Index into the spec's `frames` for the base sprite. */
   frame: number;
-  /** Base (hull / body) offset, rotation delta and scale multiplier. */
+  /** Base (hull / body) offset: a walker's recoil kick (tank hulls stay put). */
   baseX: number;
   baseY: number;
-  baseYaw: number;
-  baseScale: number;
-  /** Top (turret) offset: rides with the hull, plus the gun's recoil. */
+  /** Top (turret) offset: the gun's recoil kick. */
   topX: number;
   topY: number;
 }
 
 /** Smoothing rate for the measured speed (1/s): stops read as stops within ~0.2 s. */
 const SPEED_SMOOTHING = 10;
-/** Speed at which bob / sway reach full amplitude, world units / s. */
-const FULL_SPEED = 30;
 /** A jump bigger than this in one frame is a respawn / teleport, not movement. */
 const MAX_FRAME_STEP = 40;
 /** A walker that stops finishes its step onto a planted pose at this many cycles / s. */
@@ -26,30 +22,17 @@ const SETTLE_RATE = 1.2;
 /** Below this smoothed speed (world units / s) a walker counts as stopped. */
 const SETTLE_BELOW_SPEED = 3;
 
-/** Walkers: torso twist toward the forward foot (rad), weight shift over the stance foot, step bob. */
-const WALK_YAW = 0.045;
-const WALK_SWAY = 0.9;
-const WALK_BOB = 0.035;
-/** Vehicles: suspension rumble over rough ground (world units travelled per wobble). */
-const RUMBLE_LENGTH = { tracks: 26, wheels: 11 } as const;
-const RUMBLE_SURGE = { tracks: 0.45, wheels: 0.3 } as const;
-const RUMBLE_SWAY = { tracks: 0.25, wheels: 0.35 } as const;
-const RUMBLE_BOB = { tracks: 0.01, wheels: 0.012 } as const;
-
-/** Firing: seconds to recover, turret pull-back and hull rock along the line of fire. */
+/** Firing: seconds to recover, and how far the kick goes back along the line of fire. */
 const RECOIL_TIME = 0.32;
 const RECOIL_TURRET = 4.5;
-const RECOIL_HULL = 1.4;
-/** Walkers (no turret) rock their whole body back a little. */
+/** Walkers (no turret) kick their whole body back a little. */
 const RECOIL_WALKER = 1.8;
-
-const TAU = Math.PI * 2;
 
 /**
  * Render-side movement cycle for one ground unit: measures how far the unit actually moved each
- * frame (the sim is not consulted, so halted, blocked or engaged units simply read as stopped),
- * advances a distance-paced cycle (walk steps / tread frames) and adds speed-scaled bob, plus a
- * recoil kick when the unit fires.
+ * frame (the sim is not consulted, so halted, blocked or engaged units simply read as stopped) and
+ * advances a distance-paced cycle of discrete sprite frames (walk steps / tread frames), plus a
+ * recoil kick along the line of fire when the unit fires. No procedural bob, sway or scaling.
  */
 export class UnitMotion {
   private last: Vec2 | null = null;
@@ -57,7 +40,6 @@ export class UnitMotion {
   private speed = 0;
   /** Position in the frame cycle, 0..1 (one full pass through `frames`). */
   private phase: number;
-  private rumble: number;
   /** Recoil remaining, 1 (just fired) → 0. */
   private kick = 0;
   private kickAngle = 0;
@@ -67,9 +49,8 @@ export class UnitMotion {
     private readonly spec: MotionSpec,
     seed: number,
   ) {
-    // A walker spawns on a planted pose (frame 0 or the mirror step); vehicles anywhere.
+    // A walker spawns on a planted pose (frame 0 or the mirror step); treads anywhere.
     this.phase = spec.style === 'walk' ? (seed % 2) * 0.5 : (seed * 0.618) % 1;
-    this.rumble = (seed * 0.382) % 1;
   }
 
   /** The unit just fired toward `angle` (radians). */
@@ -84,10 +65,10 @@ export class UnitMotion {
   }
 
   /**
-   * Advance by `dt` seconds with the unit now at `pos`, heading `heading`. `displayScale` is the
-   * unit's on-screen enlargement: bigger sprites take longer strides and move their parts further.
+   * Advance by `dt` seconds with the unit now at `pos`. `displayScale` is the unit's on-screen
+   * enlargement: bigger sprites take longer strides and kick further.
    */
-  update(pos: Vec2, heading: number, dt: number, displayScale: number): MotionPose {
+  update(pos: Vec2, dt: number, displayScale: number): MotionPose {
     let moved = 0;
     if (this.last) {
       moved = Math.hypot(pos.x - this.last.x, pos.y - this.last.y);
@@ -110,45 +91,18 @@ export class UnitMotion {
     if (spec.style === 'walk' && this.speed < SETTLE_BELOW_SPEED) this.settle(dt);
     this.kick = Math.max(0, this.kick - dt / RECOIL_TIME);
 
-    const amp = Math.min(1, this.speed / FULL_SPEED);
-    const cos = Math.cos(heading);
-    const sin = Math.sin(heading);
-    let surge = 0;
-    let sway = 0;
-    let yaw = 0;
-    let scale = 1;
-    if (spec.style === 'walk') {
-      // Frame 0 (phase 0) has the left foot forward; phase 0.5 is the mirror step.
-      const stride = Math.cos(this.phase * TAU);
-      const lift = Math.sin(this.phase * TAU);
-      yaw = -WALK_YAW * amp * stride;
-      sway = -WALK_SWAY * amp * lift;
-      scale = 1 + WALK_BOB * amp * lift * lift;
-    } else {
-      this.rumble = wrap(this.rumble + moved / RUMBLE_LENGTH[spec.style]);
-      const a = this.rumble * TAU;
-      surge = RUMBLE_SURGE[spec.style] * amp * Math.sin(a);
-      sway = RUMBLE_SWAY[spec.style] * amp * Math.sin(a * 2.3 + 1);
-      scale = 1 + RUMBLE_BOB[spec.style] * amp * Math.sin(a * 1.7);
-    }
-
     // Recoil: sharp kick, eased return (kick² has zero slope as it lands).
-    const recoil = this.kick * this.kick;
-    const kx = -Math.cos(this.kickAngle) * recoil;
-    const ky = -Math.sin(this.kickAngle) * recoil;
-    const hullKick = spec.style === 'walk' ? RECOIL_WALKER : RECOIL_HULL;
-
-    const baseX = (cos * surge - sin * sway + kx * hullKick) * displayScale;
-    const baseY = (sin * surge + cos * sway + ky * hullKick) * displayScale;
+    const recoil = this.kick * this.kick * displayScale;
+    const kx = recoil > 0 ? -Math.cos(this.kickAngle) * recoil : 0;
+    const ky = recoil > 0 ? -Math.sin(this.kickAngle) * recoil : 0;
+    const walker = spec.style === 'walk';
     const n = spec.frames.length;
     return {
       frame: Math.round(this.phase * n) % n,
-      baseX,
-      baseY,
-      baseYaw: yaw,
-      baseScale: scale,
-      topX: baseX + kx * RECOIL_TURRET * displayScale,
-      topY: baseY + ky * RECOIL_TURRET * displayScale,
+      baseX: walker ? kx * RECOIL_WALKER : 0,
+      baseY: walker ? ky * RECOIL_WALKER : 0,
+      topX: walker ? 0 : kx * RECOIL_TURRET,
+      topY: walker ? 0 : ky * RECOIL_TURRET,
     };
   }
 

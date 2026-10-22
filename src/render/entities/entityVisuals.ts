@@ -41,13 +41,13 @@ const TANK_TURRET_PIVOT = { x: 24 / 68, y: 0.5 };
 
 export const ENTITY_VISUALS: Record<EntityKind, EntityVisualSpec> = {
   tank: { ...vehicle('tankHull', 'tankTurret', 'tankWreck', TANK_TURRET_PIVOT), motion: MOTION_SPECS.tank },
-  truck: { ...vehicle('truck', null, 'truckWreck'), motion: MOTION_SPECS.truck },
+  truck: vehicle('truck', null, 'truckWreck'),
   infantry: { ...vehicle('infantry', null, null), motion: MOTION_SPECS.infantry },
   aaGun: vehicle('aaSite', 'aaTurret', 'aaSiteWreck'),
-  mobileAa: { ...vehicle('aaHull', 'aaTurret', 'aaWreck'), motion: MOTION_SPECS.mobileAa },
+  mobileAa: vehicle('aaHull', 'aaTurret', 'aaWreck'),
   samSite: { ...structure('samBase', 'samWreck'), top: 'samLauncher' },
   helicopter: { ...vehicle('heliBody', 'heliRotor', 'heliWreck'), airborne: true },
-  mlrs: { ...vehicle('mlrs', null, 'mlrsWreck'), motion: MOTION_SPECS.mlrs },
+  mlrs: vehicle('mlrs', null, 'mlrsWreck'),
   bridge: structure('bridge', 'bridgeDestroyed'),
   ammoDump: structure('ammoDump', 'ammoDumpWreck'),
   cache: structure('cache', null),

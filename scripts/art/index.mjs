@@ -7,6 +7,7 @@
 // stretched) to the native sizes in src/assets/spriteKeys.ts.
 // Fun pass (2026-10-22): pickups + shield ring (pickups.mjs), attack helicopter + MLRS
 // (units.mjs) and the lane-mission HQs (hq.mjs), all drawn natively in the v1 style.
+// Hold the Line (2026-10-22): build-pad barracks / depot / bunker + level-2 variants (pads.mjs).
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,9 @@ import * as U from './units.mjs';
 import * as PL from './player.mjs';
 import * as PK from './pickups.mjs';
 import * as HQ from './hq.mjs';
+import * as PD from './pads.mjs';
+import * as BS from './bases.mjs';
+import * as AD from './ammo.mjs';
 import { r2 } from './lib.mjs';
 
 const OUT = process.argv[2] ?? fileURLToPath(new URL('../../public/assets/sprites', import.meta.url));
@@ -116,6 +120,21 @@ const FUNPASS = {
   enemyHqDestroyed: HQ.enemyHqDestroyed,
   friendlyHq: HQ.friendlyHq,
   friendlyHqDestroyed: HQ.friendlyHqDestroyed,
+  // Hold-the-Line build-pad structures (2026-10-22), level 1 + level 2.
+  structBarracks: PD.structBarracks,
+  structBarracks2: PD.structBarracks2,
+  structDepot: PD.structDepot,
+  structDepot2: PD.structDepot2,
+  structBunker: PD.structBunker,
+  structBunker2: PD.structBunker2,
+  structFlak: PD.structFlak,
+  structFlak2: PD.structFlak2,
+  // Friendly bases restyled to v1 (2026-10-22; replace the v0 drawings in structures.mjs).
+  outpost: BS.outpost,
+  outpostDestroyed: BS.outpostDestroyed,
+  homeBase: BS.homeBase,
+  ammoDump: AD.ammoDump,
+  ammoDumpWreck: AD.ammoDumpWreck,
 };
 
 /** v0 drawings (scaled to the new native sizes until restyled). */
@@ -124,12 +143,7 @@ const LEGACY = {
   samWreck: S.samWreck,
   bridge: S.bridge,
   bridgeDestroyed: S.bridgeDestroyed,
-  ammoDump: S.ammoDump,
-  ammoDumpWreck: S.ammoDumpWreck,
   cache: S.cache,
-  outpost: S.outpost,
-  outpostDestroyed: S.outpostDestroyed,
-  homeBase: S.homeBase,
   rocket: M.rocket,
   maverick: M.maverick,
   bomb: M.bomb,
