@@ -74,7 +74,7 @@ export class GameScene extends Phaser.Scene {
     this.controls = new KeyboardControls(this);
     this.audio = new AudioDirector(this);
     this.music = new MusicManager(this);
-    this.music.playMission();
+    this.music.playMission(this.levelId);
 
     const hudData: HudSceneData = { levelId: this.levelId };
     this.scene.launch(SCENES.hud, hudData);

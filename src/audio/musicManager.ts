@@ -33,8 +33,9 @@ export class MusicManager extends MusicControl {
     this.core.playTitle();
   }
 
-  playMission(): void {
-    this.core.playMission();
+  /** Crossfade to the in-mission track for `levelId` (`musicMission` when the level has none of its own). */
+  playMission(levelId?: string): void {
+    this.core.playMission(levelId);
   }
 
   playSting(outcome: MissionOutcome): void {

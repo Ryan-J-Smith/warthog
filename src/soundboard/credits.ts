@@ -45,6 +45,32 @@ export const SOUND_CREDITS: Record<AudioKey, SoundCredit> = {
       }
     ]
   },
+  musicThreeRoads: {
+    method: "Cut to exactly 132 bars at 170 BPM (186.353 s) starting on the downbeat of bar 26 (36.706 s) so it loops on the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.",
+    recipe: "scripts/audio/recipes/music.mjs",
+    sources: [
+      {
+        title: "Clash Defiant",
+        author: "Kevin MacLeod (incompetech.com)",
+        page: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600003",
+        license: "CC BY 4.0",
+        use: "Three Roads in-mission theme"
+      }
+    ]
+  },
+  musicIronSleet: {
+    method: "Cut to exactly 112 bars at 170 BPM (158.118 s) starting on the downbeat of bar 6 (8.471 s) so it loops on the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.",
+    recipe: "scripts/audio/recipes/music.mjs",
+    sources: [
+      {
+        title: "Blown Away",
+        author: "Kevin MacLeod (incompetech.com)",
+        page: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1200100",
+        license: "CC BY 4.0",
+        use: "Iron Sleet in-mission theme"
+      }
+    ]
+  },
   stingVictory: {
     method: "Trimmed; natural decay kept.",
     recipe: "scripts/audio/recipes/music.mjs",

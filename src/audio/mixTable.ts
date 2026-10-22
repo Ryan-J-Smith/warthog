@@ -19,6 +19,8 @@ export const MIX: Record<AudioKey, MixSpec> = {
   // Music (the MusicManager scales these by its own music volume)
   musicTitle: { volume: 1 },
   musicMission: { volume: 0.85 },
+  musicThreeRoads: { volume: 0.85 },
+  musicIronSleet: { volume: 0.85 },
   stingVictory: { volume: 1 },
   stingDefeat: { volume: 1 },
 

@@ -85,6 +85,8 @@ export const SOURCES = {
   darkling: macleod('Darkling', 'USUAN1700050'),
   discoveryHit: macleod('Discovery Hit', 'USUAN1300023'),
   gretaSting: macleod('Greta Sting', 'USUAN1100530'),
+  clashDefiant: macleod('Clash Defiant', 'USUAN1600003'),
+  blownAway: macleod('Blown Away', 'USUAN1200100'),
 };
 
 export const CACHE_DIR = process.env.AUDIO_CACHE_DIR ?? join(tmpdir(), 'warthog-audio-cache');

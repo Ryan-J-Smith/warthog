@@ -11,6 +11,8 @@ import type { AudioKey } from './audioKeys';
 export const AUDIO_URLS: Record<AudioKey, string[]> = {
   musicTitle: ['assets/audio/music/musicTitle.ogg', 'assets/audio/music/musicTitle.mp3'],
   musicMission: ['assets/audio/music/musicMission.ogg', 'assets/audio/music/musicMission.mp3'],
+  musicThreeRoads: ['assets/audio/music/musicThreeRoads.ogg', 'assets/audio/music/musicThreeRoads.mp3'],
+  musicIronSleet: ['assets/audio/music/musicIronSleet.ogg', 'assets/audio/music/musicIronSleet.mp3'],
   stingVictory: ['assets/audio/music/stingVictory.ogg', 'assets/audio/music/stingVictory.mp3'],
   stingDefeat: ['assets/audio/music/stingDefeat.ogg', 'assets/audio/music/stingDefeat.mp3'],
   engineLoop: ['assets/audio/sfx/engineLoop.wav'],

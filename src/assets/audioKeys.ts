@@ -12,6 +12,8 @@ export const AUDIO = {
   // Music
   musicTitle: { kind: 'music', loop: true, note: 'Title/briefing: moody, military, building tension.' },
   musicMission: { kind: 'music', loop: true, note: 'In-mission: driving action track, ~2+ min loop.' },
+  musicThreeRoads: { kind: 'music', loop: true, note: 'Three Roads in-mission: driving, martial lane-war track, ~3 min loop.' },
+  musicIronSleet: { kind: 'music', loop: true, note: 'Iron Sleet in-mission: high-energy, urgent score-attack track, ~2.5 min loop.' },
   stingVictory: { kind: 'music', loop: false, note: 'Short victory sting.' },
   stingDefeat: { kind: 'music', loop: false, note: 'Short defeat sting.' },
 

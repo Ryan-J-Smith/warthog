@@ -41,6 +41,8 @@ export const RECIPES = {
   // Music
   musicTitle: music(mu.musicTitle, -16, true),
   musicMission: music(mu.musicMission, -16, true),
+  musicThreeRoads: music(mu.musicThreeRoads, -16, true),
+  musicIronSleet: music(mu.musicIronSleet, -16, true),
   stingVictory: music(mu.stingVictory, -13, false, 'momentary'),
   stingDefeat: music(mu.stingDefeat, -15, false, 'momentary'),
 

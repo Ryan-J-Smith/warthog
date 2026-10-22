@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AudioSettings, MemorySettingsStore, MusicCore } from '../../src/audio';
+import { AUDIO, AUDIO_URLS } from '../../src/assets';
+import { AudioSettings, MISSION_MUSIC, MemorySettingsStore, MusicCore } from '../../src/audio';
 import { FakeBackend } from './fakes';
 
 function setup(settings = new AudioSettings(new MemorySettingsStore())) {
@@ -30,6 +31,45 @@ describe('MusicCore', () => {
     advance(3000);
     expect(title.destroyed).toBe(true);
     expect(backend.loop('musicMission')!.volume).toBeGreaterThan(0.3);
+  });
+
+  it.each([
+    ['river-crossing', 'musicMission'],
+    ['three-roads', 'musicThreeRoads'],
+    ['iron-sleet', 'musicIronSleet'],
+  ] as const)('plays the %s mission track (%s)', (levelId, key) => {
+    const { backend, music, advance } = setup();
+    music.playMission(levelId);
+    advance(3000);
+    expect(music.currentKey()).toBe(key);
+    expect(backend.loop(key)!.volume).toBeGreaterThan(0.3);
+    expect(backend.created.map((v) => v.key)).toEqual([key]);
+  });
+
+  it('falls back to musicMission for an unknown or missing level id', () => {
+    for (const levelId of ['no-such-level', 'constructor', '', undefined]) {
+      const { music } = setup();
+      music.playMission(levelId);
+      expect(music.currentKey()).toBe('musicMission');
+    }
+  });
+
+  it('crossfades between mission tracks when the level changes', () => {
+    const { backend, music, advance } = setup();
+    music.playMission('three-roads');
+    advance(3000);
+    const threeRoads = backend.loop('musicThreeRoads')!;
+    music.playMission('iron-sleet');
+    advance(3000);
+    expect(threeRoads.destroyed).toBe(true);
+    expect(backend.loop('musicIronSleet')!.volume).toBeGreaterThan(0.3);
+  });
+
+  it('maps every mission to a looping music track with a manifest entry', () => {
+    for (const key of Object.values(MISSION_MUSIC)) {
+      expect(AUDIO[key]).toMatchObject({ kind: 'music', loop: true });
+      expect(AUDIO_URLS[key].length).toBeGreaterThan(0);
+    }
   });
 
   it('ignores a repeat request for the track already playing', () => {

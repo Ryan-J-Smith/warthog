@@ -1,6 +1,7 @@
 import type { AudioKey } from '../assets';
 import type { MissionOutcome } from '../sim/types';
 import type { AudioSettings } from './audioSettings';
+import { missionMusicKey } from './missionMusic';
 import { MIX } from './mixTable';
 import { MusicControl } from './musicControl';
 import type { SoundBackend, SoundVoice } from './soundBackend';
@@ -51,8 +52,9 @@ export class MusicCore extends MusicControl {
     this.playTrack('musicTitle', true, 1800, 1200);
   }
 
-  playMission(): void {
-    this.playTrack('musicMission', true, 1200, 1500);
+  /** Crossfade to the in-mission track for `levelId` (`musicMission` when the level has none of its own). */
+  playMission(levelId?: string): void {
+    this.playTrack(missionMusicKey(levelId), true, 1200, 1500);
   }
 
   playSting(outcome: MissionOutcome): void {

@@ -3,6 +3,7 @@ export { AudioDirectorCore, GUN_IMPACT_INTERVAL_MS } from './audioDirectorCore';
 export type { AudioDirectorDeps } from './audioDirectorCore';
 export { MusicManager } from './musicManager';
 export { MusicCore, MUSIC_VOLUME } from './musicCore';
+export { MISSION_MUSIC, missionMusicKey } from './missionMusic';
 export { AudioSettings, MUSIC_MUTE_KEY } from './audioSettings';
 export { audioSettingsFor } from './sharedAudioSettings';
 export { MusicControl } from './musicControl';
