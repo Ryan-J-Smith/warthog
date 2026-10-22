@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GROUND_ROUNDS, groundRoundFor } from '../../config';
 import { riverCrossing } from '../../content/levels';
 import { EffectsDirector } from '../../render/effects';
 import { EntityRenderer } from '../../render/entities';
@@ -156,7 +157,8 @@ export class UnitMotionScene extends Phaser.Scene {
       if (!FIRES.has(e.kind)) continue;
       const aim = e.turretHeading;
       const to = { x: e.pos.x + Math.cos(aim) * 220, y: e.pos.y + Math.sin(aim) * 220 };
-      world.emit({ type: 'groundFire', shooterKind: e.kind, from: { ...e.pos }, to });
+      const round = groundRoundFor(e.kind);
+      world.emit({ type: 'groundFire', shooterKind: e.kind, round, from: { ...e.pos }, to, flightTime: 220 / GROUND_ROUNDS[round].speed });
     }
   }
 }

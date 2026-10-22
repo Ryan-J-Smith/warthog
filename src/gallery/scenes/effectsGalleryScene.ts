@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GROUND_ROUNDS, groundRoundFor } from '../../config';
 import { riverCrossing } from '../../content/levels';
 import { EffectsDirector } from '../../render/effects';
 import { EntityRenderer, PlayerRenderer } from '../../render/entities';
@@ -513,12 +514,15 @@ export class EffectsGalleryScene extends Phaser.Scene {
       const to = enemyShoots ? pick(FRIENDLY_TANKS) : pick(ENEMY_TANKS);
       const tank = Math.random() < 0.45;
       const jitter = (v: Vec2): Vec2 => ({ x: v.x + (Math.random() - 0.5) * 40, y: v.y + (Math.random() - 0.5) * 40 });
-      battle.emit({
-        type: 'groundFire',
-        shooterKind: tank ? (enemyShoots ? 'tank' : 'friendlyTank') : enemyShoots ? 'infantry' : 'friendlyInfantry',
-        from: tank ? from : jitter(from),
-        to: jitter(to),
-      });
+      const shooterKind = tank ? (enemyShoots ? 'tank' : 'friendlyTank') : enemyShoots ? 'infantry' : 'friendlyInfantry';
+      const round = groundRoundFor(shooterKind);
+      const start = tank ? from : jitter(from);
+      const end = jitter(to);
+      const flightTime = Math.hypot(end.x - start.x, end.y - start.y) / GROUND_ROUNDS[round].speed;
+      battle.emit({ type: 'groundFire', shooterKind, round, from: start, to: end, flightTime });
+      battle.later(flightTime, () =>
+        battle.emit({ type: 'groundRoundImpact', shooterKind, round, pos: end, hit: true, armored: true }),
+      );
     }
   }
 

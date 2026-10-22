@@ -1,4 +1,5 @@
 import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, PLAYER } from '../../config';
+import type { GroundRoundKind } from '../../config';
 import { initDefense, type DefenseState } from '../defense';
 import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { SimEvent } from '../events';
@@ -7,7 +8,7 @@ import type { LevelDefinition } from '../level';
 import { DEFAULT_LOADOUT, type PlayerLoadout } from '../loadout';
 import { Rng, degToRad, type Vec2 } from '../math';
 import type { MissionResults } from './missionResults';
-import type { EntityKind } from '../types';
+import type { EntityKind, Team } from '../types';
 import type { ComboState, ObjectiveState, ReticleState, WorldView, ZoneState } from './worldView';
 
 /** Tag on a friendly structure that has become a forward rearm point. */
@@ -18,6 +19,19 @@ export interface PendingRound {
   landsAt: number;
   pos: Vec2;
   damage: number;
+}
+
+/** A ground unit's round in flight (rendered from its `groundFire` event; lands at `pos`). */
+export interface GroundRound {
+  landsAt: number;
+  pos: Vec2;
+  damage: number;
+  round: GroundRoundKind;
+  shooterKind: EntityKind;
+  /** The shooter's team: rounds only hurt the other side. */
+  team: Team;
+  /** What it was aimed at (it may have moved or died by the time the round lands). */
+  targetId: number;
 }
 
 /** A delayed explosion (ammo dump cook-off). */
@@ -75,6 +89,7 @@ export class World implements WorldView {
   /** Global AA fire-rate multiplier (ammo dump destroyed → 0.5). */
   aaFireRate: number;
   pendingRounds: PendingRound[] = [];
+  groundRounds: GroundRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
   /** Convoy vehicles that reached the end of their road (score-attack missions). */

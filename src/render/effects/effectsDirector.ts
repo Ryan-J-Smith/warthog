@@ -9,6 +9,7 @@ import { RAMPS } from './colorRamp';
 import { FloatingTexts } from './floatingText';
 import { FxKit, rand } from './fxKit';
 import { ensureFxTextures } from './fxTextures';
+import { GroundRoundFx } from './groundRoundFx';
 import { HeliFx } from './heliFx';
 import { MlrsFx } from './mlrsFx';
 import { PickupRenderer } from './pickupRenderer';
@@ -49,6 +50,7 @@ export class EffectsDirector extends SimEventListener {
   private readonly aircraft: AircraftFx;
   private readonly helis: HeliFx;
   private readonly mlrs: MlrsFx;
+  private readonly groundRounds: GroundRoundFx;
   private lastView: WorldView | null = null;
   private beamHitCooldown = 0;
   private gunTick = 0;
@@ -66,6 +68,7 @@ export class EffectsDirector extends SimEventListener {
     this.aircraft = new AircraftFx(scene, this.kit);
     this.helis = new HeliFx(scene, this.kit, this.wrecks);
     this.mlrs = new MlrsFx(scene, this.kit, this.wrecks);
+    this.groundRounds = new GroundRoundFx(this.kit);
   }
 
   get stats(): EffectsStats {
@@ -86,6 +89,7 @@ export class EffectsDirector extends SimEventListener {
       this.pickups.handleEvent(e);
       this.helis.handleEvent(e);
       this.mlrs.handleEvent(e);
+      this.groundRounds.handleEvent(e);
       if (v) this.aircraft.handleEvent(e, v);
     }
   }
@@ -219,9 +223,6 @@ export class EffectsDirector extends SimEventListener {
       case 'scoreAwarded':
         if (e.pos && e.points !== 0) this.texts.spawn(e.pos.x, e.pos.y - 18, `${e.points > 0 ? '+' : ''}${e.points}`, e.points > 0);
         break;
-      case 'groundFire':
-        this.groundFire(e);
-        break;
       default:
         break;
     }
@@ -284,54 +285,5 @@ export class EffectsDirector extends SimEventListener {
       // Spans crashing into the river: white spray.
       kit.smoke('ground', x, y, 14, { spread: 40, speed: 70, size0: 12, size1: 46, life: 1.8, alpha: 0.65, ramp: RAMPS.smokeWhite });
     }
-  }
-
-  private groundFire(e: SimEventOf<'groundFire'>): void {
-    const kit = this.kit;
-    const { from, to } = e;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const heading = Math.atan2(dy, dx);
-    const cx = Math.cos(heading);
-    const cy = Math.sin(heading);
-    if (e.shooterKind === 'tank' || e.shooterKind === 'friendlyTank') {
-      const mx = from.x + cx * 14;
-      const my = from.y + cy * 14;
-      kit.muzzleFlash('ground', mx, my, heading, 24, 0xffd890, 0.07);
-      kit.smoke('ground', mx, my, 2, { spread: 3, speed: 18, size0: 5, size1: 22, life: 1.3, alpha: 0.4, ramp: RAMPS.smokeGrey });
-      const travel = Math.min(0.5, dist / 1400);
-      kit.streak('ground', mx, my, to.x, to.y, travel, 16, 0xffe2a0, 0.55);
-      const f = kit.flash('ground', to.x, to.y, 28, 0.12, 0xffc070, 0.8);
-      if (f) f.delay = travel;
-      this.delayedPuff(to.x, to.y, travel, 16);
-    } else {
-      const shots = e.shooterKind === 'aaGun' || e.shooterKind === 'mobileAa' ? 3 : 2;
-      for (let i = 0; i < shots; i++) {
-        const delay = rand(0, 0.18);
-        const f = kit.flash('ground', from.x + cx * 5, from.y + cy * 5, 7, 0.05, 0xffe0a0, 0.9);
-        if (f) f.delay = delay;
-        const ex = to.x + rand(-6, 6);
-        const ey = to.y + rand(-6, 6);
-        const travel = Math.min(0.35, dist / 1100);
-        kit.streak('ground', from.x, from.y, ex, ey, travel, 8, 0xfff0b0, 0.4, delay);
-        if (i === 0) this.delayedPuff(ex, ey, delay + travel, 7);
-      }
-    }
-  }
-
-  private delayedPuff(x: number, y: number, delay: number, size: number): void {
-    const p = this.kit.layers.groundUnder.spawn('particleSmoke', x, y);
-    if (!p) return;
-    p.delay = delay;
-    p.life = 0.9;
-    p.size0 = size * 0.4;
-    p.size1 = size * 1.5;
-    p.alpha = 0.55;
-    p.fadeIn = 0.05;
-    p.fadeStart = 0.25;
-    p.rotation = Math.random() * 6.28;
-    p.wind = 0.6;
-    p.ramp = RAMPS.dust;
   }
 }
