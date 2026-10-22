@@ -56,6 +56,8 @@ const FLAK_BURST_RADIUS = 70;
 const LEAK_RADIUS = 560;
 const LEAK_SHARE: Partial<Record<EntityKind, number>> = { infantry: 0.04, truck: 0.04, mobileAa: 0.06, tank: 0.1, mlrs: 0.08 };
 const LEAK_SHARE_DEFAULT = 0.06;
+/** Once a wave's ground units are gone, its gunships break off after this long (a wave never stalls). */
+const GUNSHIP_BINGO = 40;
 /** An idle wave gunship further than this from the base heads straight back to it. */
 const RALLY_DISTANCE = 1500;
 
@@ -80,6 +82,8 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
+  /** Sim time the current wave was down to gunships only, or null. */
+  private airOnlySince: number | null = null;
   /** Roads dealt out for this run (once, on the first step). */
   private dealt = false;
   /** Fractional gold owed from kill points (perks multiply it). */
@@ -133,6 +137,7 @@ export class DefenseSystem extends SimSystem {
       leaks(world, state, base);
       if (!base.alive) return;
       rallyGunships(world, base.pos);
+      this.bingo(world, state);
       state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
       if (state.remaining === 0) this.waveCleared(world, def, state);
     }
@@ -183,6 +188,22 @@ export class DefenseSystem extends SimSystem {
       state.gold += owed;
       this.goldCarry -= owed;
     }
+  }
+
+  /** Gunships left on their own break off after `GUNSHIP_BINGO` seconds. */
+  private bingo(world: World, state: DefenseState): void {
+    const wave = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG));
+    const airOnly = wave.length > 0 && wave.every((e) => e.heli !== null);
+    if (!airOnly) {
+      this.airOnlySince = null;
+      return;
+    }
+    this.airOnlySince ??= world.time;
+    if (world.time - this.airOnlySince < GUNSHIP_BINGO) return;
+    const gone = new Set(wave.map((e) => e.id));
+    world.entities = world.entities.filter((e) => !gone.has(e.id));
+    this.airOnlySince = null;
+    notice(world, state, 'GUNSHIPS BINGO FUEL · BREAKING OFF', true);
   }
 
   /** Take draft card `option` and apply it. */

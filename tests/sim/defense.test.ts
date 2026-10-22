@@ -278,3 +278,18 @@ describe('base defence: leaks', () => {
     expect(defense(s).notice?.text).toContain('BROKE THROUGH');
   });
 });
+
+describe('base defence: gunship bingo', () => {
+  it('gunships left alone after the ground units die break off, so the wave ends', () => {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    for (const e of waveUnits(s)) killEntity(s.world, e, false);
+    const heli = createEntity(s.world, 'helicopter', { x: 300, y: 300 }, { tags: [DEFENSE_WAVE_TAG] });
+    s.world.entities.push(heli);
+    s.world.player.pos = { x: 4300, y: 3300 };
+    run(s, 30);
+    expect(defense(s).phase).toBe('wave');
+    run(s, 15);
+    expect(defense(s).phase).toBe('build');
+  });
+});
