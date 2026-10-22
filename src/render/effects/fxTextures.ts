@@ -8,6 +8,8 @@ export const FX_TEXTURES = {
   tracer: 'fx.tracer',
   /** Four-point star burst (muzzle flashes). */
   flash: 'fx.flash',
+  /** White disc with a darker rim: tinted, it reads as a coloured ball on light and dark ground. */
+  orb: 'fx.orb',
 } as const;
 
 /** Create the runtime FX textures on the scene's texture manager if they don't exist yet. */
@@ -47,6 +49,26 @@ export function ensureFxTextures(scene: Phaser.Scene): void {
       ctx.fillStyle = 'rgba(255,255,255,1)';
       ctx.beginPath();
       ctx.ellipse(w * 0.86, h / 2, w * 0.12, h * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      tex.refresh();
+    }
+  }
+  if (!textures.exists(FX_TEXTURES.orb)) {
+    const size = 32;
+    const tex = textures.createCanvas(FX_TEXTURES.orb, size, size);
+    if (tex) {
+      const ctx = tex.getContext();
+      const c = size / 2;
+      ctx.fillStyle = 'rgba(70,70,70,1)';
+      ctx.beginPath();
+      ctx.arc(c, c, c - 1, 0, Math.PI * 2);
+      ctx.fill();
+      const body = ctx.createRadialGradient(c - 3, c - 3, 1, c, c, c - 4);
+      body.addColorStop(0, 'rgba(255,255,255,1)');
+      body.addColorStop(1, 'rgba(225,225,225,1)');
+      ctx.fillStyle = body;
+      ctx.beginPath();
+      ctx.arc(c, c, c - 4, 0, Math.PI * 2);
       ctx.fill();
       tex.refresh();
     }
