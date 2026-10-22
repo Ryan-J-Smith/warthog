@@ -55,6 +55,9 @@ export type SimEvent =
   /** Base defence: an armory upgrade was bought over the home base. */
   | { type: 'armoryBought'; item: ArmoryId; level: number }
   | { type: 'defenseWaveStarted'; wave: number; total: number }
+  /** A flak battery fired a shell at a gunship; it bursts at `to` after `flightTime`. */
+  | { type: 'flakFired'; from: Vec2; to: Vec2; flightTime: number }
+  | { type: 'flakBurst'; pos: Vec2; hit: boolean }
   | { type: 'defenseWaveCleared'; wave: number; total: number; bonus: number }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }

@@ -3,9 +3,10 @@ import { holdTheLine } from '../../src/content/levels';
 import { killEntity } from '../../src/sim/combat';
 import { STRUCTURES } from '../../src/sim/defense';
 import { Simulation } from '../../src/sim/simulation';
+import { createEntity } from '../../src/sim/spawning';
 import { DEFENSE_GARRISON_TAG, DEFENSE_SORTIE_TAG, DEFENSE_WAVE_TAG, destroyPlayer } from '../../src/sim/systems';
 import type { WeaponId } from '../../src/sim/types';
-import { run } from './helpers';
+import { input, run } from './helpers';
 
 function sim(): Simulation {
   return new Simulation(holdTheLine);
@@ -145,4 +146,23 @@ describe('base defence', () => {
     for (let t = 0; t < 1800 && !s.world.ended; t += 1) run(s, 1, { ready: defense(s).phase === 'build' });
     expect(s.world.results?.outcome).toBe('defeat');
   }, 60_000);
+});
+
+describe('base defence: flak', () => {
+  it('a flak battery shoots down a gunship in range, and only gunships', () => {
+    const s = sim();
+    press(s, padPos(s, 'n2'), 'bombs');
+    expect(defense(s).pads.find((p) => p.id === 'n2')?.structure).toBe('flak');
+    run(s, 1 / 60, { ready: true });
+    // Park a gunship over the battery (its route loiters there).
+    const heli = createEntity(s.world, 'helicopter', { ...padPos(s, 'n2') }, { tags: [DEFENSE_WAVE_TAG], path: [{ ...padPos(s, 'n2') }] });
+    s.world.entities.push(heli);
+    let fired = 0;
+    for (let i = 0; i < 60 * 15 && heli.alive; i++) {
+      s.step(input());
+      fired += s.drainEvents().filter((e) => e.type === 'flakFired').length;
+    }
+    expect(fired).toBeGreaterThan(0);
+    expect(heli.alive).toBe(false);
+  });
 });

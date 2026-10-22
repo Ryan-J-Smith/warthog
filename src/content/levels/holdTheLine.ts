@@ -3,7 +3,7 @@ import type { Vec2 } from '../../sim/math';
 
 /**
  * Prototype — Hold the Line. Base defence, Thronefall-style: between waves there is no clock;
- * fly over a pad beside a road and press 1–3 to build (barracks, tank depot, bunker) or 1 to
+ * fly over a pad beside a road and press 1–4 to build (barracks, tank depot, bunker, flak) or 1 to
  * upgrade, fly over the home base to buy aircraft upgrades, and press R to launch the next wave.
  * Every wave is shown before it launches. Waves drive down three roads at the base; your
  * structures' units fight them, and you fly close air support. Kills pay gold. Being shot down
@@ -101,7 +101,7 @@ export const holdTheLine: LevelDefinition = {
       trigger: { kind: 'time', at: 1.5 },
       speaker: 'OVERLORD',
       tone: 'info',
-      text: 'Fly over a pad and press 1-3 to build. Over the airstrip for upgrades. R launches the wave.',
+      text: 'Fly over a pad and press 1-4 to build. Over the airstrip for upgrades. R launches the wave.',
     },
   ],
 
@@ -132,7 +132,7 @@ export const holdTheLine: LevelDefinition = {
       { lanes: [{ laneId: 'east', units: ['tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry'] }, { laneId: 'north', units: ['infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] }] },
       {
         lanes: [
-          { laneId: 'north', units: ['tank', 'mobileAa', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
+          { laneId: 'north', units: ['tank', 'mobileAa', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'helicopter'] },
           { laneId: 'west', units: ['infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
         ],
       },
@@ -140,20 +140,20 @@ export const holdTheLine: LevelDefinition = {
       {
         lanes: [
           { laneId: 'north', units: ['tank', 'infantry', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
-          { laneId: 'east', units: ['tank', 'mobileAa', 'tank', 'tank'] },
+          { laneId: 'east', units: ['tank', 'mobileAa', 'tank', 'tank', 'helicopter'] },
           { laneId: 'west', units: ['infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
         ],
       },
       {
         lanes: [
-          { laneId: 'west', units: ['tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry'] },
+          { laneId: 'west', units: ['tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'helicopter'] },
           { laneId: 'north', units: ['tank', 'mobileAa', 'tank', 'tank', 'infantry', 'infantry', 'infantry'] },
-          { laneId: 'east', units: ['tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry'] },
+          { laneId: 'east', units: ['tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'helicopter'] },
         ],
       },
       {
         lanes: [
-          { laneId: 'north', units: ['tank', 'mobileAa', 'tank', 'tank', 'mobileAa', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
+          { laneId: 'north', units: ['tank', 'mobileAa', 'tank', 'tank', 'mobileAa', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'helicopter', 'helicopter'] },
           { laneId: 'west', units: ['tank', 'tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
           { laneId: 'east', units: ['tank', 'mobileAa', 'tank', 'tank', 'tank', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry', 'infantry'] },
         ],

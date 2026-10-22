@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SPRITE_RESOLUTION } from '../../assets';
 import { ARMORY_RADIUS, PAD_RADIUS, STRUCTURES, type StructureId } from '../../sim/defense';
 import { angleOf, distance, sub, type Vec2 } from '../../sim/math';
+import type { SimEvent } from '../../sim/events';
 import type { EntityKind } from '../../sim/types';
 import type { WorldView } from '../../sim/world';
 import { FONT_STACK } from '../../ui/fonts';
@@ -12,9 +13,14 @@ const COLORS = {
   built: 0x5ab0ff,
   active: 0xffb627,
   threat: 0xff3b30,
+  flak: 0x5ab0ff,
+  flakCore: 0xffffff,
 } as const;
 
-const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS' };
+/** Seconds a flak burst ring lasts. */
+const BURST_TIME = 0.35;
+
+const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'GUNSHIP' };
 const LEVEL_MARK = ['', 'I', 'II', 'III'] as const;
 /** World units between the chevrons drawn along a road the next wave will use. */
 const CHEVRON_STEP = 220;
@@ -23,6 +29,7 @@ const STRUCTURE_SPRITE: Record<StructureId, readonly string[]> = {
   barracks: ['structBarracks', 'structBarracks2'],
   depot: ['structDepot', 'structDepot2'],
   bunker: ['structBunker', 'structBunker2'],
+  flak: ['structFlak', 'structFlak2'],
 };
 
 /**
@@ -35,14 +42,26 @@ export class DefenseOverlay {
   private readonly padLabels = new Map<string, Phaser.GameObjects.Text>();
   private readonly laneLabels = new Map<string, Phaser.GameObjects.Text>();
   private readonly structures = new Map<string, Phaser.GameObjects.Image>();
+  /** Flak shells in flight and bursts, in real (render) seconds. */
+  private shells: Array<{ from: Vec2; to: Vec2; age: number; flight: number }> = [];
+  private bursts: Array<{ pos: Vec2; age: number; hit: boolean }> = [];
+
+  /** Flak fire is drawn here: blue shells with a white core, and a ring where they burst. */
+  handleEvents(events: readonly SimEvent[]): void {
+    for (const e of events) {
+      if (e.type === 'flakFired') this.shells.push({ from: e.from, to: e.to, age: 0, flight: e.flightTime });
+      else if (e.type === 'flakBurst') this.bursts.push({ pos: e.pos, age: 0, hit: e.hit });
+    }
+  }
 
   constructor(private readonly scene: Phaser.Scene) {
     this.g = scene.add.graphics().setDepth(DEPTH.groundFx + 2);
   }
 
-  sync(view: WorldView): void {
+  sync(view: WorldView, dt = 0): void {
     const g = this.g;
     g.clear();
+    this.drawFlak(dt);
     const state = view.defense;
     const def = view.level.defense;
     if (!state || !def) return;
@@ -101,6 +120,27 @@ export class DefenseOverlay {
         .setPosition(entry.x, entry.y + 60 * px)
         .setScale(px * 1.2)
         .setVisible(true);
+    }
+  }
+
+  private drawFlak(dt: number): void {
+    const g = this.g;
+    const px = 1 / this.scene.cameras.main.zoom;
+    this.shells = this.shells.filter((s) => (s.age += dt) < s.flight);
+    for (const s of this.shells) {
+      const t = s.age / s.flight;
+      const x = s.from.x + (s.to.x - s.from.x) * t;
+      const y = s.from.y + (s.to.y - s.from.y) * t;
+      g.fillStyle(COLORS.flak, 0.45);
+      g.fillCircle(x, y, 11 * px);
+      g.fillStyle(COLORS.flakCore, 1);
+      g.fillCircle(x, y, 5 * px);
+    }
+    this.bursts = this.bursts.filter((b) => (b.age += dt) < BURST_TIME);
+    for (const b of this.bursts) {
+      const t = b.age / BURST_TIME;
+      g.lineStyle(4 * px, b.hit ? COLORS.flakCore : COLORS.flak, 1 - t);
+      g.strokeCircle(b.pos.x, b.pos.y, (14 + 40 * t) * px);
     }
   }
 

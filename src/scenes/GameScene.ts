@@ -102,7 +102,8 @@ export class GameScene extends Phaser.Scene {
     this.cameraRig.update(delta, view);
     this.clouds.update(delta, view);
     this.worldUi.sync(view);
-    this.defense.sync(view);
+    this.defense.handleEvents(events);
+    this.defense.sync(view, delta / 1000);
     this.effects.handleEvents(events, view);
     this.effects.update(delta, view);
     this.audio.update(delta, view);

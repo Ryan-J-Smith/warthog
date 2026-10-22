@@ -83,11 +83,13 @@ export const FLARES = {
 } as const;
 
 /** Damage multiplier by weapon and target armor. */
-export const ARMOR_MULTIPLIER: Record<'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary', Record<ArmorClass, number>> = {
+export const ARMOR_MULTIPLIER: Record<'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary' | 'flak', Record<ArmorClass, number>> = {
   gun: { soft: 1, armored: 1, hardened: 0 },
   rocket: { soft: 1, armored: 0.5, hardened: 0 },
   maverick: { soft: 1, armored: 1, hardened: 0 },
   bomb: { soft: 1, armored: 1, hardened: 1 },
   ground: { soft: 1, armored: 1, hardened: 1 },
   secondary: { soft: 1, armored: 0.6, hardened: 0.3 },
+  /** Base-defence flak batteries: built for gunships, useless against armour. */
+  flak: { soft: 1, armored: 0.2, hardened: 0 },
 };

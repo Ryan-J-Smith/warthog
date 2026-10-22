@@ -14,7 +14,7 @@ const PAD = 16;
 /** Seconds a build notice stays up. */
 const NOTICE_TIME = 3;
 
-const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS' };
+const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'GUNSHIP' };
 
 /**
  * Base defence: wave counter and gold, the phase ("PRESS R TO LAUNCH"), the next wave road by

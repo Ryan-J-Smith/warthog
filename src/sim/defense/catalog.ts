@@ -1,6 +1,6 @@
 import type { EntityKind } from '../types';
 
-export type StructureId = 'barracks' | 'depot' | 'bunker';
+export type StructureId = 'barracks' | 'depot' | 'bunker' | 'flak';
 export type ArmoryId = 'gun' | 'ordnance' | 'repair';
 
 /** What a pad structure does at each level (index 0 = level 1). */
@@ -13,15 +13,18 @@ export interface StructureDefinition {
   costs: readonly number[];
   /**
    * Units sent up the pad's road at the start of every wave (`sortie`), or dug in on the pad and
-   * replaced between waves (`garrison`).
+   * replaced between waves (`garrison`), or a flak battery that shoots gunships (`flak`).
    */
-  mode: 'sortie' | 'garrison';
+  mode: 'sortie' | 'garrison' | 'flak';
+  /** The unit fielded (sortie / garrison). */
   unit: EntityKind;
   /** Units per level. */
   count: readonly number[];
   /** The units are tougher and hit harder than the stock friendly kinds (per level). */
   hpMultiplier: readonly number[];
   damageMultiplier: readonly number[];
+  /** Flak battery guns, per level. */
+  flak?: { range: readonly number[]; damage: readonly number[]; cooldown: readonly number[] };
 }
 
 export const STRUCTURES: Record<StructureId, StructureDefinition> = {
@@ -58,10 +61,22 @@ export const STRUCTURES: Record<StructureId, StructureDefinition> = {
     hpMultiplier: [2, 2.5],
     damageMultiplier: [2, 2.5],
   },
+  flak: {
+    id: 'flak',
+    name: 'FLAK BATTERY',
+    blurb: 'Shoots down gunships in range; ignores ground units',
+    costs: [90, 110],
+    mode: 'flak',
+    unit: 'aaGun',
+    count: [0, 0],
+    hpMultiplier: [1, 1],
+    damageMultiplier: [1, 1],
+    flak: { range: [700, 850], damage: [8, 11], cooldown: [0.8, 0.55] },
+  },
 };
 
-/** Build menu order on an empty pad: key 1, 2, 3. */
-export const STRUCTURE_ORDER: readonly StructureId[] = ['barracks', 'depot', 'bunker'];
+/** Build menu order on an empty pad: keys 1–4. */
+export const STRUCTURE_ORDER: readonly StructureId[] = ['barracks', 'depot', 'bunker', 'flak'];
 
 /** Aircraft and base upgrades bought over the home base between waves. */
 export interface ArmoryDefinition {

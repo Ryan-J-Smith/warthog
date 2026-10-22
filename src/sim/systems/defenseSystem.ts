@@ -18,6 +18,7 @@ import type { Entity } from '../entities';
 import type { DefenseDefinition } from '../level';
 import type { PlayerLoadout } from '../loadout';
 import { angleOf, distance, normalize, sub, type Vec2 } from '../math';
+import { damageEntity } from '../combat';
 import { createEntity } from '../spawning';
 import type { EntityKind, WeaponId } from '../types';
 import type { World } from '../world';
@@ -39,9 +40,20 @@ const RANK_SPACING = 70;
 const SORTIE_SPEED: Partial<Record<EntityKind, number>> = { friendlyInfantry: 30, friendlyTank: 34 };
 /** Wrecks older than this are cleared away when a wave ends. */
 const WRECK_KEEP = 8;
+/** Flak shell speed (world units / s) and how close to the aim point a gunship must be to be hit. */
+const FLAK_SPEED = 900;
+const FLAK_BURST_RADIUS = 70;
 
-/** Number keys 1–3 pick the build / armory option (they double as weapon keys in flight). */
-const OPTION_INDEX: Partial<Record<WeaponId, number>> = { gun: 0, rockets: 1, maverick: 2 };
+/** A flak shell in flight. */
+interface FlakShell {
+  landsAt: number;
+  to: Vec2;
+  targetId: number;
+  damage: number;
+}
+
+/** Number keys 1–4 pick the build / armory option (they double as weapon keys in flight). */
+const OPTION_INDEX: Partial<Record<WeaponId, number>> = { gun: 0, rockets: 1, maverick: 2, bombs: 3 };
 
 /**
  * Base defence: a build phase with no clock (fly over a pad and press 1–3 to build or upgrade,
@@ -52,6 +64,9 @@ const OPTION_INDEX: Partial<Record<WeaponId, number>> = { gun: 0, rockets: 1, ma
 export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
+  private flakShells: FlakShell[] = [];
+  /** Next time each flak pad may fire. */
+  private readonly flakReady = new Map<string, number>();
 
   update({ world, input }: StepContext): void {
     const def = world.level.defense;
@@ -77,8 +92,45 @@ export class DefenseSystem extends SimSystem {
       if (input.ready) this.launchWave(world, def, state);
     } else if (state.phase === 'wave') {
       state.activePad = null;
+      this.updateFlak(world, state);
       state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
       if (state.remaining === 0) this.waveCleared(world, def, state);
+    }
+  }
+
+  /** Flak batteries fire led shells at gunships in range; shells burst after their flight time. */
+  private updateFlak(world: World, state: DefenseState): void {
+    const landed = this.flakShells.filter((s) => s.landsAt <= world.time);
+    this.flakShells = this.flakShells.filter((s) => s.landsAt > world.time);
+    for (const shell of landed) {
+      const target = world.findById(shell.targetId);
+      const hit = target !== undefined && target.alive && distance(target.pos, shell.to) <= FLAK_BURST_RADIUS + target.radius;
+      if (hit && target) damageEntity(world, target, shell.damage, 'flak');
+      world.emit({ type: 'flakBurst', pos: { ...shell.to }, hit });
+    }
+    for (const pad of state.pads) {
+      const flak = pad.structure ? STRUCTURES[pad.structure].flak : undefined;
+      if (!flak || (this.flakReady.get(pad.id) ?? 0) > world.time) continue;
+      const i = pad.level - 1;
+      const range = flak.range[i] ?? 0;
+      let target: Entity | null = null;
+      let best = range;
+      for (const e of world.entities) {
+        if (!e.alive || e.hidden || e.team !== 'enemy' || !e.heli) continue;
+        const d = distance(e.pos, pad.pos);
+        if (d <= best) {
+          best = d;
+          target = e;
+        }
+      }
+      if (!target || !target.heli) continue;
+      this.flakReady.set(pad.id, world.time + (flak.cooldown[i] ?? 1));
+      // Lead the gunship by its current velocity over the shell's flight time.
+      const flight = best / FLAK_SPEED;
+      const to = { x: target.pos.x + target.heli.vel.x * flight, y: target.pos.y + target.heli.vel.y * flight };
+      const flightTime = distance(pad.pos, to) / FLAK_SPEED;
+      this.flakShells.push({ landsAt: world.time + flightTime, to, targetId: target.id, damage: flak.damage[i] ?? 0 });
+      world.emit({ type: 'flakFired', from: { ...pad.pos }, to, flightTime });
     }
   }
 
@@ -221,6 +273,7 @@ export class DefenseSystem extends SimSystem {
 
   private waveCleared(world: World, def: DefenseDefinition, state: DefenseState): void {
     const bonus = def.waveBonus + def.waveBonusStep * state.wave;
+    this.flakShells = [];
     state.gold += bonus;
     // Sorties return to base; old wrecks are cleared away.
     world.entities = world.entities.filter((e) => {
