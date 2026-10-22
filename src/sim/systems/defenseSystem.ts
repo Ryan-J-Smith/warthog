@@ -56,6 +56,8 @@ const FLAK_BURST_RADIUS = 70;
 const LEAK_RADIUS = 560;
 const LEAK_SHARE: Partial<Record<EntityKind, number>> = { infantry: 0.04, truck: 0.04, mobileAa: 0.06, tank: 0.1, mlrs: 0.08 };
 const LEAK_SHARE_DEFAULT = 0.06;
+/** An idle wave gunship further than this from the base heads straight back to it. */
+const RALLY_DISTANCE = 1500;
 
 /** A flak shell in flight. */
 interface FlakShell {
@@ -522,11 +524,18 @@ function leaks(world: World, state: DefenseState, base: Entity): void {
   notice(world, state, `${through.length === 1 ? 'A UNIT' : `${through.length} UNITS`} BROKE THROUGH · BASE −${pct}%`, false);
 }
 
-/** Wave gunships with nothing to shoot circle the base instead of loitering where they spawned. */
+/**
+ * Wave gunships with nothing to shoot go for the base: they circle it instead of loitering where
+ * they spawned, and one that drifted far off (chasing the aircraft) flies straight back.
+ */
 function rallyGunships(world: World, basePos: Vec2): void {
   for (const e of world.entities) {
     const h = e.heli;
-    if (!e.alive || !h || !e.tags.includes(DEFENSE_WAVE_TAG) || h.targetId !== null || h.path) continue;
-    h.loiter = { ...basePos };
+    if (!e.alive || !h || !e.tags.includes(DEFENSE_WAVE_TAG) || h.targetId !== null) continue;
+    if (!h.path) h.loiter = { ...basePos };
+    else if (distance(e.pos, basePos) > RALLY_DISTANCE) {
+      h.path = [{ ...basePos }];
+      h.waypoint = 0;
+    }
   }
 }
