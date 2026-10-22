@@ -25,6 +25,7 @@ export function damagePlayer(world: World, amount: number, source: PlayerDamageS
   const hull = amount - absorbed;
   if (hull <= 0) return;
 
+  world.stats.hullDamage += Math.min(p.hp, hull);
   p.hp = Math.max(0, p.hp - hull);
   world.emit({ type: 'playerHit', pos: { ...at }, damage: hull, source });
   endCombo(world, 'hit');
@@ -38,6 +39,7 @@ export function destroyPlayer(world: World): void {
   p.alive = false;
   p.firing = false;
   p.lives -= 1;
+  world.stats.deaths += 1;
   p.respawnIn = PLAYER.respawnDelay;
   p.rearm = 0;
   p.lockTargetId = null;

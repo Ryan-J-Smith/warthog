@@ -1,4 +1,4 @@
-import type { MissionOutcome, ObjectiveStatus } from '../types';
+import type { EntityKind, MissionOutcome, ObjectiveStatus } from '../types';
 
 export interface ObjectiveResult {
   id: string;
@@ -14,6 +14,11 @@ export interface MissionFeats {
   missilesDefeated: number;
   zonesCleared: number;
   pickupsCollected: number;
+  killsByKind: Partial<Record<EntityKind, number>>;
+  hullDamage: number;
+  deaths: number;
+  /** Convoy vehicles that got away (score-attack missions). */
+  escapes: number;
 }
 
 export interface MissionResults {

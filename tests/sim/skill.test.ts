@@ -151,6 +151,18 @@ describe('SAM evasion', () => {
 });
 
 describe('rewards', () => {
+  it('results record kills by kind, hull damage and deaths for challenges', () => {
+    const sim = new Simulation(makeLevel({ entities: [{ kind: 'tank', pos: { x: 2000, y: 400 } }, { kind: 'truck', pos: { x: 2200, y: 400 } }] }));
+    for (const e of sim.world.entities.filter((x) => x.team === 'enemy')) damageEntity(sim.world, e, 999, 'bomb');
+    damagePlayer(sim.world, DEFAULT_LOADOUT.maxShield + 30, 'aa', sim.world.player.pos);
+    const stats = sim.world.stats;
+    expect(stats.killsByKind).toEqual({ tank: 1, truck: 1 });
+    expect(stats.hullDamage).toBe(30);
+    damagePlayer(sim.world, 999, 'aa', sim.world.player.pos);
+    expect(stats.deaths).toBe(1);
+    expect(stats.hullDamage).toBe(DEFAULT_LOADOUT.maxHull);
+  });
+
   it('kills inside the window chain and multiply points; hull damage breaks the chain', () => {
     const sim = new Simulation(makeLevel({ entities: [{ kind: 'tank', pos: { x: 2000, y: 400 } }, { kind: 'tank', pos: { x: 2200, y: 400 } }, { kind: 'tank', pos: { x: 2400, y: 400 } }] }));
     const tanks = sim.world.entities.filter((e) => e.kind === 'tank');

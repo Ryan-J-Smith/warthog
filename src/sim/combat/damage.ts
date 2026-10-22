@@ -64,6 +64,7 @@ export function killEntity(world: World, entity: Entity, byPlayer: boolean): voi
     if (entity.team === 'enemy' && stats.score > 0) {
       const points = Math.round(stats.score * registerKill(world, entity));
       world.stats.kills += 1;
+      world.stats.killsByKind[entity.kind] = (world.stats.killsByKind[entity.kind] ?? 0) + 1;
       world.stats.killPoints += points;
       world.score += points;
       world.emit({ type: 'scoreAwarded', points, reason: entity.kind, pos: entity.pos });

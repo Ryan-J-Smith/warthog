@@ -5,6 +5,7 @@ import type { LevelDefinition } from '../level';
 import { DEFAULT_LOADOUT, type PlayerLoadout } from '../loadout';
 import { Rng, degToRad, type Vec2 } from '../math';
 import type { MissionResults } from './missionResults';
+import type { EntityKind } from '../types';
 import type { ComboState, ObjectiveState, ReticleState, WorldView, ZoneState } from './worldView';
 
 /** Tag on a friendly structure that has become a forward rearm point. */
@@ -35,6 +36,11 @@ export interface CombatStats {
   missilesDefeated: number;
   zonesCleared: number;
   pickupsCollected: number;
+  /** Player kills per entity kind (challenges: "down 3 gunships"). */
+  killsByKind: Partial<Record<EntityKind, number>>;
+  /** Hull damage taken (shield hits don't count). */
+  hullDamage: number;
+  deaths: number;
 }
 
 /**
@@ -68,7 +74,7 @@ export class World implements WorldView {
   aaFireRate = 1;
   pendingRounds: PendingRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
-  stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0 };
+  stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
   /** Convoy vehicles that reached the end of their road (score-attack missions). */
   escapes = 0;
   /** Group ids that have spawned. */
