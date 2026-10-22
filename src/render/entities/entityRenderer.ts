@@ -17,7 +17,7 @@ interface EntityVisual {
   halo: Phaser.GameObjects.Image | null;
   wrecked: boolean;
   flashUntil: number;
-  /** Walk / tread / rumble cycle and firing recoil (units with a `motion` spec). */
+  /** Walk / tread frame cycle and firing recoil (units with a `motion` spec). */
   motion: UnitMotion | null;
   /** Texture currently on `base` while alive (the motion cycle swaps frames). */
   frame: SpriteKey;
@@ -133,8 +133,8 @@ export class EntityRenderer {
     const spec = ENTITY_VISUALS[entity.kind];
     const { base, top, halo } = visual;
     const scale = spec.structure ? INV_RES : INV_RES * unitScale;
-    // Walk / tread cycle, suspension bob and recoil, while alive; wrecks sit still.
-    const pose = visual.motion && entity.alive ? visual.motion.update(entity.pos, entity.heading, dt, unitScale) : null;
+    // Walk / tread frame cycle and recoil kick, while alive; wrecks sit still.
+    const pose = visual.motion && entity.alive ? visual.motion.update(entity.pos, dt, unitScale) : null;
     if (pose && spec.motion) {
       const frame = spec.motion.frames[pose.frame] ?? spec.base;
       if (frame !== visual.frame) {
@@ -145,15 +145,15 @@ export class EntityRenderer {
     base.setVisible(!entity.hidden);
     base
       .setPosition(entity.pos.x + (pose?.baseX ?? 0), entity.pos.y + (pose?.baseY ?? 0))
-      .setRotation(entity.heading + (pose?.baseYaw ?? 0))
-      .setScale(scale * (pose?.baseScale ?? 1));
+      .setRotation(entity.heading)
+      .setScale(scale);
     if (top) {
       const topHeading = entity.sam ? entity.sam.launcherHeading : entity.turretHeading;
       top
         .setVisible(!entity.hidden && entity.alive)
         .setPosition(entity.pos.x + (pose?.topX ?? 0), entity.pos.y + (pose?.topY ?? 0))
         .setRotation(topHeading)
-        .setScale(scale * (pose?.baseScale ?? 1));
+        .setScale(scale);
     }
     if (halo) {
       // particleSoft is 32 world units natively.

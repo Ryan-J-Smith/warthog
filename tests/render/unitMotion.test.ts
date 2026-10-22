@@ -14,7 +14,7 @@ function drive(motion: UnitMotion, start: { x: number; y: number }, speed: numbe
   const pos = { ...start };
   for (let t = 0; t < seconds; t += DT) {
     pos.x += speed * DT;
-    poses.push(motion.update(pos, 0, DT, 1));
+    poses.push(motion.update(pos, DT, 1));
   }
   start.x = pos.x;
   return poses;
@@ -22,7 +22,7 @@ function drive(motion: UnitMotion, start: { x: number; y: number }, speed: numbe
 
 function hold(motion: UnitMotion, pos: { x: number; y: number }, seconds: number): MotionPose[] {
   const poses: MotionPose[] = [];
-  for (let t = 0; t < seconds; t += DT) poses.push(motion.update(pos, 0, DT, 1));
+  for (let t = 0; t < seconds; t += DT) poses.push(motion.update(pos, DT, 1));
   return poses;
 }
 
@@ -34,7 +34,6 @@ describe('UnitMotion', () => {
       expect(pose.frame).toBe(0);
       expect(pose.baseX).toBe(0);
       expect(pose.baseY).toBe(0);
-      expect(pose.baseScale).toBe(1);
     }
   });
 
@@ -60,7 +59,6 @@ describe('UnitMotion', () => {
     const settled = hold(motion, pos, 1.5).at(-1);
     // Frame 0 = left foot forward, frame 4 = its mirror; both are planted stances.
     expect([0, 4]).toContain(settled?.frame);
-    expect(settled?.baseScale).toBeCloseTo(1, 5);
   });
 
   it('does not treat render frames without a sim step as stops', () => {
@@ -72,7 +70,7 @@ describe('UnitMotion', () => {
     // Sim at 30 Hz, render at 60 Hz: every other render frame sees no movement.
     for (let i = 0; i < 240; i++) {
       if (i % 2 === 0) pos.x += 30 / 30;
-      const frame = motion.update(pos, 0, DT, 1).frame;
+      const frame = motion.update(pos, DT, 1).frame;
       // The 8-step cycle only ever advances (wrapping 7 → 0).
       if (frame !== last && frame !== (last + 1) % spec.frames.length) backwards++;
       last = frame;
@@ -88,35 +86,40 @@ describe('UnitMotion', () => {
 
   it('ignores a teleport (respawn) instead of spinning the cycle', () => {
     const motion = new UnitMotion(specFor('tank'), 0);
-    motion.update({ x: 0, y: 0 }, 0, DT, 1);
-    motion.update({ x: 5000, y: 0 }, 0, DT, 1);
+    motion.update({ x: 0, y: 0 }, DT, 1);
+    motion.update({ x: 5000, y: 0 }, DT, 1);
     expect(motion.groundSpeed).toBe(0);
   });
 
-  it('kicks the turret back along the line of fire, further than the hull, then recovers', () => {
+  it('kicks a tank turret back along the line of fire and leaves the hull still, then recovers', () => {
     const motion = new UnitMotion(specFor('tank'), 0);
     const pos = { x: 0, y: 0 };
     hold(motion, pos, 0.1);
     motion.fire(0);
-    const kicked = motion.update(pos, 0, DT, 1);
+    const kicked = motion.update(pos, DT, 1);
     expect(kicked.topX).toBeLessThan(-3);
-    expect(kicked.baseX).toBeLessThan(0);
-    expect(kicked.topX).toBeLessThan(kicked.baseX);
     expect(Math.abs(kicked.topY)).toBeLessThan(1e-6);
+    expect(kicked.baseX).toBe(0);
+    expect(kicked.baseY).toBe(0);
     const after = hold(motion, pos, 0.5).at(-1);
-    expect(after?.topX).toBe(0);
-    expect(after?.baseX).toBe(0);
+    expect(Math.abs(after?.topX ?? 1)).toBe(0);
   });
 
-  it('rumbles wheeled vehicles only while they move', () => {
-    const motion = new UnitMotion(specFor('truck'), 3);
+  it('kicks a walker body back along the line of fire', () => {
+    const motion = new UnitMotion(specFor('infantry'), 0);
     const pos = { x: 0, y: 0 };
-    const moving = drive(motion, pos, 36, 1);
-    expect(moving.some((p) => Math.abs(p.baseX) > 0.05 || Math.abs(p.baseY) > 0.05)).toBe(true);
-    expect(moving.every((p) => p.frame === 0)).toBe(true);
-    const stopped = hold(motion, pos, 1).at(-1);
-    expect(Math.abs(stopped?.baseX ?? 1)).toBeLessThan(1e-3);
-    expect(Math.abs(stopped?.baseY ?? 1)).toBeLessThan(1e-3);
+    hold(motion, pos, 0.1);
+    motion.fire(Math.PI / 2);
+    const kicked = motion.update(pos, DT, 1);
+    expect(kicked.baseY).toBeLessThan(-1);
+    expect(Math.abs(kicked.baseX)).toBeLessThan(1e-6);
+  });
+
+  it('never offsets a moving unit that has not fired (frame cycles only, no bob or sway)', () => {
+    for (const kind of ['tank', 'infantry'] as const) {
+      const poses = drive(new UnitMotion(specFor(kind), 3), { x: 0, y: 0 }, 36, 2);
+      for (const p of poses) expect([p.baseX, p.baseY, p.topX, p.topY].map(Math.abs)).toEqual([0, 0, 0, 0]);
+    }
   });
 });
 
@@ -126,6 +129,5 @@ describe('MOTION_SPECS', () => {
     expect(MOTION_SPECS.friendlyTank.frames[0]).toBe('friendlyTankHull');
     expect(MOTION_SPECS.infantry.frames[0]).toBe('infantry');
     expect(MOTION_SPECS.friendlyInfantry.frames[0]).toBe('friendlyInfantry');
-    expect(MOTION_SPECS.mobileAa.frames[0]).toBe('aaHull');
   });
 });
