@@ -251,4 +251,18 @@ describe('Three Roads level', () => {
     // Wrecks are pruned, so a long mission doesn't accumulate every unit ever spawned.
     expect(sim.world.entities.length).toBeLessThan(160);
   });
+
+  it("a depot's row keeps reporting its road after the depot falls", () => {
+    const sim = new Simulation(threeRoads);
+    run(sim, 1);
+    const depot = sim.world.findByRef('westDepot');
+    if (!depot) throw new Error('no depot');
+    killEntity(sim.world, depot, true);
+    run(sim, 0.1);
+    const row = sim.world.objectives.find((o) => o.id === 'westDepot');
+    expect(row?.status).toBe('completed');
+    expect(row?.detail.toLowerCase()).toBe('destroyed');
+    run(sim, 3);
+    expect(row?.detail).toMatch(/^Depot down · road /);
+  });
 });

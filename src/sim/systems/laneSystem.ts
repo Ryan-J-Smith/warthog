@@ -6,6 +6,9 @@ import { ENEMY_WAVE_TAG, laneBroken, laneControl, laneLead, laneUnits } from './
 import { endMission } from './missionSystem';
 import { SimSystem, type StepContext } from './simSystem';
 
+/** Seconds after a depot falls before its row goes back to reporting the road. */
+const DEPOT_DETAIL_DELAY = 2;
+
 /** Lane meter below which the road is "collapsing" (enemy armour 70 % of the way to our HQ). */
 const COLLAPSE_AT = 0.3;
 /** …and above which the warning re-arms. */
@@ -54,14 +57,24 @@ export class LaneSystem extends SimSystem {
     }
   }
 
+  /** Sim time each lane's depot objective was first seen completed. */
+  private readonly depotDownAt = new Map<string, number>();
+
   private updateLane(world: World, lane: LaneDefinition): void {
     const control = laneControl(world, lane);
     const hostiles = laneUnits(world, lane.id, 'enemy').length;
     const state = lane.objectiveId ? world.objectives.find((o) => o.id === lane.objectiveId) : undefined;
+    const front = control < COLLAPSE_AT ? 'collapsing' : `${Math.round(control * 100)}%`;
+    const road = `${front} · ${hostiles} hostile${hostiles === 1 ? '' : 's'}`;
     if (state && state.status === 'active') {
       state.meter = control;
-      const front = control < COLLAPSE_AT ? 'collapsing' : `${Math.round(control * 100)}%`;
-      state.detail = `Road ${front} · ${hostiles} hostile${hostiles === 1 ? '' : 's'}`;
+      state.detail = `Road ${road}`;
+    } else if (state && state.status === 'completed') {
+      // Keep reporting the road once its depot is down (after the "DESTROYED" banner has read
+      // the objective's own detail).
+      const since = this.depotDownAt.get(lane.id) ?? world.time;
+      this.depotDownAt.set(lane.id, since);
+      if (world.time - since >= DEPOT_DETAIL_DELAY) state.detail = `Depot down · road ${road}`;
     }
     if (this.routed) return;
 
