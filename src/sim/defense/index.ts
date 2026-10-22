@@ -11,4 +11,5 @@ export {
   type StructureDefinition,
   type ArmoryDefinition,
 } from './catalog';
-export { PAD_RADIUS, ARMORY_RADIUS, initDefense, type DefensePhase, type PadState, type DefenseState } from './defenseState';
+export { PAD_RADIUS, ARMORY_RADIUS, initDefense, structureCost, type DefensePhase, type PadState, type DefenseState } from './defenseState';
+export { PERKS, PERK_ORDER, DRAFT_SIZE, baseModifiers, type PerkId, type PerkDefinition, type DefenseModifiers } from './perks';

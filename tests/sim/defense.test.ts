@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { holdTheLine } from '../../src/content/levels';
 import { killEntity } from '../../src/sim/combat';
-import { STRUCTURES } from '../../src/sim/defense';
+import { STRUCTURES, structureCost } from '../../src/sim/defense';
 import { Simulation } from '../../src/sim/simulation';
 import { createEntity } from '../../src/sim/spawning';
 import { DEFENSE_GARRISON_TAG, DEFENSE_SORTIE_TAG, DEFENSE_WAVE_TAG, destroyPlayer } from '../../src/sim/systems';
@@ -127,6 +127,7 @@ describe('base defence', () => {
   it('clearing the last wave wins; losing the base loses', () => {
     const won = sim();
     for (let i = 0; i < (holdTheLine.defense?.waves.length ?? 0); i++) {
+      if (defense(won).offer) run(won, 1 / 60, { select: 'gun' });
       run(won, 1 / 60, { ready: true });
       clearWave(won);
     }
@@ -143,7 +144,10 @@ describe('base defence', () => {
 
   it('with no defences and no pilot, the base falls before the last wave', () => {
     const s = sim();
-    for (let t = 0; t < 1800 && !s.world.ended; t += 1) run(s, 1, { ready: defense(s).phase === 'build' });
+    for (let t = 0; t < 1800 && !s.world.ended; t += 1) {
+      if (defense(s).offer) run(s, 1 / 60, { select: 'gun' });
+      run(s, 1, { ready: defense(s).phase === 'build' });
+    }
     expect(s.world.results?.outcome).toBe('defeat');
   }, 60_000);
 });
@@ -175,5 +179,67 @@ describe('base defence: controls', () => {
     press(s, padPos(s, 'n2'), 'maverick');
     expect(defense(s).pads.find((p) => p.id === 'n2')?.structure).toBe('bunker');
     expect(s.world.player.selectedWeapon).toBe('gun');
+  });
+});
+
+describe('base defence: draft cards', () => {
+  function afterFirstWave(): Simulation {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    clearWave(s);
+    return s;
+  }
+
+  it('offers three different cards after a wave, and R waits until one is taken', () => {
+    const s = afterFirstWave();
+    const offer = defense(s).offer;
+    expect(offer).toHaveLength(3);
+    expect(new Set(offer).size).toBe(3);
+    run(s, 1 / 60, { ready: true });
+    expect(defense(s).phase).toBe('build');
+    expect(defense(s).notice?.good).toBe(false);
+  });
+
+  it('a number key takes the card, applies it and closes the draft (over a pad too)', () => {
+    const s = afterFirstWave();
+    const offer = defense(s).offer ?? [];
+    const gold = defense(s).gold;
+    // Over a pad: the draft still takes the key, nothing gets built.
+    s.world.player.pos = { ...padPos(s, 'w1') };
+    run(s, 1 / 60, { select: 'rockets' });
+    expect(defense(s).perks).toEqual([offer[1]]);
+    expect(defense(s).offer).toBeNull();
+    expect(defense(s).pads.find((p) => p.id === 'w1')?.structure).toBeNull();
+    if (offer[1] === 'supplyDrop') expect(defense(s).gold).toBe(gold + 150);
+    run(s, 1 / 60, { ready: true });
+    expect(defense(s).phase).toBe('wave');
+  });
+
+  it('perks change the rules: requisitions cut costs, war bonds raise kill gold, hot spare shortens respawn', () => {
+    const s = sim();
+    const d = defense(s);
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'gun' });
+    expect(structureCost(d, 'barracks', 0)).toBe(Math.round((STRUCTURES.barracks.costs[0] ?? 0) * 0.75));
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'rockets' });
+    expect(d.mods.goldMultiplier).toBeCloseTo(1.5);
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'maverick' });
+    destroyPlayer(s.world);
+    expect(s.world.player.respawnIn).toBe(3);
+  });
+
+  it('non-repeatable cards are never offered twice', () => {
+    const s = sim();
+    const d = defense(s);
+    d.offer = ['warBonds', 'supplyDrop', 'veterans'];
+    run(s, 1 / 60, { select: 'gun' });
+    for (let i = 0; i < (holdTheLine.defense?.waves.length ?? 0) - 1; i++) {
+      run(s, 1 / 60, { ready: true });
+      clearWave(s);
+      expect(d.offer ?? []).not.toContain('warBonds');
+      run(s, 1 / 60, { select: 'gun' });
+    }
   });
 });

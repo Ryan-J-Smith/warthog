@@ -1,5 +1,5 @@
 import type { GroundRoundKind } from '../../config';
-import type { ArmoryId, StructureId } from '../defense';
+import type { ArmoryId, PerkId, StructureId } from '../defense';
 import type { Vec2 } from '../math';
 import type {
   AltitudeBand,
@@ -58,6 +58,8 @@ export type SimEvent =
   /** A flak battery fired a shell at a gunship; it bursts at `to` after `flightTime`. */
   | { type: 'flakFired'; from: Vec2; to: Vec2; flightTime: number }
   | { type: 'flakBurst'; pos: Vec2; hit: boolean }
+  /** Base defence: a draft card was taken. */
+  | { type: 'perkTaken'; perk: PerkId }
   | { type: 'defenseWaveCleared'; wave: number; total: number; bonus: number }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }
