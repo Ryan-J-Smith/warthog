@@ -20,7 +20,7 @@ const COLORS = {
 /** Seconds a flak burst ring lasts. */
 const BURST_TIME = 0.35;
 
-const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'GUNSHIP' };
+const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'HELO' };
 const LEVEL_MARK = ['', 'I', 'II', 'III'] as const;
 /** World units between the chevrons drawn along a road the next wave will use. */
 const CHEVRON_STEP = 220;

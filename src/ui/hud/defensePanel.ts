@@ -14,7 +14,7 @@ const PAD = 16;
 /** Seconds a build notice stays up. */
 const NOTICE_TIME = 3;
 
-const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'GUNSHIP' };
+const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'HELO' };
 
 /**
  * Base defence: wave counter and gold, the phase ("PRESS R TO LAUNCH"), the next wave road by
@@ -40,7 +40,7 @@ export class DefensePanel extends HudWidget {
     this.header = scene.add.text(PAD, 12, '', textStyle({ size: 26, font: 'display', color: COLOR.green, glow: 8 }));
     this.gold = scene.add.text(W - PAD, 14, '', textStyle({ size: 24, color: COLOR.amber })).setOrigin(1, 0);
     this.phase = scene.add.text(PAD, 52, '', textStyle({ size: 19, color: COLOR.amber }));
-    this.body = scene.add.text(PAD, 84, '', textStyle({ size: 18, color: COLOR.white, glow: false }));
+    this.body = scene.add.text(PAD, 84, '', textStyle({ size: 18, color: COLOR.white, glow: false, wrap: W - PAD * 2 }));
     this.menu = scene.add.text(PAD, 0, '', textStyle({ size: 18, color: COLOR.greenBright, glow: false, wrap: W - PAD * 2 }));
     this.notice = scene.add.text(PAD, 0, '', textStyle({ size: 18, color: COLOR.green, glow: false, wrap: W - PAD * 2 }));
     this.container = scene.add.container(X, Y, [this.bg, this.header, this.gold, this.phase, this.body, this.menu, this.notice]);

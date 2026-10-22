@@ -65,6 +65,8 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
+  /** The weapon selected before this step (a build key also selects a weapon; this undoes that). */
+  private lastWeapon: WeaponId | null = null;
   /** Next time each flak pad may fire. */
   private readonly flakReady = new Map<string, number>();
 
@@ -74,6 +76,8 @@ export class DefenseSystem extends SimSystem {
     if (!def || !state || world.ended) return;
     this.baseLoadout ??= world.loadout;
     this.payKills(world, def, state);
+    const weaponBefore = this.lastWeapon;
+    this.lastWeapon = world.player.selectedWeapon;
 
     const base = world.findByRef(def.baseRefId);
     if (!base || !base.alive) {
@@ -88,7 +92,14 @@ export class DefenseSystem extends SimSystem {
       // (and takes the number keys) until another pad is flown over.
       state.activePad = activePad(world, state) ?? state.activePad;
       const option = input.select ? OPTION_INDEX[input.select] : undefined;
-      if (option !== undefined && state.activePad) this.choose(world, def, state, state.activePad, option);
+      if (option !== undefined && state.activePad) {
+        this.choose(world, def, state, state.activePad, option);
+        // The number key was a build order, not a weapon change.
+        if (weaponBefore) {
+          world.player.selectedWeapon = weaponBefore;
+          this.lastWeapon = weaponBefore;
+        }
+      }
       if (input.ready) this.launchWave(world, def, state);
     } else if (state.phase === 'wave') {
       state.activePad = null;

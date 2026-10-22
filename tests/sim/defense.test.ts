@@ -166,3 +166,14 @@ describe('base defence: flak', () => {
     expect(heli.alive).toBe(false);
   });
 });
+
+describe('base defence: controls', () => {
+  it('a build key does not change the selected weapon', () => {
+    const s = sim();
+    run(s, 0.1);
+    expect(s.world.player.selectedWeapon).toBe('gun');
+    press(s, padPos(s, 'n2'), 'maverick');
+    expect(defense(s).pads.find((p) => p.id === 'n2')?.structure).toBe('bunker');
+    expect(s.world.player.selectedWeapon).toBe('gun');
+  });
+});
