@@ -194,7 +194,7 @@ export class EffectsDirector extends SimEventListener {
         break;
       case 'samEvaded':
         kit.flash('air', e.pos.x, e.pos.y, 40, 0.15, 0xfff0c0, 0.8);
-        this.texts.spawn(e.pos.x, e.pos.y - 40, 'MISSED!', true);
+        this.texts.spawn(e.pos.x, e.pos.y - 80, 'MISSED!', true);
         break;
       case 'zoneCleared':
         kit.ring('ground', e.pos.x, e.pos.y, 60, 520, 0.9, 0xffd24a, 0.8, true);
