@@ -48,6 +48,14 @@ const WRECK_KEEP = 8;
 /** Flak shell speed (world units / s) and how close to the aim point a gunship must be to be hit. */
 const FLAK_SPEED = 900;
 const FLAK_BURST_RADIUS = 70;
+/**
+ * Leaks, tower-defence style: a wave unit that gets this close to the base breaks through. It
+ * chips a fixed share of the base's integrity and is gone, so the base bleeds instead of
+ * surviving at 100 % until a parked column kills it in one go.
+ */
+const LEAK_RADIUS = 560;
+const LEAK_SHARE: Partial<Record<EntityKind, number>> = { infantry: 0.04, truck: 0.04, mobileAa: 0.06, tank: 0.1, mlrs: 0.08 };
+const LEAK_SHARE_DEFAULT = 0.06;
 
 /** A flak shell in flight. */
 interface FlakShell {
@@ -120,6 +128,9 @@ export class DefenseSystem extends SimSystem {
     } else if (state.phase === 'wave') {
       state.activePad = null;
       this.updateFlak(world, state);
+      leaks(world, state, base);
+      if (!base.alive) return;
+      rallyGunships(world, base.pos);
       state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
       if (state.remaining === 0) this.waveCleared(world, def, state);
     }
@@ -489,5 +500,33 @@ function shuffleLanes(world: World, def: DefenseDefinition, state: DefenseState)
       const k = ids.indexOf(group.laneId);
       group.laneId = perm[k] ?? group.laneId;
     }
+  }
+}
+
+/** Wave ground units that reach the base break through: chip its integrity and leave the field. */
+function leaks(world: World, state: DefenseState, base: Entity): void {
+  const through = world.entities.filter(
+    (e) => e.alive && !e.heli && e.tags.includes(DEFENSE_WAVE_TAG) && distance(e.pos, base.pos) <= LEAK_RADIUS,
+  );
+  if (through.length === 0) return;
+  let share = 0;
+  for (const unit of through) {
+    const s = LEAK_SHARE[unit.kind] ?? LEAK_SHARE_DEFAULT;
+    share += s;
+    world.emit({ type: 'baseBreached', kind: unit.kind, pos: { ...unit.pos }, share: s });
+  }
+  const gone = new Set(through.map((e) => e.id));
+  world.entities = world.entities.filter((e) => !gone.has(e.id));
+  damageEntity(world, base, base.maxHp * share, 'ground');
+  const pct = Math.round(share * 100);
+  notice(world, state, `${through.length === 1 ? 'A UNIT' : `${through.length} UNITS`} BROKE THROUGH · BASE −${pct}%`, false);
+}
+
+/** Wave gunships with nothing to shoot circle the base instead of loitering where they spawned. */
+function rallyGunships(world: World, basePos: Vec2): void {
+  for (const e of world.entities) {
+    const h = e.heli;
+    if (!e.alive || !h || !e.tags.includes(DEFENSE_WAVE_TAG) || h.targetId !== null || h.path) continue;
+    h.loiter = { ...basePos };
   }
 }

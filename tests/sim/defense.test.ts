@@ -263,3 +263,18 @@ describe('base defence: run variety', () => {
     });
   });
 });
+
+describe('base defence: leaks', () => {
+  it('a wave unit that reaches the base chips its integrity and leaves the field', () => {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    const base = s.world.findByRef('base');
+    const [unit] = waveUnits(s);
+    if (!base || !unit) throw new Error('setup');
+    unit.pos = { x: base.pos.x, y: base.pos.y - 300 };
+    run(s, 1 / 60);
+    expect(s.world.entities.includes(unit)).toBe(false);
+    expect(base.hp / base.maxHp).toBeCloseTo(0.96, 2);
+    expect(defense(s).notice?.text).toContain('BROKE THROUGH');
+  });
+});

@@ -108,9 +108,9 @@ export const holdTheLine: LevelDefinition = {
   defense: {
     baseRefId: 'base',
     startGold: 200,
-    waveBonus: 60,
-    waveBonusStep: 15,
-    goldPerKillPoint: 0.1,
+    waveBonus: 40,
+    waveBonusStep: 10,
+    goldPerKillPoint: 0.06,
     respawnDelay: 8,
     waveSpeed: 34,
     shuffleLanes: true,

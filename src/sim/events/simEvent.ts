@@ -58,6 +58,8 @@ export type SimEvent =
   /** A flak battery fired a shell at a gunship; it bursts at `to` after `flightTime`. */
   | { type: 'flakFired'; from: Vec2; to: Vec2; flightTime: number }
   | { type: 'flakBurst'; pos: Vec2; hit: boolean }
+  /** Base defence: a wave unit broke through to the base (it chipped `share` of its integrity). */
+  | { type: 'baseBreached'; kind: EntityKind; pos: Vec2; share: number }
   /** Base defence: a draft card was taken. */
   | { type: 'perkTaken'; perk: PerkId }
   | { type: 'defenseWaveCleared'; wave: number; total: number; bonus: number }

@@ -19,6 +19,7 @@ const COLORS = {
 
 /** Seconds a flak burst ring lasts. */
 const BURST_TIME = 0.35;
+const BREACH_TIME = 0.8;
 
 const SHORT: Partial<Record<EntityKind, string>> = { tank: 'TANK', infantry: 'INF', mobileAa: 'AA', truck: 'TRUCK', mlrs: 'MLRS', helicopter: 'HELO' };
 const LEVEL_MARK = ['', 'I', 'II', 'III'] as const;
@@ -45,12 +46,15 @@ export class DefenseOverlay {
   /** Flak shells in flight and bursts, in real (render) seconds. */
   private shells: Array<{ from: Vec2; to: Vec2; age: number; flight: number }> = [];
   private bursts: Array<{ pos: Vec2; age: number; hit: boolean }> = [];
+  /** Red shockwaves where wave units broke through to the base. */
+  private breaches: Array<{ pos: Vec2; age: number }> = [];
 
   /** Flak fire is drawn here: blue shells with a white core, and a ring where they burst. */
   handleEvents(events: readonly SimEvent[]): void {
     for (const e of events) {
       if (e.type === 'flakFired') this.shells.push({ from: e.from, to: e.to, age: 0, flight: e.flightTime });
       else if (e.type === 'flakBurst') this.bursts.push({ pos: e.pos, age: 0, hit: e.hit });
+      else if (e.type === 'baseBreached') this.breaches.push({ pos: e.pos, age: 0 });
     }
   }
 
@@ -135,6 +139,12 @@ export class DefenseOverlay {
       g.fillCircle(x, y, 11 * px);
       g.fillStyle(COLORS.flakCore, 1);
       g.fillCircle(x, y, 5 * px);
+    }
+    this.breaches = this.breaches.filter((b) => (b.age += dt) < BREACH_TIME);
+    for (const b of this.breaches) {
+      const t = b.age / BREACH_TIME;
+      g.lineStyle(6 * px, COLORS.threat, 1 - t);
+      g.strokeCircle(b.pos.x, b.pos.y, 30 + 140 * t);
     }
     this.bursts = this.bursts.filter((b) => (b.age += dt) < BURST_TIME);
     for (const b of this.bursts) {
