@@ -37,7 +37,7 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
   'river-crossing': {
     column:
       'An armor column is rolling down the river road toward the only bridge. Drop the bridge with bombs from MEDIUM or HIGH before they cross — or kill every vehicle.',
-    bridgeIntact: 'Kill the column and keep the bridge: our armor will cross it and storm the SAM nest. Drop the bridge only if you must.',
+    bridgeIntact: 'Kill the column and keep the bridge: our armor will cross it for a counter-attack on the SAM nest. Drop the bridge only if you must.',
     outpost:
       'Outpost Bravo is under assault from the east, and a second wave is on its way. Break both waves and Bravo\'s pad becomes your forward rearm point.',
     sam: 'SAM site Tango and its laser AA nest cover the bridge. Clear the whole nest for a supply drop.',
