@@ -58,6 +58,10 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
     depot: 'The ammo dump north of the hills, ringed by triple-A. A long way from the roads: worth it only if you can spare the time.',
     sam: 'A SAM site covers the east highway. Kill it and the whole road is yours at any altitude.',
   },
+  'hold-the-line': {
+    base:
+      'Eight waves, three roads, one base. Between waves there is no clock: fly over a pad and press 1-4 to build (barracks, tank depot, bunker, flak), over the airstrip for upgrades, then R to launch. Every wave is shown before it comes. Kills pay gold; being shot down only costs time.',
+  },
 };
 
 function fallbackNote(def: ObjectiveDefinition): string {

@@ -21,11 +21,12 @@ import {
 } from '../ui/widgets';
 import { SCENES, type BriefingSceneData } from './sceneKeys';
 
-const LIST = { x: 96, y: 236, w: 820, row: 132, gap: 14, viewH: 724 } as const;
+// Rows sized so four missions fit above the difficulty picker.
+const LIST = { x: 96, y: 236, w: 820, row: 118, gap: 8, viewH: 504 } as const;
 const PREVIEW = { x: 980, y: 236, w: 844, h: 724 } as const;
 /** Preview map area inside the panel (the baked briefing map is 4:3). */
 /** Difficulty selector, under the mission list. */
-const DIFFICULTY = { x: LIST.x + 20, y: 720 } as const;
+const DIFFICULTY = { x: LIST.x + 20, y: LIST.y + LIST.viewH + 16 } as const;
 const MAP = { x: PREVIEW.x + 30, y: PREVIEW.y + 104, w: 784, h: 320 } as const;
 /** The challenge list's first row, under the best line. */
 const CHALLENGES_Y = MAP.y + MAP.h + 170;
@@ -165,14 +166,14 @@ export class LevelSelectScene extends Phaser.Scene {
     const best = saveStoreFor(this.game).bestFor(level.id);
     const h = LIST.row;
     const number = this.add.text(30, h / 2, String(i + 1).padStart(2, '0'), textStyle({ size: 56, font: 'display', color: COLOR.greenFaint, glow: false })).setOrigin(0, 0.5);
-    const name = this.add.text(128, 26, level.name.toUpperCase(), textStyle({ size: 34, color: COLOR.greenDim, glow: false }));
-    const tagline = this.add.text(128, 74, level.tagline, textStyle({ size: 19, color: COLOR.grey, glow: false, wrap: LIST.w - 330 }));
+    const name = this.add.text(128, 18, level.name.toUpperCase(), textStyle({ size: 34, color: COLOR.greenDim, glow: false }));
+    const tagline = this.add.text(128, 62, level.tagline, textStyle({ size: 19, color: COLOR.grey, glow: false, wrap: LIST.w - 330 }));
     const badge = createGradeBadge(this, LIST.w - 66, h / 2, 76, best?.bestGrade ?? null);
     const bestText = this.add
       .text(LIST.w - 124, h / 2, best ? `BEST\n${formatScore(best.bestScore)}` : 'NOT\nFLOWN', textStyle({ size: 19, color: COLOR.greenDim, glow: false, align: 'right' }))
       .setOrigin(1, 0.5);
     // Challenge medals, after the name.
-    const medals = createMedalPips(this, 128 + name.width + 22, 26 + name.height / 2, saveStoreFor(this.game).challengeStatus(level.id).map((s) => s.earned), 18);
+    const medals = createMedalPips(this, 128 + name.width + 22, 18 + name.height / 2, saveStoreFor(this.game).challengeStatus(level.id).map((s) => s.earned), 18);
     row.add([number, name, tagline, badge, bestText, medals]);
     return (selected) => {
       number.setColor(css(selected ? COLOR.green : COLOR.greenFaint));

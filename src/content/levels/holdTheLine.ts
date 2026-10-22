@@ -36,7 +36,7 @@ const EAST_ROAD: Vec2[] = [
 export const holdTheLine: LevelDefinition = {
   id: 'hold-the-line',
   name: 'Hold the Line',
-  tagline: 'Build between waves. Fly during them. Keep the base standing.',
+  tagline: 'Build between waves. Fly during them. Hold the base.',
   width: 4400,
   height: 3400,
   seed: 4401,
