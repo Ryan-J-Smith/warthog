@@ -1,5 +1,4 @@
 import {
-  ARMOR_MULTIPLIER,
   BOMBS,
   ENTITY_STATS,
   FLARES,
@@ -10,6 +9,7 @@ import {
   ROCKETS,
   WEAPON_BANDS,
 } from '../../config';
+import { canDamage } from '../combat';
 import type { Entity, Projectile } from '../entities';
 import {
   angleDelta,
@@ -390,14 +390,10 @@ function offsetFrom(pos: Vec2, heading: number, forward: number, side: number): 
 
 /** Is there a hostile entity this weapon can damage within `radius` of `point`? */
 function hostileNear(world: World, point: Vec2, radius: number, weapon: WeaponId): boolean {
-  const table = ARMOR_MULTIPLIER[DAMAGE_TYPE[weapon]];
+  // Only light the reticle over something this weapon can hurt (bombs pass under helicopters).
+  const source = DAMAGE_TYPE[weapon];
   return world.entities.some(
-    (e) =>
-      e.alive &&
-      !e.hidden &&
-      e.team === 'enemy' &&
-      table[e.armor] > 0 &&
-      distance(e.pos, point) <= radius + e.radius,
+    (e) => e.alive && !e.hidden && e.team === 'enemy' && canDamage(e, source) && distance(e.pos, point) <= radius + e.radius,
   );
 }
 
