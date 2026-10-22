@@ -39,6 +39,15 @@ export interface PendingSecondary {
   pos: Vec2;
 }
 
+/** The GAU-8 pass in progress (see `STRAFE`). */
+export interface StrafeState {
+  kills: number;
+  /** When the last round of this pass landed. */
+  lastRoundAt: number;
+  /** Where the last kill happened (the bonus pops there). */
+  lastKillPos: Vec2 | null;
+}
+
 /** Player combat statistics used for the results screen. */
 export interface CombatStats {
   kills: number;
@@ -90,6 +99,7 @@ export class World implements WorldView {
   pendingRounds: PendingRound[] = [];
   groundRounds: GroundRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
+  strafe: StrafeState = { kills: 0, lastRoundAt: -Infinity, lastKillPos: null };
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
   /** Convoy vehicles that reached the end of their road (score-attack missions). */
   escapes = 0;

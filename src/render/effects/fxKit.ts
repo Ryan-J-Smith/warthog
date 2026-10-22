@@ -405,9 +405,10 @@ export class FxKit {
       p.rotation = Math.random() * 6.28;
       p.ramp = hit && !armored ? RAMPS.smokeDark : RAMPS.dust;
     }
-    if (armored) this.sparks('ground', x, y, 5, 70, 230, 0.32, 10);
-    else if (Math.random() < 0.5) {
-      // Dirt spurt: a short streak of soil kicked up.
+    if (armored) this.sparks('ground', x, y, hit ? 8 : 5, 70, 260, 0.36, hit ? 13 : 10);
+    // Dirt spurts: short streaks of soil kicked up (always, and two of them, on a soft hit).
+    const spurts = armored ? 0 : hit ? 2 : Math.random() < 0.5 ? 1 : 0;
+    for (let i = 0; i < spurts; i++) {
       const p = this.layers.groundOver.spawn(TEX.spark, x, y);
       if (p) {
         const a = Math.random() * Math.PI * 2;

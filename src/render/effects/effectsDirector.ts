@@ -222,6 +222,14 @@ export class EffectsDirector extends SimEventListener {
         break;
       case 'scoreAwarded':
         if (e.pos && e.points !== 0) this.texts.spawn(e.pos.x, e.pos.y - 18, `${e.points > 0 ? '+' : ''}${e.points}`, e.points > 0);
+        if (e.pos && e.reason.startsWith('STRAFE')) this.texts.spawn(e.pos.x, e.pos.y - 60, e.reason, true);
+        break;
+      case 'strafeKill':
+        // Multi-kill on a gun pass: a dirt geyser where the unit went down.
+        kit.flash('ground', e.pos.x, e.pos.y, 34, 0.1, 0xffe0a0, 0.8);
+        kit.dustRing(e.pos.x, e.pos.y, 16, 8);
+        kit.debris('ground', e.pos.x, e.pos.y, 6, 160, 0x5a4a32, 4);
+        kit.shaker.shakeAt(e.pos.x, e.pos.y, 0.003, 120);
         break;
       default:
         break;
