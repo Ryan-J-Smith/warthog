@@ -123,7 +123,15 @@ export class DefenseSystem extends SimSystem {
     const upgrade = pad.level > 0;
     pad.structure = id;
     pad.level += 1;
-    if (s.mode === 'garrison') refillGarrison(world, def, pad);
+    if (s.mode === 'garrison') {
+      // An upgrade re-forms the garrison on the bigger slot ring.
+      if (upgrade) {
+        const old = new Set(pad.garrison);
+        world.entities = world.entities.filter((e) => !old.has(e.id));
+        pad.garrison = [];
+      }
+      refillGarrison(world, def, pad);
+    }
     notice(world, state, upgrade ? `${s.name} UPGRADED TO LEVEL ${pad.level}` : `${s.name} BUILT`, true);
     world.emit({ type: 'structureBuilt', padId: pad.id, structure: id, level: pad.level, pos: { ...pad.pos } });
   }
@@ -272,18 +280,27 @@ function sortieRoute(world: World, def: DefenseDefinition, pad: PadState): Vec2[
   return [{ ...pad.pos }, ...path.slice(0, nearest + 1).reverse().map((pt) => ({ ...pt }))];
 }
 
-/** Replace a bunker's fallen garrison (and add units after an upgrade). */
+/** Bunker slot ring radius per level (matches the hull-down slots drawn in the structure art). */
+const SLOT_RADIUS = [62, 74] as const;
+
+/** Replace a bunker's fallen garrison (and add units after an upgrade), one per free slot. */
 function refillGarrison(world: World, def: DefenseDefinition, pad: PadState): void {
   const s = STRUCTURES[pad.structure ?? 'bunker'];
   const want = s.count[pad.level - 1] ?? 0;
-  pad.garrison = pad.garrison.filter((id) => world.findById(id)?.alive);
+  const ring = SLOT_RADIUS[Math.min(pad.level, SLOT_RADIUS.length) - 1] ?? SLOT_RADIUS[0];
+  const alive = pad.garrison.map((id) => world.findById(id)).filter((e): e is Entity => e?.alive === true);
+  pad.garrison = alive.map((e) => e.id);
   const lane = def.lanes.find((l) => l.id === pad.laneId);
   const path = lane ? world.level.paths[lane.pathId] : undefined;
   const facing = path && path[0] ? angleOf(sub(path[0], pad.pos)) : -Math.PI / 2;
-  for (let i = pad.garrison.length; i < want; i++) {
-    const a = facing + Math.PI / 2 + ((i - (want - 1) / 2) * Math.PI) / Math.max(want, 3);
-    const pos = { x: pad.pos.x + Math.cos(a) * 70, y: pad.pos.y + Math.sin(a) * 70 };
+  for (let i = 0; i < want && pad.garrison.length < want; i++) {
+    // Slots at -90° + i·360°/n, facing outward.
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / want;
+    const pos = { x: pad.pos.x + Math.cos(a) * ring, y: pad.pos.y + Math.sin(a) * ring };
+    if (alive.some((e) => distance(e.pos, pos) < 20)) continue;
     const unit = createEntity(world, s.unit, pos, { headingRad: facing, tags: [DEFENSE_GARRISON_TAG, `pad:${pad.id}`] });
+    unit.heading = a;
+    unit.turretHeading = facing;
     strengthen(unit, s, pad.level);
     world.entities.push(unit);
     pad.garrison.push(unit.id);
