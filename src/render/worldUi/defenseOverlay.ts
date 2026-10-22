@@ -103,7 +103,7 @@ export class DefenseOverlay {
       }
     }
 
-    const next = building ? def.waves[state.wave] : undefined;
+    const next = building ? state.waves[state.wave] : undefined;
     for (const lane of def.lanes) {
       const units = next?.lanes.find((l) => l.laneId === lane.id)?.units ?? [];
       const label = this.label(this.laneLabels, lane.id);

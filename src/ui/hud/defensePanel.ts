@@ -58,7 +58,7 @@ export class DefensePanel extends HudWidget {
 
     if (state.phase === 'build') {
       this.phase.setText(state.offer ? 'PICK A CARD · 1 / 2 / 3' : 'BUILD PHASE · PRESS R TO LAUNCH').setColor(css(COLOR.amber)).setAlpha(blink(now, 1.2) ? 1 : 0.55);
-      const next = def.waves[state.wave];
+      const next = state.waves[state.wave];
       const lines = ['NEXT WAVE'];
       for (const lane of def.lanes) {
         const units = next?.lanes.find((l) => l.laneId === lane.id)?.units ?? [];

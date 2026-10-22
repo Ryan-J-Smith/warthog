@@ -205,10 +205,11 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
       const from = compassWord(compassDirection(centre, start));
       const waves = defense.waves.filter((w) => w.lanes.some((l) => l.laneId === lane.id && l.units.length > 0)).length;
       const air = i === 0 && firstHelo >= 0 ? ` Gunships from wave ${firstHelo + 1}: only flak and your gun can touch them.` : '';
+      const use = defense.shuffleLanes ? 'which waves take it changes every run; check the preview' : `used by ${waves} of ${defense.waves.length} waves`;
       intel.push({
         kind: 'armor',
         routeLabel: 'WAVES',
-        text: `Attack road from the ${from}: used by ${waves} of ${defense.waves.length} waves.${air}`,
+        text: `Attack road from the ${from}: ${use}.${air}`,
         positions: [{ ...start }],
         route: path.map((p) => ({ ...p })),
       });

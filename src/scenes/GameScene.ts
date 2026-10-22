@@ -53,7 +53,9 @@ export class GameScene extends Phaser.Scene {
   create(data: GameSceneData): void {
     this.levelId = data.levelId;
     const level = getLevel(data.levelId);
-    this.sim = new Simulation(level, undefined, undefined, loadoutForGame(this.game), difficultyForGame(this.game));
+    // Base defence deals its roads and draft cards from the seed, so every run gets a fresh one.
+    const seed = level.defense ? Math.floor(Math.random() * 2 ** 31) : undefined;
+    this.sim = new Simulation(level, seed, undefined, loadoutForGame(this.game), difficultyForGame(this.game));
     this.finishing = false;
     this.hitStopMs = 0;
     this.slowMoMs = 0;

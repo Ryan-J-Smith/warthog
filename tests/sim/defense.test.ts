@@ -243,3 +243,23 @@ describe('base defence: draft cards', () => {
     }
   });
 });
+
+describe('base defence: run variety', () => {
+  const roads = (seed: number): string => {
+    const s = new Simulation(holdTheLine, seed);
+    run(s, 1 / 60);
+    return defense(s).waves.map((w) => w.lanes.map((l) => `${l.laneId}:${l.units.length}`).join(',')).join(' | ');
+  };
+
+  it('deals the roads from the seed: same seed same run, other seeds differ, unit counts kept', () => {
+    expect(roads(7)).toBe(roads(7));
+    const seen = new Set([1, 2, 3, 4, 5].map(roads));
+    expect(seen.size).toBeGreaterThan(1);
+    const s = new Simulation(holdTheLine, 3);
+    run(s, 1 / 60);
+    defense(s).waves.forEach((w, i) => {
+      const count = (lanes: readonly { units: readonly unknown[] }[]) => lanes.reduce((n, l) => n + l.units.length, 0);
+      expect(count(w.lanes)).toBe(count(holdTheLine.defense?.waves[i]?.lanes ?? []));
+    });
+  });
+});

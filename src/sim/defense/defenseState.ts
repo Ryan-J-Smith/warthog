@@ -1,4 +1,4 @@
-import type { LevelDefinition } from '../level';
+import type { DefenseWaveDefinition, LevelDefinition } from '../level';
 import type { Vec2 } from '../math';
 import { STRUCTURES, type ArmoryId, type StructureId } from './catalog';
 import { baseModifiers, type DefenseModifiers, type PerkId } from './perks';
@@ -39,6 +39,8 @@ export interface DefenseState {
   mods: DefenseModifiers;
   /** Seconds out of the fight after being shot down. */
   respawnDelay: number;
+  /** This run's waves (the level's, with roads shuffled when the level asks for it). */
+  waves: DefenseWaveDefinition[];
 }
 
 /** Radius the player must be within (on the ground plane) to use a pad. */
@@ -64,6 +66,7 @@ export function initDefense(level: LevelDefinition): DefenseState | null {
     perks: [],
     mods: baseModifiers(),
     respawnDelay: def.respawnDelay,
+    waves: def.waves.map((w) => ({ lanes: w.lanes.map((l) => ({ laneId: l.laneId, units: [...l.units] })) })),
   };
 }
 
