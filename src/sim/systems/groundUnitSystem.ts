@@ -106,7 +106,7 @@ export class GroundUnitSystem extends SimSystem {
       return;
     }
     const heading = angleOf(to);
-    if (blockedAhead(world, unit, heading)) return;
+    if (!mover.formation && blockedAhead(world, unit, heading)) return;
 
     const turnRate = degToRad(ENTITY_STATS[unit.kind].turnRateDeg);
     const before = unit.heading;

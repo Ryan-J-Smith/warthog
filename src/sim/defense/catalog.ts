@@ -12,7 +12,8 @@ export interface StructureDefinition {
   /** Cost to build (level 1), then to upgrade to each further level. */
   costs: readonly number[];
   /**
-   * Units sent up the pad's road at the start of every wave (`sortie`), or dug in on the pad and
+   * Units that turn out at the start of every wave to hold the pad's road and fight whatever comes
+   * near (`sortie`), or dug in on the pad and
    * replaced between waves (`garrison`), or a flak battery that shoots gunships (`flak`).
    */
   mode: 'sortie' | 'garrison' | 'flak';
@@ -31,7 +32,7 @@ export const STRUCTURES: Record<StructureId, StructureDefinition> = {
   barracks: {
     id: 'barracks',
     name: 'BARRACKS',
-    blurb: 'Infantry squad marches out each wave',
+    blurb: 'Infantry squad guards its stretch of road',
     costs: [60, 90],
     mode: 'sortie',
     unit: 'friendlyInfantry',
@@ -42,7 +43,7 @@ export const STRUCTURES: Record<StructureId, StructureDefinition> = {
   depot: {
     id: 'depot',
     name: 'TANK DEPOT',
-    blurb: 'Tanks roll out each wave',
+    blurb: 'Tank platoon guards its stretch of road',
     costs: [110, 140],
     mode: 'sortie',
     unit: 'friendlyTank',

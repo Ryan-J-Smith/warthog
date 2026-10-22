@@ -304,42 +304,63 @@ describe('base defence: sorties', () => {
     return { x: units.reduce((n, u) => n + u.pos.x, 0) / units.length, y: units.reduce((n, u) => n + u.pos.y, 0) / units.length };
   }
 
-  it('march away from the base toward the enemy (never back first), and never jam', () => {
+  /** Build a barracks (upgraded `upgrades` times) on a pad and launch a wave that stays parked far away. */
+  function turnOut(padId: string, upgrades = 0): Simulation {
+    const s = sim();
+    defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
+    for (let i = 0; i <= upgrades; i++) press(s, padPos(s, padId), 'gun');
+    s.world.player.pos = { x: 4300, y: 3300 };
+    run(s, 1 / 60, { ready: true });
+    for (const e of waveUnits(s)) {
+      e.pos = { x: 60, y: 3340 };
+      if (e.mover) e.mover.halted = true;
+    }
+    return s;
+  }
+
+  it('form up on their road beside the pad and hold there when nothing comes', () => {
     for (const padId of ['w1', 'w2', 'n1', 'e1']) {
-      const s = sim();
-      // An empty wave on every road keeps the field clear, so only marching is tested.
-      defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
-      press(s, padPos(s, padId), 'gun');
-      s.world.player.pos = { x: 4300, y: 3300 };
-      run(s, 1 / 60, { ready: true });
-      const base = s.world.findByRef('base')?.pos ?? { x: 0, y: 0 };
-      const from = distance(centroid(sortie(s)), base);
-      run(s, 6);
-      const mid = centroid(sortie(s));
-      run(s, 6);
-      const late = centroid(sortie(s));
-      // Stepping onto the road can edge toward the base (it may pass closer than the pad); after
-      // that it is all away from it.
-      expect(distance(late, base), padId).toBeGreaterThan(from);
-      expect(distance(late, base), padId).toBeGreaterThan(distance(mid, base));
-      // Still walking (a jammed squad stops dead).
-      expect(distance(late, mid), padId).toBeGreaterThan(30);
+      const s = turnOut(padId);
+      run(s, 15);
+      const squad = sortie(s);
+      expect(squad.length, padId).toBe(STRUCTURES.barracks.count[0]);
+      for (const u of squad) {
+        expect(u.mover?.halted, padId).toBe(true);
+        expect(distance(u.pos, padPos(s, padId)), padId).toBeLessThan(260);
+        // One line, all facing the same way (up the road).
+        expect(Math.cos(u.heading - (squad[0]?.heading ?? 0)), padId).toBeGreaterThan(0.98);
+        for (const v of squad) if (v !== u) expect(distance(u.pos, v.pos), padId).toBeGreaterThan(45);
+      }
+      // Still there later: they hold, they don't wander off up the road.
+      const held = centroid(squad);
+      run(s, 15);
+      expect(distance(centroid(sortie(s)), held), padId).toBeLessThan(5);
     }
   });
 
-  it('advance on an enemy inside the aggro radius instead of waiting for it to come into range', () => {
-    const s = sim();
-    defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
-    press(s, padPos(s, 'n2'), 'gun');
-    s.world.player.pos = { x: 4300, y: 3300 };
-    run(s, 1 / 60, { ready: true });
+  it('spread into a firing line on an enemy inside the leash (every unit in range), then walk back', () => {
+    // Upgraded: 8 units, two ranks — the rear rank must not queue behind the front one.
+    const s = turnOut('n2', 1);
+    run(s, 15);
     const squad = sortie(s);
-    const c = centroid(squad);
-    // A parked enemy 450 away to the east: past weapon range (220), inside aggro range.
-    const foe = createEntity(s.world, 'infantry', { x: c.x + 450, y: c.y }, { tags: [DEFENSE_WAVE_TAG] });
+    expect(squad).toHaveLength(STRUCTURES.barracks.count[1] ?? -1);
+    const post = centroid(squad);
+    const facing = squad[0]?.heading ?? 0;
+    // A parked enemy up the road, past weapon range (220) but inside the leash.
+    const foe = createEntity(
+      s.world,
+      'infantry',
+      { x: post.x + Math.cos(facing) * 420, y: post.y + Math.sin(facing) * 420 },
+      { tags: [DEFENSE_WAVE_TAG] },
+    );
     foe.attacker = null;
+    foe.hp = foe.maxHp = 1e6;
     s.world.entities.push(foe);
-    run(s, 4);
-    expect(distance(centroid(sortie(s)), foe.pos)).toBeLessThan(400);
+    run(s, 12);
+    for (const u of sortie(s)) expect(u.attacker?.targetId).toBe(foe.id);
+    killEntity(s.world, foe, false);
+    run(s, 20);
+    expect(distance(centroid(sortie(s)), post)).toBeLessThan(10);
+    for (const u of sortie(s)) expect(u.mover?.halted).toBe(true);
   });
 });

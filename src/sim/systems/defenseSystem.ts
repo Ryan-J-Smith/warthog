@@ -19,10 +19,11 @@ import {
   type StructureDefinition,
   type StructureId,
 } from '../defense';
+import { ENTITY_STATS } from '../../config';
 import type { Entity } from '../entities';
 import type { DefenseDefinition } from '../level';
 import type { PlayerLoadout } from '../loadout';
-import { angleOf, distance, normalize, sub, type Vec2 } from '../math';
+import { angleOf, degToRad, distance, normalize, rotateToward, sub, type Vec2 } from '../math';
 import { damageEntity } from '../combat';
 import { createEntity } from '../spawning';
 import type { EntityKind, WeaponId } from '../types';
@@ -57,11 +58,29 @@ const LEAK_RADIUS = 560;
 const LEAK_SHARE: Partial<Record<EntityKind, number>> = { infantry: 0.04, truck: 0.04, mobileAa: 0.06, tank: 0.1, mlrs: 0.08 };
 const LEAK_SHARE_DEFAULT = 0.06;
 /**
- * Sortie units notice enemies this far away (well past weapon range) and advance on them, MOBA
- * creep style, instead of walking on until something happens to come into range.
+ * A squad fights any wave ground unit that comes this close to its post (well past weapon range),
+ * MOBA creep style, then walks back to its post.
  */
-const AGGRO_RADIUS = 520;
-const AGGRO_INTERVAL = 0.25;
+const LEASH_RADIUS = 520;
+const ORDERS_INTERVAL = 0.25;
+/** Squad formations: ranks of up to LINE_WIDTH abreast, LINE_SPACING apart, RANK_GAP between ranks. */
+const LINE_WIDTH = 5;
+const LINE_SPACING = 56;
+const RANK_GAP = 56;
+/** A squad's firing line forms this fraction of weapon range short of the enemy, so the rear rank still reaches. */
+const STANDOFF = 0.65;
+/** A unit this close to its slot is there. */
+const AT_SLOT = 8;
+
+/** A barracks / depot squad: where it holds, which way it faces, and its units. */
+interface Squad {
+  post: Vec2;
+  /** Up the road, toward where the enemy comes from. */
+  facing: Vec2;
+  ids: number[];
+  /** Fighting (an enemy is inside the leash) rather than holding the post. */
+  engaged: boolean;
+}
 /** Once a wave's ground units are gone, its gunships break off after this long (a wave never stalls). */
 const GUNSHIP_BINGO = 40;
 /** An idle wave gunship further than this from the base heads straight back to it. */
@@ -88,10 +107,9 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
-  /** Each sortie unit's march route (to resume after a chase), and the units currently chasing. */
-  private readonly routes = new Map<number, Vec2[]>();
-  private readonly chasing = new Set<number>();
-  private nextAggro = 0;
+  /** This wave's sortie squads, by pad id. */
+  private readonly squads = new Map<string, Squad>();
+  private nextOrders = 0;
   /** Sim time the current wave was down to gunships only, or null. */
   private airOnlySince: number | null = null;
   /** Roads dealt out for this run (once, on the first step). */
@@ -103,7 +121,7 @@ export class DefenseSystem extends SimSystem {
   /** Next time each flak pad may fire. */
   private readonly flakReady = new Map<string, number>();
 
-  update({ world, input }: StepContext): void {
+  update({ world, input, dt }: StepContext): void {
     const def = world.level.defense;
     const state = world.defense;
     if (!def || !state || world.ended) return;
@@ -147,7 +165,8 @@ export class DefenseSystem extends SimSystem {
       leaks(world, state, base);
       if (!base.alive) return;
       rallyGunships(world, base.pos);
-      this.aggro(world);
+      this.orderSquads(world);
+      this.faceUpRoad(world, dt);
       this.bingo(world, state);
       state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
       if (state.remaining === 0) this.waveCleared(world, def, state);
@@ -398,74 +417,86 @@ export class DefenseSystem extends SimSystem {
     world.emit({ type: 'defenseWaveStarted', wave: state.wave, total: state.totalWaves });
   }
 
-  /** A barracks or depot sends its units up its road toward the enemy. */
+  /** A barracks or depot turns its squad out onto its road, formed up beside the pad. */
   private sortie(world: World, def: DefenseDefinition, pad: PadState, state: DefenseState): void {
     const s = STRUCTURES[pad.structure ?? 'barracks'];
     if (s.mode !== 'sortie') return;
-    const route = sortieRoute(world, def, pad);
+    const { post, facing } = sortiePost(world, def, pad);
     const count = (s.count[pad.level - 1] ?? 0) + state.mods.sortieExtra;
-    for (let i = 0; i < count; i++) {
-      const offset = FILE_OFFSETS[i % FILE_OFFSETS.length] ?? 0;
-      const filePath = offsetPath(route, offset);
-      const rank = Math.floor(i / FILE_OFFSETS.length);
-      const start = filePath[0] ?? pad.pos;
-      const next = filePath[1] ?? pad.pos;
-      const dir = normalize(sub(next, start));
-      const pos = { x: start.x - dir.x * 50 * rank, y: start.y - dir.y * 50 * rank };
+    const ids: number[] = [];
+    for (const slot of lineSlots(post, facing, count).flat()) {
+      // Out of the door in a loose row, then to the slot.
+      const pos = { x: pad.pos.x + (slot.x - post.x) * 0.3, y: pad.pos.y + (slot.y - post.y) * 0.3 };
       const unit = createEntity(world, s.unit, pos, {
-        headingRad: angleOf(dir),
+        headingRad: angleOf(sub(slot, pos)),
         tags: [DEFENSE_SORTIE_TAG, `pad:${pad.id}`],
-        path: filePath,
+        path: [slot],
         speed: SORTIE_SPEED[s.unit] ?? 30,
       });
+      if (unit.mover) unit.mover.formation = true;
       strengthen(unit, s, pad.level, state);
       world.entities.push(unit);
-      this.routes.set(unit.id, filePath);
+      ids.push(unit.id);
     }
+    this.squads.set(pad.id, { post, facing, ids, engaged: false });
   }
 
-  /** Idle sortie units advance on the nearest wave ground unit in aggro range, else resume their march. */
-  private aggro(world: World): void {
-    if (world.time < this.nextAggro) return;
-    this.nextAggro = world.time + AGGRO_INTERVAL;
+  /**
+   * Squads hold their post. When a wave ground unit comes inside the leash, the squad spreads into
+   * a firing line short of it (every unit in range, none queued behind a friend), and walks back
+   * to its post once the area is clear.
+   */
+  private orderSquads(world: World): void {
+    if (world.time < this.nextOrders) return;
+    this.nextOrders = world.time + ORDERS_INTERVAL;
     const foes = world.entities.filter((e) => e.alive && !e.hidden && !e.heli && e.tags.includes(DEFENSE_WAVE_TAG));
-    for (const unit of world.entities) {
-      const mover = unit.mover;
-      if (!unit.alive || !mover || !unit.attacker || unit.attacker.targetId !== null || !unit.tags.includes(DEFENSE_SORTIE_TAG)) continue;
+    for (const squad of this.squads.values()) {
+      const units = squadUnits(world, squad);
+      const lead = units[0];
+      if (!lead) continue;
       let foe: Entity | null = null;
-      let best = AGGRO_RADIUS;
+      let best = LEASH_RADIUS;
       for (const f of foes) {
-        const d = distance(f.pos, unit.pos);
+        const d = distance(f.pos, squad.post);
         if (d < best) {
           best = d;
           foe = f;
         }
       }
+      squad.engaged = foe !== null;
+      let orders: Array<[Entity, Vec2]>;
       if (foe) {
-        mover.path = [{ ...foe.pos }];
-        this.chasing.add(unit.id);
-      } else if (this.chasing.has(unit.id)) {
-        this.chasing.delete(unit.id);
-        const route = this.routes.get(unit.id) ?? [];
-        let at = 0;
-        route.forEach((p, i) => {
-          if (distance(p, unit.pos) < distance(route[at] ?? p, unit.pos)) at = i;
-        });
-        mover.path = route.slice(at).map((p) => ({ ...p }));
+        const c = centroid(units);
+        const toward = normalize(sub(foe.pos, c));
+        const forward = toward.x === 0 && toward.y === 0 ? squad.facing : toward;
+        const standoff = (lead.attacker?.range ?? 0) * STANDOFF;
+        orders = formUp(units, { x: foe.pos.x - forward.x * standoff, y: foe.pos.y - forward.y * standoff }, forward);
       } else {
-        continue;
+        orders = formUp(units, squad.post, squad.facing);
       }
-      mover.waypoint = 0;
-      mover.halted = mover.path.length === 0;
-      mover.stopAtWaypoint = null;
+      // A unit already shooting stays put; the rest take their slots around it.
+      for (const [unit, slot] of orders) if (unit.attacker?.targetId === null) moveTo(unit, slot);
+    }
+  }
+
+  /** Units standing at their post turn to face up the road. */
+  private faceUpRoad(world: World, dt: number): void {
+    for (const squad of this.squads.values()) {
+      if (squad.engaged) continue;
+      const angle = angleOf(squad.facing);
+      for (const unit of squadUnits(world, squad)) {
+        if (!unit.mover?.halted || unit.attacker?.targetId !== null) continue;
+        const before = unit.heading;
+        unit.heading = rotateToward(unit.heading, angle, degToRad(ENTITY_STATS[unit.kind].turnRateDeg) * dt);
+        unit.turretHeading += unit.heading - before;
+      }
     }
   }
 
   private waveCleared(world: World, def: DefenseDefinition, state: DefenseState): void {
     const bonus = def.waveBonus + def.waveBonusStep * state.wave;
     this.flakShells = [];
-    this.routes.clear();
-    this.chasing.clear();
+    this.squads.clear();
     state.gold += bonus;
     // Sorties return to base; old wrecks are cleared away.
     world.entities = world.entities.filter((e) => {
@@ -513,20 +544,78 @@ function activePad(world: World, state: DefenseState): string | null {
   return distance(p.pos, world.homeBasePos()) <= ARMORY_RADIUS ? 'armory' : null;
 }
 
-/** From the pad, up the road toward where the enemy comes from. */
-function sortieRoute(world: World, def: DefenseDefinition, pad: PadState): Vec2[] {
+/** Where a pad's squad holds: on its road at the point nearest the pad, facing up the road. */
+function sortiePost(world: World, def: DefenseDefinition, pad: PadState): { post: Vec2; facing: Vec2 } {
   const lane = def.lanes.find((l) => l.id === pad.laneId);
   const path = lane ? world.level.paths[lane.pathId] : undefined;
-  if (!path || path.length === 0) return [{ ...pad.pos }];
-  // The road runs edge → base. Join it at the point nearest the pad, then march toward the edge
-  // (lower indices), so the squad never walks back toward the base first.
+  if (!path || path.length < 2) return { post: { ...pad.pos }, facing: { x: 0, y: -1 } };
   let best = { seg: 0, point: { ...(path[0] as Vec2) }, d: Infinity };
   for (let i = 0; i + 1 < path.length; i++) {
     const point = closestOnSegment(pad.pos, path[i] as Vec2, path[i + 1] as Vec2);
     const d = distance(point, pad.pos);
     if (d < best.d) best = { seg: i, point, d };
   }
-  return [{ ...pad.pos }, best.point, ...path.slice(0, best.seg + 1).reverse().map((pt) => ({ ...pt }))];
+  // The road runs edge → base, so up the road is back along the segment.
+  return { post: best.point, facing: normalize(sub(path[best.seg] as Vec2, path[best.seg + 1] as Vec2)) };
+}
+
+/**
+ * Formation slots for n units facing `forward`, by rank: up to LINE_WIDTH abreast centred on
+ * `front`, each rank further back and staggered so it isn't stood straight behind the one ahead.
+ */
+function lineSlots(front: Vec2, forward: Vec2, n: number): Vec2[][] {
+  const side = { x: -forward.y, y: forward.x };
+  const firstWidth = Math.min(LINE_WIDTH, n);
+  const ranks: Vec2[][] = [];
+  for (let placed = 0, rank = 0; placed < n; rank++) {
+    const width = Math.min(LINE_WIDTH, n - placed);
+    const stagger = rank % 2 === 1 && width % 2 === firstWidth % 2 ? LINE_SPACING / 2 : 0;
+    const row: Vec2[] = [];
+    for (let i = 0; i < width; i++) {
+      const lateral = (i - (width - 1) / 2) * LINE_SPACING + stagger;
+      row.push({
+        x: front.x + side.x * lateral - forward.x * RANK_GAP * rank,
+        y: front.y + side.y * lateral - forward.y * RANK_GAP * rank,
+      });
+    }
+    ranks.push(row);
+    placed += width;
+  }
+  return ranks;
+}
+
+/** Slot each unit into a formation without crossing paths: the foremost take the front rank, left to right as they stand. */
+function formUp(units: readonly Entity[], front: Vec2, forward: Vec2): Array<[Entity, Vec2]> {
+  const side = { x: -forward.y, y: forward.x };
+  const along = (p: Vec2, axis: Vec2): number => p.x * axis.x + p.y * axis.y;
+  const queue = [...units].sort((a, b) => along(b.pos, forward) - along(a.pos, forward));
+  const orders: Array<[Entity, Vec2]> = [];
+  for (const rank of lineSlots(front, forward, units.length)) {
+    const row = queue.splice(0, rank.length).sort((a, b) => along(a.pos, side) - along(b.pos, side));
+    row.forEach((unit, i) => orders.push([unit, rank[i] as Vec2]));
+  }
+  return orders;
+}
+
+/** Send a ground unit to a point, unless it's there or already on its way. */
+function moveTo(unit: Entity, to: Vec2): void {
+  const mover = unit.mover;
+  if (!mover || distance(unit.pos, to) <= AT_SLOT) return;
+  const goal = mover.path[mover.waypoint];
+  if (!mover.halted && goal && distance(goal, to) < 1) return;
+  mover.path = [{ ...to }];
+  mover.waypoint = 0;
+  mover.halted = false;
+  mover.stopAtWaypoint = null;
+}
+
+function squadUnits(world: World, squad: Squad): Entity[] {
+  return squad.ids.map((id) => world.findById(id)).filter((e): e is Entity => e?.alive === true && e.mover !== null);
+}
+
+function centroid(units: readonly Entity[]): Vec2 {
+  const n = Math.max(1, units.length);
+  return { x: units.reduce((s, u) => s + u.pos.x, 0) / n, y: units.reduce((s, u) => s + u.pos.y, 0) / n };
 }
 
 /** Bunker slot ring radius per level (matches the hull-down slots drawn in the structure art). */
