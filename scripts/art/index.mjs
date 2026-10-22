@@ -19,6 +19,7 @@ import * as PK from './pickups.mjs';
 import * as HQ from './hq.mjs';
 import * as PD from './pads.mjs';
 import * as BS from './bases.mjs';
+import * as AD from './ammo.mjs';
 import { r2 } from './lib.mjs';
 
 const OUT = process.argv[2] ?? fileURLToPath(new URL('../../public/assets/sprites', import.meta.url));
@@ -132,6 +133,8 @@ const FUNPASS = {
   outpost: BS.outpost,
   outpostDestroyed: BS.outpostDestroyed,
   homeBase: BS.homeBase,
+  ammoDump: AD.ammoDump,
+  ammoDumpWreck: AD.ammoDumpWreck,
 };
 
 /** v0 drawings (scaled to the new native sizes until restyled). */
@@ -140,8 +143,6 @@ const LEGACY = {
   samWreck: S.samWreck,
   bridge: S.bridge,
   bridgeDestroyed: S.bridgeDestroyed,
-  ammoDump: S.ammoDump,
-  ammoDumpWreck: S.ammoDumpWreck,
   cache: S.cache,
   rocket: M.rocket,
   maverick: M.maverick,

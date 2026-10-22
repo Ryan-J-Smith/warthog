@@ -13,7 +13,7 @@ const H = 260;
 /** Structure outline width (a touch under the units' 2.0: these are big, busy sprites). */
 const SW = 1.7;
 
-const ENEMY = { roof: T.e, roofL: T.eL, roofD: T.eD, flag: '#d8392b', flagD: '#8c2118', glow: T.glow, core: T.glowHi, gid: 'gE' };
+export const ENEMY = { roof: T.e, roofL: T.eL, roofD: T.eD, flag: '#d8392b', flagD: '#8c2118', glow: T.glow, core: T.glowHi, gid: 'gE' };
 export const FRIEND = { roof: T.f, roofL: T.fL, roofD: T.fD, flag: '#3f8ef0', flagD: '#1f5aa8', glow: T.cyan, core: T.cyanHi, gid: 'gF' };
 
 export const CONC = '#a29f95';
