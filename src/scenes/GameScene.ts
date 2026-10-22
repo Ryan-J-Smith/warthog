@@ -22,6 +22,8 @@ const RESULTS_DELAY = 3200;
 const HIT_STOP_MS: Record<ExplosionSize, number> = { small: 0, medium: 45, large: 90, huge: 140 };
 /** Slow motion for set pieces (bridge dropped with vehicles on it, player shot down). */
 const SLOW_MO = { scale: 0.3, bridgeDropMs: 1100, playerDownMs: 700 } as const;
+/** Strafing: a beat on every multi-kill in a pass, a longer one when the STRAFE ×N bonus pays. */
+const STRAFE_HIT_STOP_MS = { kill: 40, bonus: 110 } as const;
 
 /**
  * The mission. Owns the simulation, feeds it keyboard input at a fixed timestep, and keeps
@@ -150,10 +152,13 @@ export class GameScene extends Phaser.Scene {
     for (const event of events) {
       if (event.type === 'scoreAwarded' && event.points > 0 && event.pos) {
         if (event.reason.startsWith('BRIDGE DROP')) this.slowMoMs = Math.max(this.slowMoMs, SLOW_MO.bridgeDropMs);
+        else if (event.reason.startsWith('STRAFE')) this.hitStopMs = Math.max(this.hitStopMs, STRAFE_HIT_STOP_MS.bonus);
         else if (event.reason in ENTITY_STATS) {
           const size = ENTITY_STATS[event.reason as EntityKind].explosion;
           this.hitStopMs = Math.max(this.hitStopMs, HIT_STOP_MS[size]);
         }
+      } else if (event.type === 'strafeKill') {
+        this.hitStopMs = Math.max(this.hitStopMs, STRAFE_HIT_STOP_MS.kill);
       } else if (event.type === 'playerDestroyed') {
         this.slowMoMs = Math.max(this.slowMoMs, SLOW_MO.playerDownMs);
       }

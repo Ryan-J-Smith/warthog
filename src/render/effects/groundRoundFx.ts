@@ -34,9 +34,9 @@ interface RoundLook {
 }
 
 const LOOKS: Record<GroundRoundKind, RoundLook> = {
-  smallArms: { muzzle: 6, flash: 12, orb: 9, core: 4, glow: 0, burst: 3, burstGap: 0.07, trail: 0, pop: 16 },
-  cannon: { muzzle: 14, flash: 28, orb: 18, core: 7, glow: 36, burst: 1, burstGap: 0, trail: 34, pop: 34 },
-  autocannon: { muzzle: 8, flash: 14, orb: 11, core: 5, glow: 18, burst: 2, burstGap: 0.06, trail: 0, pop: 18 },
+  smallArms: { muzzle: 6, flash: 14, orb: 13, core: 6, glow: 0, burst: 3, burstGap: 0.08, trail: 0, pop: 22 },
+  cannon: { muzzle: 14, flash: 34, orb: 25, core: 10, glow: 50, burst: 1, burstGap: 0, trail: 48, pop: 46 },
+  autocannon: { muzzle: 8, flash: 18, orb: 15, core: 7, glow: 25, burst: 2, burstGap: 0.06, trail: 0, pop: 25 },
 };
 
 /**

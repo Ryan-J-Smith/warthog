@@ -26,6 +26,8 @@ export type SimEvent =
   | { type: 'gunStopped' }
   /** A GAU-8 round landed. `hit` = it damaged something; `armored` = it hit armor (sparks). */
   | { type: 'gunImpact'; pos: Vec2; hit: boolean; armored: boolean }
+  /** A gun kill that made this strafing pass a multi-kill (`count` = kills so far this pass, ≥ 2). */
+  | { type: 'strafeKill'; count: number; pos: Vec2 }
   | { type: 'rocketLaunched'; pos: Vec2; heading: number }
   | { type: 'missileLaunched'; pos: Vec2; heading: number }
   | { type: 'bombReleased'; pos: Vec2 }
