@@ -85,6 +85,19 @@ const UNITS = {
   friendlyTankHull: U.tankHullFriendly,
   friendlyTankTurret: U.tankTurretFriendly,
   friendlyInfantry: U.mechFriendly,
+  // Movement-cycle frames (2026-10-22): mech walk steps and tank tread phases.
+  infantryWalk1: U.mechEnemyWalk(1),
+  infantryWalk2: U.mechEnemyWalk(2),
+  infantryWalk3: U.mechEnemyWalk(3),
+  infantryWalk4: U.mechEnemyWalk(4),
+  friendlyInfantryWalk1: U.mechFriendlyWalk(1),
+  friendlyInfantryWalk2: U.mechFriendlyWalk(2),
+  friendlyInfantryWalk3: U.mechFriendlyWalk(3),
+  friendlyInfantryWalk4: U.mechFriendlyWalk(4),
+  tankHullTread1: U.tankHullEnemyTread(1),
+  tankHullTread2: U.tankHullEnemyTread(2),
+  friendlyTankHullTread1: U.tankHullFriendlyTread(1),
+  friendlyTankHullTread2: U.tankHullFriendlyTread(2),
 };
 
 /** Fun-pass v1 sprites (drawn at their native sizes, like UNITS). */

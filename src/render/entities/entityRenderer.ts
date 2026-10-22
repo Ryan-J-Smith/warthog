@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { SPRITES, SPRITE_RESOLUTION } from '../../assets';
+import type { SpriteKey } from '../../assets';
 import type { Entity } from '../../sim/entities';
 import type { SimEvent } from '../../sim/events';
+import type { Vec2 } from '../../sim/math';
 import type { WorldView } from '../../sim/world';
 import { DEPTH, unitDisplayScale } from '../layers';
+import { UnitMotion } from '../motion';
 import { ENTITY_VISUALS } from './entityVisuals';
 import { HelicopterRenderer } from './helicopterRenderer';
 
@@ -14,6 +17,10 @@ interface EntityVisual {
   halo: Phaser.GameObjects.Image | null;
   wrecked: boolean;
   flashUntil: number;
+  /** Walk / tread / rumble cycle and firing recoil (units with a `motion` spec). */
+  motion: UnitMotion | null;
+  /** Texture currently on `base` while alive (the motion cycle swaps frames). */
+  frame: SpriteKey;
 }
 
 const INV_RES = 1 / SPRITE_RESOLUTION;
@@ -29,12 +36,15 @@ const STRUCTURE_HIT_TINT = 0xffa090;
 /** Halo diameter relative to the unit's sprite length. */
 const HALO_SIZE = 1.9;
 const HALO_ALPHA = 0.5;
+/** A `groundFire` event belongs to the nearest unit of its kind within this distance of `from`. */
+const SHOOTER_MATCH_RADIUS = 12;
 
 /** Keeps a sprite (plus optional turret and ground halo) in sync with every ground entity. */
 export class EntityRenderer {
   private readonly visuals = new Map<number, EntityVisual>();
   /** Airborne units (helicopters) have their own renderer. */
   private readonly helicopters: HelicopterRenderer;
+  private lastMs: number | null = null;
 
   constructor(private readonly scene: Phaser.Scene) {
     this.helicopters = new HelicopterRenderer(scene);
@@ -42,10 +52,14 @@ export class EntityRenderer {
 
   sync(view: WorldView, events: readonly SimEvent[]): void {
     const now = this.scene.time.now;
+    const dt = this.lastMs === null ? 0 : Math.min(0.1, Math.max(0, now - this.lastMs) / 1000);
+    this.lastMs = now;
     for (const event of events) {
       if (event.type === 'entityDamaged') {
         const visual = this.visuals.get(event.entityId);
         if (visual) visual.flashUntil = now + FLASH_MS;
+      } else if (event.type === 'groundFire') {
+        this.recoil(view, event.shooterKind, event.from, event.to);
       }
     }
 
@@ -61,7 +75,7 @@ export class EntityRenderer {
         visual = this.create(entity);
         this.visuals.set(entity.id, visual);
       }
-      this.update(entity, visual, now, unitScale);
+      this.update(entity, visual, now, dt, unitScale);
     }
     // Entities pruned from the world (expired wave wrecks, escaped convoys) take their sprites with them.
     for (const [id, visual] of this.visuals) {
@@ -95,22 +109,51 @@ export class EntityRenderer {
           .setTintFill(0x000000)
           .setAlpha(HALO_ALPHA)
           .setDepth(DEPTH.groundShadows);
-    return { base, top, halo, wrecked: false, flashUntil: 0 };
+    const motion = spec.motion ? new UnitMotion(spec.motion, entity.id) : null;
+    return { base, top, halo, wrecked: false, flashUntil: 0, motion, frame: spec.base };
   }
 
-  private update(entity: Entity, visual: EntityVisual, now: number, unitScale: number): void {
+  /** Kick the turret (or a walker's body) of the unit that fired a `groundFire` shot. */
+  private recoil(view: WorldView, kind: Entity['kind'], from: Vec2, to: Vec2): void {
+    let best: EntityVisual | null = null;
+    let bestDist = SHOOTER_MATCH_RADIUS;
+    for (const entity of view.entities) {
+      if (entity.kind !== kind || !entity.alive) continue;
+      const d = Math.hypot(entity.pos.x - from.x, entity.pos.y - from.y);
+      const visual = this.visuals.get(entity.id);
+      if (d <= bestDist && visual) {
+        best = visual;
+        bestDist = d;
+      }
+    }
+    best?.motion?.fire(Math.atan2(to.y - from.y, to.x - from.x));
+  }
+
+  private update(entity: Entity, visual: EntityVisual, now: number, dt: number, unitScale: number): void {
     const spec = ENTITY_VISUALS[entity.kind];
     const { base, top, halo } = visual;
     const scale = spec.structure ? INV_RES : INV_RES * unitScale;
+    // Walk / tread cycle, suspension bob and recoil, while alive; wrecks sit still.
+    const pose = visual.motion && entity.alive ? visual.motion.update(entity.pos, entity.heading, dt, unitScale) : null;
+    if (pose && spec.motion) {
+      const frame = spec.motion.frames[pose.frame] ?? spec.base;
+      if (frame !== visual.frame) {
+        visual.frame = frame;
+        base.setTexture(frame);
+      }
+    }
     base.setVisible(!entity.hidden);
-    base.setPosition(entity.pos.x, entity.pos.y).setRotation(entity.heading).setScale(scale);
+    base
+      .setPosition(entity.pos.x + (pose?.baseX ?? 0), entity.pos.y + (pose?.baseY ?? 0))
+      .setRotation(entity.heading + (pose?.baseYaw ?? 0))
+      .setScale(scale * (pose?.baseScale ?? 1));
     if (top) {
       const topHeading = entity.sam ? entity.sam.launcherHeading : entity.turretHeading;
       top
         .setVisible(!entity.hidden && entity.alive)
-        .setPosition(entity.pos.x, entity.pos.y)
+        .setPosition(entity.pos.x + (pose?.topX ?? 0), entity.pos.y + (pose?.topY ?? 0))
         .setRotation(topHeading)
-        .setScale(scale);
+        .setScale(scale * (pose?.baseScale ?? 1));
     }
     if (halo) {
       // particleSoft is 32 world units natively.
