@@ -56,6 +56,12 @@ const FLAK_BURST_RADIUS = 70;
 const LEAK_RADIUS = 560;
 const LEAK_SHARE: Partial<Record<EntityKind, number>> = { infantry: 0.04, truck: 0.04, mobileAa: 0.06, tank: 0.1, mlrs: 0.08 };
 const LEAK_SHARE_DEFAULT = 0.06;
+/**
+ * Sortie units notice enemies this far away (well past weapon range) and advance on them, MOBA
+ * creep style, instead of walking on until something happens to come into range.
+ */
+const AGGRO_RADIUS = 520;
+const AGGRO_INTERVAL = 0.25;
 /** Once a wave's ground units are gone, its gunships break off after this long (a wave never stalls). */
 const GUNSHIP_BINGO = 40;
 /** An idle wave gunship further than this from the base heads straight back to it. */
@@ -82,6 +88,10 @@ export class DefenseSystem extends SimSystem {
   private paidKillPoints = 0;
   private baseLoadout: Readonly<PlayerLoadout> | null = null;
   private flakShells: FlakShell[] = [];
+  /** Each sortie unit's march route (to resume after a chase), and the units currently chasing. */
+  private readonly routes = new Map<number, Vec2[]>();
+  private readonly chasing = new Set<number>();
+  private nextAggro = 0;
   /** Sim time the current wave was down to gunships only, or null. */
   private airOnlySince: number | null = null;
   /** Roads dealt out for this run (once, on the first step). */
@@ -137,6 +147,7 @@ export class DefenseSystem extends SimSystem {
       leaks(world, state, base);
       if (!base.alive) return;
       rallyGunships(world, base.pos);
+      this.aggro(world);
       this.bingo(world, state);
       state.remaining = world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG)).length;
       if (state.remaining === 0) this.waveCleared(world, def, state);
@@ -409,12 +420,52 @@ export class DefenseSystem extends SimSystem {
       });
       strengthen(unit, s, pad.level, state);
       world.entities.push(unit);
+      this.routes.set(unit.id, filePath);
+    }
+  }
+
+  /** Idle sortie units advance on the nearest wave ground unit in aggro range, else resume their march. */
+  private aggro(world: World): void {
+    if (world.time < this.nextAggro) return;
+    this.nextAggro = world.time + AGGRO_INTERVAL;
+    const foes = world.entities.filter((e) => e.alive && !e.hidden && !e.heli && e.tags.includes(DEFENSE_WAVE_TAG));
+    for (const unit of world.entities) {
+      const mover = unit.mover;
+      if (!unit.alive || !mover || !unit.attacker || unit.attacker.targetId !== null || !unit.tags.includes(DEFENSE_SORTIE_TAG)) continue;
+      let foe: Entity | null = null;
+      let best = AGGRO_RADIUS;
+      for (const f of foes) {
+        const d = distance(f.pos, unit.pos);
+        if (d < best) {
+          best = d;
+          foe = f;
+        }
+      }
+      if (foe) {
+        mover.path = [{ ...foe.pos }];
+        this.chasing.add(unit.id);
+      } else if (this.chasing.has(unit.id)) {
+        this.chasing.delete(unit.id);
+        const route = this.routes.get(unit.id) ?? [];
+        let at = 0;
+        route.forEach((p, i) => {
+          if (distance(p, unit.pos) < distance(route[at] ?? p, unit.pos)) at = i;
+        });
+        mover.path = route.slice(at).map((p) => ({ ...p }));
+      } else {
+        continue;
+      }
+      mover.waypoint = 0;
+      mover.halted = mover.path.length === 0;
+      mover.stopAtWaypoint = null;
     }
   }
 
   private waveCleared(world: World, def: DefenseDefinition, state: DefenseState): void {
     const bonus = def.waveBonus + def.waveBonusStep * state.wave;
     this.flakShells = [];
+    this.routes.clear();
+    this.chasing.clear();
     state.gold += bonus;
     // Sorties return to base; old wrecks are cleared away.
     world.entities = world.entities.filter((e) => {
@@ -467,12 +518,15 @@ function sortieRoute(world: World, def: DefenseDefinition, pad: PadState): Vec2[
   const lane = def.lanes.find((l) => l.id === pad.laneId);
   const path = lane ? world.level.paths[lane.pathId] : undefined;
   if (!path || path.length === 0) return [{ ...pad.pos }];
-  // The road runs edge → base; march it backwards from the waypoint nearest the pad.
-  let nearest = 0;
-  path.forEach((pt, i) => {
-    if (distance(pt, pad.pos) < distance(path[nearest] ?? pt, pad.pos)) nearest = i;
-  });
-  return [{ ...pad.pos }, ...path.slice(0, nearest + 1).reverse().map((pt) => ({ ...pt }))];
+  // The road runs edge → base. Join it at the point nearest the pad, then march toward the edge
+  // (lower indices), so the squad never walks back toward the base first.
+  let best = { seg: 0, point: { ...(path[0] as Vec2) }, d: Infinity };
+  for (let i = 0; i + 1 < path.length; i++) {
+    const point = closestOnSegment(pad.pos, path[i] as Vec2, path[i + 1] as Vec2);
+    const d = distance(point, pad.pos);
+    if (d < best.d) best = { seg: i, point, d };
+  }
+  return [{ ...pad.pos }, best.point, ...path.slice(0, best.seg + 1).reverse().map((pt) => ({ ...pt }))];
 }
 
 /** Bunker slot ring radius per level (matches the hull-down slots drawn in the structure art). */
@@ -559,4 +613,12 @@ function rallyGunships(world: World, basePos: Vec2): void {
       h.waypoint = 0;
     }
   }
+}
+
+function closestOnSegment(p: Vec2, a: Vec2, b: Vec2): Vec2 {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2)) : 0;
+  return { x: a.x + abx * t, y: a.y + aby * t };
 }

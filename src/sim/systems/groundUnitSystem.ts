@@ -152,12 +152,17 @@ function acquireTarget(world: World, unit: Entity, range: number): Entity | unde
   return best;
 }
 
-/** Wait if another living vehicle is just ahead (keeps convoys from stacking). */
+/**
+ * Wait if a friend travelling the same way is just ahead (keeps convoys from stacking). Only
+ * same-team units heading roughly the same way count: two files that meet head-on (a squad
+ * turning around, or opposing columns) would otherwise block each other forever.
+ */
 function blockedAhead(world: World, unit: Entity, heading: number): boolean {
   const fx = Math.cos(heading);
   const fy = Math.sin(heading);
   for (const other of world.entities) {
-    if (other === unit || !other.alive || !other.mover) continue;
+    if (other === unit || !other.alive || !other.mover || other.team !== unit.team) continue;
+    if (Math.cos(other.heading - heading) < 0.3) continue;
     const dx = other.pos.x - unit.pos.x;
     const dy = other.pos.y - unit.pos.y;
     const d = Math.hypot(dx, dy);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { holdTheLine } from '../../src/content/levels';
 import { killEntity } from '../../src/sim/combat';
 import { STRUCTURES, structureCost } from '../../src/sim/defense';
+import { distance } from '../../src/sim/math';
 import { Simulation } from '../../src/sim/simulation';
 import { createEntity } from '../../src/sim/spawning';
 import { DEFENSE_GARRISON_TAG, DEFENSE_SORTIE_TAG, DEFENSE_WAVE_TAG, destroyPlayer } from '../../src/sim/systems';
@@ -292,5 +293,53 @@ describe('base defence: gunship bingo', () => {
     expect(defense(s).phase).toBe('wave');
     run(s, 15);
     expect(defense(s).phase).toBe('build');
+  });
+});
+
+describe('base defence: sorties', () => {
+  function sortie(s: Simulation) {
+    return s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_SORTIE_TAG));
+  }
+  function centroid(units: readonly { pos: { x: number; y: number } }[]) {
+    return { x: units.reduce((n, u) => n + u.pos.x, 0) / units.length, y: units.reduce((n, u) => n + u.pos.y, 0) / units.length };
+  }
+
+  it('march away from the base toward the enemy (never back first), and never jam', () => {
+    for (const padId of ['w1', 'w2', 'n1', 'e1']) {
+      const s = sim();
+      // An empty wave on every road keeps the field clear, so only marching is tested.
+      defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
+      press(s, padPos(s, padId), 'gun');
+      s.world.player.pos = { x: 4300, y: 3300 };
+      run(s, 1 / 60, { ready: true });
+      const base = s.world.findByRef('base')?.pos ?? { x: 0, y: 0 };
+      const from = distance(centroid(sortie(s)), base);
+      run(s, 6);
+      const mid = centroid(sortie(s));
+      run(s, 6);
+      const late = centroid(sortie(s));
+      // Stepping onto the road can edge toward the base (it may pass closer than the pad); after
+      // that it is all away from it.
+      expect(distance(late, base), padId).toBeGreaterThan(from);
+      expect(distance(late, base), padId).toBeGreaterThan(distance(mid, base));
+      // Still walking (a jammed squad stops dead).
+      expect(distance(late, mid), padId).toBeGreaterThan(30);
+    }
+  });
+
+  it('advance on an enemy inside the aggro radius instead of waiting for it to come into range', () => {
+    const s = sim();
+    defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
+    press(s, padPos(s, 'n2'), 'gun');
+    s.world.player.pos = { x: 4300, y: 3300 };
+    run(s, 1 / 60, { ready: true });
+    const squad = sortie(s);
+    const c = centroid(squad);
+    // A parked enemy 450 away to the east: past weapon range (220), inside aggro range.
+    const foe = createEntity(s.world, 'infantry', { x: c.x + 450, y: c.y }, { tags: [DEFENSE_WAVE_TAG] });
+    foe.attacker = null;
+    s.world.entities.push(foe);
+    run(s, 4);
+    expect(distance(centroid(sortie(s)), foe.pos)).toBeLessThan(400);
   });
 });
