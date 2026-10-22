@@ -127,3 +127,93 @@ function outpostLayout(burnt) {
 
 export const outpost = () => outpostLayout(false);
 export const outpostDestroyed = () => outpostLayout(true);
+
+// ---------------------------------------------------------------------------
+// Forward airstrip — 480 × 340: runway E-W along the south, concrete apron + taxiway, the rearm
+// pad at the sprite centre (240,170 = the entity position), hardened shelters east and west,
+// control tower, fuel bladders, ops containers. Positions follow the v0 layout (scaled ×1.31).
+// ---------------------------------------------------------------------------
+
+/** Hardened aircraft shelter: arched steel-blue roof with ribs, door on the apron side. */
+function shelter(id, x, y, w, h, doorEast) {
+  const d = dRect(x, y, w, h, 10);
+  let s = block(id, d, T.fL, T.fD, 3, 1.9);
+  for (let i = 1; i < 8; i++) s += strokeD(`M${x + (w * i) / 8},${y + 3}V${y + h - 3}`, T.fD, 0.9, { opacity: 0.6 });
+  const dx = doorEast ? x + w - 5 : x;
+  s += fill(dRect(dx, y + 6, 5, h - 12, 1.2), T.steelD, { stroke: T.ink, 'stroke-width': 0.9 });
+  s += fill(dRect(x + w / 2 - 8, y + 4, 16, 3.2, 0.8), T.blue);
+  return s + glint(`M${x + 8},${y + 3} H${x + w * 0.6}`, 1.3, '#ffffff', 0.45);
+}
+
+export function homeBase() {
+  const W = 480;
+  const H = 340;
+  const id = ids('hb');
+  const rand = rng(971);
+  const p = [];
+  p.push(`<ellipse cx="243" cy="174" rx="236" ry="166" fill="#000" opacity="0.14"/>`);
+  // Runway: dark asphalt strip with edge lines, centreline, threshold bars and touchdown marks.
+  const ry = 236;
+  const rh = 52;
+  const runway = dRect(8, ry, 464, rh, 4);
+  p.push(outline([runway], 1.8), fill(runway, '#4b4b47'), fill(dRect(8, ry + rh - 8, 464, 8, 0), '#000', { opacity: 0.18 }));
+  p.push(strokeD(`M14,${ry + 3.5}H466 M14,${ry + rh - 3.5}H466`, '#ecebe2', 1.1));
+  for (let x = 58; x < 420; x += 28) p.push(fill(dRect(x, ry + rh / 2 - 1.1, 16, 2.2, 0), '#ecebe2'));
+  for (const x0 of [16, 446]) {
+    for (let i = 0; i < 8; i++) {
+      if (i === 3 || i === 4) continue;
+      p.push(fill(dRect(x0, ry + 7 + i * 5.2, 18, 3, 0.4), '#ecebe2'));
+    }
+  }
+  for (const x0 of [86, 372]) p.push(fill(dRect(x0, ry + 9, 22, 5, 0), '#ecebe2'), fill(dRect(x0, ry + rh - 14, 22, 5, 0), '#ecebe2'));
+  for (let i = 0; i < 16; i++) {
+    const x = rand.range(40, 150) + (i % 2 ? 290 : 0);
+    p.push(fill(dRect(x, ry + rh / 2 + rand.range(-12, 12), rand.range(12, 32), 1.6, 0), '#1e1e1a', { opacity: 0.3 }));
+  }
+  for (let x = 20; x < 466; x += 21) {
+    p.push(fill(dEllipse(x, ry - 2.4, 1.3), '#fff7d8', { stroke: T.ink, 'stroke-width': 0.5 }));
+    p.push(fill(dEllipse(x, ry + rh + 2.4, 1.3), '#fff7d8', { stroke: T.ink, 'stroke-width': 0.5 }));
+  }
+  // Apron + taxiway down to the runway (concrete, panel seams, yellow taxi lines, blue edge lights).
+  const apron = dRect(84, 78, 312, 80, 4);
+  const taxi = dRect(222, 152, 36, 86, 2);
+  p.push(outline([apron, taxi], 1.6), cel(id, apron, '#aeaba2', '#94918a', { s: 3 }), fill(taxi, '#aeaba2'));
+  for (let x = 110; x < 396; x += 26) p.push(strokeD(`M${x},80V156`, '#8f8c83', 0.7, { opacity: 0.7 }));
+  p.push(strokeD('M86,118H394', '#8f8c83', 0.7, { opacity: 0.7 }));
+  p.push(strokeD('M240,236 L240,139 Q240,128 229,128 L92,128 M240,139 Q240,128 251,128 L388,128', '#e8c23a', 1.6));
+  for (let x = 90; x < 394; x += 18) p.push(lamp(x, 160, 1.1, team.gid, team.glow, team.core, { halo: 1.6 }));
+  for (let y = 166; y < 232; y += 13) p.push(lamp(219, y, 1.1, team.gid, team.glow, team.core, { halo: 1.6 }), lamp(261, y, 1.1, team.gid, team.glow, team.core, { halo: 1.6 }));
+  // Rearm pad at the sprite centre: blue ring, white dashed inner ring, chevrons, blue cross.
+  const pad = dEllipse(240, 170, 34);
+  p.push(outline([pad], 1.6), cel(id, pad, '#c2bfb5', '#a19e95', { s: 2.4 }));
+  p.push(strokeD(dEllipse(240, 170, 28.5), team.flag, 4.4), strokeD(dEllipse(240, 170, 18), '#f4f2ea', 1.6, { 'stroke-dasharray': '6 4' }));
+  for (let k = 0; k < 4; k++) p.push(`<g transform="translate(240,170) rotate(${k * 90})">${strokeD('M-5,-34 L0,-40 L5,-34', team.flag, 3)}</g>`);
+  p.push(fill('M237.6,159h4.8v8.6h8.6v4.8h-8.6v8.6h-4.8v-8.6h-8.6v-4.8h8.6Z', team.flag, { stroke: T.ink, 'stroke-width': 0.7 }));
+  // Hardened shelters inside concrete blast walls (doors face the apron).
+  p.push(shelter(id, 12, 82, 70, 64, true), shelter(id, 398, 82, 70, 64, false));
+  for (const pts of [[[6, 74], [6, 154], [82, 154]], [[474, 74], [474, 154], [398, 154]]]) {
+    const [wInk, wFill] = wallRun(pts, { color: CONC_L, colorD: CONC, cap: team.roofD });
+    p.push(`<g fill="${T.ink}">${wInk}</g>`, wFill);
+  }
+  // Control tower (glass cab), flag, ops containers, fuel bladders in a revetment.
+  p.push(block(id, dRect(262, 16, 30, 30, 2.4), CONC_L, CONC_D, 2.2, 1.8));
+  p.push(fill(dRect(268, 22, 18, 18, 1.6), T.glassD, { stroke: T.ink, 'stroke-width': 1 }), glint('M270,24.5 H279', 1.3, T.glassHi, 0.8));
+  p.push(lamp(289, 19, 1.5, team.gid, team.glow, team.core));
+  p.push(flag(298, 58, team));
+  for (const [x, w] of [[126, 40], [174, 36]]) {
+    p.push(shed(id, x, 24, w, 22, x === 126 ? T.steelL : T.steel, T.steelD, false));
+    p.push(fill(dRect(x + 1.5, 25.5, 3, 19, 0.6), T.blue));
+  }
+  const rev = dRect(316, 14, 108, 52, 7);
+  p.push(outline([rev], 1.6), fill(rev, CONC), fill(dRect(322, 20, 96, 40, 5), '#8f8c83'));
+  for (let i = 0; i < 3; i++) {
+    const x = 326 + i * 31;
+    p.push(block(id, dRect(x, 23, 26, 34, 10), '#3b3f36', '#25281f', 1.8, 1.4), glint(`M${x + 6},27 H${x + 18}`, 1.2, '#ffffff', 0.3));
+  }
+  // Munitions pallets + crates by the pad, a mast and a dish, and the windsock.
+  p.push(crates(id, 280, 140, 3, 1, '#77827c', '#58625d'), crates(id, 172, 140, 3, 1, '#77827c', '#58625d'), drums(id, 112, 92, 4, 2));
+  p.push(crates(id, 352, 92, 2, 2, '#77827c', '#58625d'));
+  p.push(mast(id, 100, 34, 14, lamp(100, 34, 1.9, team.gid, team.glow, team.core), false), dish(id, 60, 40, 12, 15, 30, team.glow, false));
+  p.push(strokeD('M444,206 V200', '#e8e6de', 1.2), fill('M444,199 L458,197 L458,202Z', '#e8742a', { stroke: T.ink, 'stroke-width': 0.7 }), fill(dRect(448.5, 197.8, 3, 3.6, 0), '#ffffff'));
+  return svg(W, H, baseDefs(), p.join(''));
+}

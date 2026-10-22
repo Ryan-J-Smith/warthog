@@ -129,6 +129,7 @@ const FUNPASS = {
   // Friendly bases restyled to v1 (2026-10-22; replace the v0 drawings in structures.mjs).
   outpost: BS.outpost,
   outpostDestroyed: BS.outpostDestroyed,
+  homeBase: BS.homeBase,
 };
 
 /** v0 drawings (scaled to the new native sizes until restyled). */
@@ -140,7 +141,6 @@ const LEGACY = {
   ammoDump: S.ammoDump,
   ammoDumpWreck: S.ammoDumpWreck,
   cache: S.cache,
-  homeBase: S.homeBase,
   rocket: M.rocket,
   maverick: M.maverick,
   bomb: M.bomb,
