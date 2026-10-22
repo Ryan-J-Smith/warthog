@@ -24,11 +24,16 @@ const FRIEND = {
 
 const glowFor = (c) => glowDefs(c.gid, c.core, c.glow);
 
-/** Track run with chunky tread bars, clipped to the track shape. */
-function trackRun(id, d, x0, x1, y0, h, step = 4.6) {
+/**
+ * Track run with chunky tread bars, clipped to the track shape. `phase` (0..1 of a bar pitch)
+ * slides the bars forward for the tread-motion frames; 0 is the original static drawing.
+ */
+function trackRun(id, d, x0, x1, y0, h, step = 4.6, phase = 0) {
   const cid = id();
   let bars = '';
-  for (let x = x0 + 2; x < x1 - 1; x += step) bars += fill(dRect(x, y0 - 1, 2.1, h + 2, 0.6), T.trkL);
+  // Shifted frames start one pitch early so the bar sliding in at the rear is drawn too.
+  const start = phase > 0 ? x0 + 2 + (phase - 1) * step : x0 + 2;
+  for (let x = start; x < x1 - 1; x += step) bars += fill(dRect(x, y0 - 1, 2.1, h + 2, 0.6), T.trkL);
   return (
     fill(d, T.trk) +
     `<clipPath id="${cid}"><path d="${d}"/></clipPath><g clip-path="url(#${cid})">${bars}` +
@@ -58,7 +63,7 @@ function grille(x, y, w, h, color, slat, n = 4, horizontal = false) {
 // The hull is drawn slightly rearward in its box so the ONE long gun reaches well past the bow:
 // that long barrel is the tank's signature silhouette (the AA has short stubby barrels).
 // ---------------------------------------------------------------------------
-function tankHull(c) {
+function tankHull(c, treadPhase = 0) {
   const W = 76;
   const H = 50;
   const id = ids('th');
@@ -75,8 +80,8 @@ function tankHull(c) {
   const parts = [];
   parts.push(contactShadow(id, [trackT, trackB, hull]));
   parts.push(outline([trackT, trackB, hull]));
-  parts.push(trackRun(id, trackT, 2, 68, 2.5, 12.5));
-  parts.push(trackRun(id, trackB, 2, 68, 35, 12.5));
+  parts.push(trackRun(id, trackT, 2, 68, 2.5, 12.5, 4.6, treadPhase));
+  parts.push(trackRun(id, trackB, 2, 68, 35, 12.5, 4.6, treadPhase));
   parts.push(cel(id, hull, c.base, c.d, { s: 3 }));
   parts.push(cel(id, glacis, c.l, c.base, { s: 1.6 }));
 
@@ -145,20 +150,31 @@ function tankTurret(c) {
 
 export const tankHullEnemy = () => tankHull(ENEMY);
 export const tankHullFriendly = () => tankHull(FRIEND);
+/**
+ * Tread-motion frames: the bars advanced 1/3 and 2/3 of a pitch (the hull's own frame is phase 0).
+ * Three phases keep the direction of travel unambiguous; the renderer cycles them by distance.
+ */
+export const tankHullEnemyTread = (k) => () => tankHull(ENEMY, k / 3);
+export const tankHullFriendlyTread = (k) => () => tankHull(FRIEND, k / 3);
 export const tankTurretEnemy = () => tankTurret(ENEMY);
 export const tankTurretFriendly = () => tankTurret(FRIEND);
 
 // ---------------------------------------------------------------------------
 // Mech walker (replaces infantry) — 52 × 52, facing east, mid-stride.
+// `stride` (-1..1) places the feet for the walk-cycle frames: 1 = north foot planted forward,
+// south foot trailing (the original drawing, also the idle pose); -1 = the mirror step.
 // ---------------------------------------------------------------------------
-function mech(c) {
+function mech(c, stride = 1) {
   const W = 52;
   const H = 52;
   const id = ids('m');
   // Short torso so the feet stick well out fore and aft: the north foot is planted forward, the
   // south foot trails behind (mid-stride), which is what makes it read as a walker from above.
-  const footF = dRound([[31, 13.5], [45.5, 13.5], [50, 16.5], [50, 23.5], [45.5, 26.5], [31, 26.5]], 2.8);
-  const footB = dRound([[2, 25.5], [16.5, 25.5], [21, 28.5], [21, 35.5], [16.5, 38.5], [2, 38.5]], 2.8);
+  const footAt = (x0, y0) => dRound([[x0, y0], [x0 + 14.5, y0], [x0 + 19, y0 + 3], [x0 + 19, y0 + 10], [x0 + 14.5, y0 + 13], [x0, y0 + 13]], 2.8);
+  const xN = r2(16.5 + 14.5 * stride);
+  const xS = r2(16.5 - 14.5 * stride);
+  const footF = footAt(xN, 13.5);
+  const footB = footAt(xS, 25.5);
   const torso = c.friendly
     ? dRound([[18, 14], [31, 14], [37.5, 20], [37.5, 32], [31, 38], [18, 38], [14.5, 33.5], [14.5, 18.5]], 5)
     : dRound([[18.5, 13.5], [31, 13.5], [37.5, 19.5], [37.5, 32.5], [31, 38.5], [18.5, 38.5], [14.5, 34], [14.5, 18]], 3.5);
@@ -173,10 +189,10 @@ function mech(c) {
   p.push(contactShadow(id, [footF, footB, torso, shoulderN, shoulderS], { blur: 2, opacity: 0.42 }));
   p.push(outline([footF, footB, torso, gunN, gunS, shoulderN, shoulderS]));
   // Feet: big armoured pads with toe splits, a toe cap and an ankle joint.
-  for (const [foot, x0, y0] of [[footF, 31, 13.5], [footB, 2, 25.5]]) {
+  for (const [foot, x0, y0] of [[footF, xN, 13.5], [footB, xS, 25.5]]) {
     p.push(cel(id, foot, c.sec, c.secD, { s: 2 }));
     p.push(fill(dRect(x0 + 13, y0 + 1.6, 4.4, 9.8, 2), c.secL, { opacity: 0.9 }));
-    p.push(strokeD(`M${x0 + 12},${y0 + 4.6}H${x0 + 18.5} M${x0 + 12},${y0 + 8.4}H${x0 + 18.5}`, T.ink, 0.9, { opacity: 0.75 }));
+    p.push(strokeD(`M${r2(x0 + 12)},${y0 + 4.6}H${r2(x0 + 18.5)} M${r2(x0 + 12)},${y0 + 8.4}H${r2(x0 + 18.5)}`, T.ink, 0.9, { opacity: 0.75 }));
     p.push(cel(id, dEllipse(x0 + 5, y0 + 6.5, 3.6), c.secL, c.sec, { s: 1 }));
   }
   p.push(cel(id, torso, c.base, c.d, { s: 3 }));
@@ -207,6 +223,13 @@ function mech(c) {
 
 export const mechEnemy = () => mech(ENEMY);
 export const mechFriendly = () => mech(FRIEND);
+/**
+ * Walk-cycle frames k = 1..4: stride cos(k·45°), i.e. 0.71, 0, -0.71, -1 (the mech's own sprite is
+ * k = 0). The renderer plays 0,1,2,3,4,3,2,1 — an 8-step cycle — paced by distance walked.
+ */
+const walkStride = (k) => r2(Math.cos((k * Math.PI) / 4));
+export const mechEnemyWalk = (k) => () => mech(ENEMY, walkStride(k));
+export const mechFriendlyWalk = (k) => () => mech(FRIEND, walkStride(k));
 
 // ---------------------------------------------------------------------------
 // Anti-air — built to be told apart from a tank by silhouette alone, at every zoom:

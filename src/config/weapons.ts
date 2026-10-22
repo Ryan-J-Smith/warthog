@@ -26,10 +26,17 @@ export const GUN = {
   pipperMedium: 340,
   spreadLow: 14,
   spreadMedium: 34,
-  damageLow: 2.0,
-  damageMedium: 1.0,
+  damageLow: 2.5,
+  damageMedium: 1.25,
   /** A round hits an entity if it lands within entity radius + this. */
   hitSlop: 7,
+  /**
+   * Beaten zone: each round also hits soft targets (infantry, trucks…) whose bodies are within
+   * this distance of where it lands, for `beatenZoneShare` of its damage. Sweeps through a soft
+   * group kill several units in one pass; armor only takes the direct hit.
+   */
+  beatenZone: 20,
+  beatenZoneShare: 0.5,
   /**
    * Gun tracking: while firing, the pipper slides back toward the nose by up to `maxDip`
    * of its distance at `dipRate` per second (so it holds on the aim point for ~0.5 s),
@@ -38,6 +45,14 @@ export const GUN = {
   maxDip: 0.5,
   dipRate: 0.7,
   dipRecovery: 2.0,
+} as const;
+
+/** Strafing pass: gun kills with no gap longer than `window` between landing rounds. */
+export const STRAFE = {
+  window: 0.6,
+  /** Kills in one pass that earn the STRAFE ×N bonus. */
+  minKills: 3,
+  bonusPerKill: 50,
 } as const;
 
 export const ROCKETS = {
@@ -83,11 +98,13 @@ export const FLARES = {
 } as const;
 
 /** Damage multiplier by weapon and target armor. */
-export const ARMOR_MULTIPLIER: Record<'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary', Record<ArmorClass, number>> = {
+export const ARMOR_MULTIPLIER: Record<'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary' | 'flak', Record<ArmorClass, number>> = {
   gun: { soft: 1, armored: 1, hardened: 0 },
   rocket: { soft: 1, armored: 0.5, hardened: 0 },
   maverick: { soft: 1, armored: 1, hardened: 0 },
   bomb: { soft: 1, armored: 1, hardened: 1 },
   ground: { soft: 1, armored: 1, hardened: 1 },
   secondary: { soft: 1, armored: 0.6, hardened: 0.3 },
+  /** Base-defence flak batteries: built for gunships, useless against armour. */
+  flak: { soft: 1, armored: 0.2, hardened: 0 },
 };

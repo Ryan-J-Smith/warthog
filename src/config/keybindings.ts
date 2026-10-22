@@ -17,6 +17,7 @@ export const KEYS = {
   brake: ['E', 'C'],
   pause: ['ESC', 'P'],
   mute: ['M'],
+  ready: ['R'],
   confirm: ['ENTER', 'SPACE'],
   back: ['ESC'],
 } as const;

@@ -1,0 +1,366 @@
+import { describe, expect, it } from 'vitest';
+import { holdTheLine } from '../../src/content/levels';
+import { killEntity } from '../../src/sim/combat';
+import { STRUCTURES, structureCost } from '../../src/sim/defense';
+import { distance } from '../../src/sim/math';
+import { Simulation } from '../../src/sim/simulation';
+import { createEntity } from '../../src/sim/spawning';
+import { DEFENSE_GARRISON_TAG, DEFENSE_SORTIE_TAG, DEFENSE_WAVE_TAG, destroyPlayer } from '../../src/sim/systems';
+import type { WeaponId } from '../../src/sim/types';
+import { input, run } from './helpers';
+
+function sim(): Simulation {
+  return new Simulation(holdTheLine);
+}
+
+function defense(s: Simulation) {
+  const d = s.world.defense;
+  if (!d) throw new Error('no defence state');
+  return d;
+}
+
+/** Park the aircraft over a pad (or the airstrip) and press a number key. */
+function press(s: Simulation, at: { x: number; y: number }, key: WeaponId): void {
+  s.world.player.pos = { ...at };
+  run(s, 1 / 60, { select: key });
+}
+
+function padPos(s: Simulation, id: string) {
+  const pad = defense(s).pads.find((p) => p.id === id);
+  if (!pad) throw new Error(`no pad ${id}`);
+  return pad.pos;
+}
+
+function waveUnits(s: Simulation) {
+  return s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_WAVE_TAG));
+}
+
+function clearWave(s: Simulation): void {
+  for (const e of waveUnits(s)) killEntity(s.world, e, false);
+  run(s, 0.1);
+}
+
+describe('base defence', () => {
+  it('starts in a build phase with no clock: nothing attacks until you launch', () => {
+    const s = sim();
+    run(s, 60);
+    expect(defense(s).phase).toBe('build');
+    expect(defense(s).gold).toBe(holdTheLine.defense?.startGold);
+    expect(waveUnits(s)).toHaveLength(0);
+  });
+
+  it('builds on the pad under the aircraft, upgrades with 1, and refuses what you cannot afford', () => {
+    const s = sim();
+    const start = defense(s).gold;
+    press(s, padPos(s, 'w1'), 'gun');
+    const pad = defense(s).pads.find((p) => p.id === 'w1');
+    expect(pad?.structure).toBe('barracks');
+    expect(defense(s).gold).toBe(start - (STRUCTURES.barracks.costs[0] ?? 0));
+    press(s, padPos(s, 'w1'), 'gun');
+    expect(pad?.level).toBe(2);
+    // 200 - 60 - 90 = 50 left: a tank depot (110) is out of reach.
+    press(s, padPos(s, 'n1'), 'rockets');
+    expect(defense(s).pads.find((p) => p.id === 'n1')?.structure).toBeNull();
+    expect(defense(s).notice?.good).toBe(false);
+  });
+
+  it('a bunker digs in a garrison straight away', () => {
+    const s = sim();
+    press(s, padPos(s, 'e2'), 'maverick');
+    const garrison = s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_GARRISON_TAG));
+    expect(garrison).toHaveLength(STRUCTURES.bunker.count[0] ?? -1);
+  });
+
+  it('the armory over the airstrip upgrades the gun', () => {
+    const s = sim();
+    press(s, s.world.homeBasePos(), 'gun');
+    expect(s.world.loadout.gunDamageMultiplier).toBeCloseTo(1.5);
+    expect(defense(s).armory.gun).toBe(1);
+  });
+
+  it('R launches the previewed wave down its roads, and sorties march out', () => {
+    const s = sim();
+    press(s, padPos(s, 'n1'), 'gun');
+    run(s, 1 / 60, { ready: true });
+    expect(defense(s).phase).toBe('wave');
+    const first = holdTheLine.defense?.waves[0];
+    const expected = first?.lanes.reduce((n, l) => n + l.units.length, 0);
+    expect(waveUnits(s)).toHaveLength(expected ?? -1);
+    expect(s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_SORTIE_TAG))).toHaveLength(STRUCTURES.barracks.count[0] ?? -1);
+    // Building is closed while a wave is on.
+    press(s, padPos(s, 'w1'), 'gun');
+    expect(defense(s).pads.find((p) => p.id === 'w1')?.structure).toBeNull();
+  });
+
+  it('clearing a wave pays the bonus, recalls sorties and reopens building for the next', () => {
+    const s = sim();
+    press(s, padPos(s, 'n1'), 'gun');
+    run(s, 1 / 60, { ready: true });
+    const gold = defense(s).gold;
+    clearWave(s);
+    expect(defense(s).phase).toBe('build');
+    expect(defense(s).wave).toBe(1);
+    expect(defense(s).gold).toBe(gold + (holdTheLine.defense?.waveBonus ?? 0));
+    expect(s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_SORTIE_TAG))).toHaveLength(0);
+  });
+
+  it('player kills pay gold', () => {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    const gold = defense(s).gold;
+    const [unit] = waveUnits(s);
+    if (!unit) throw new Error('no wave');
+    killEntity(s.world, unit, true);
+    run(s, 1 / 60);
+    expect(defense(s).gold).toBeGreaterThan(gold);
+  });
+
+  it('being shot down costs time, not a life', () => {
+    const s = sim();
+    const lives = s.world.player.lives;
+    destroyPlayer(s.world);
+    expect(s.world.player.lives).toBe(lives);
+    expect(s.world.player.respawnIn).toBe(holdTheLine.defense?.respawnDelay);
+    run(s, (holdTheLine.defense?.respawnDelay ?? 0) + 0.5);
+    expect(s.world.player.alive).toBe(true);
+  });
+
+  it('clearing the last wave wins; losing the base loses', () => {
+    const won = sim();
+    for (let i = 0; i < (holdTheLine.defense?.waves.length ?? 0); i++) {
+      if (defense(won).offer) run(won, 1 / 60, { select: 'gun' });
+      run(won, 1 / 60, { ready: true });
+      clearWave(won);
+    }
+    expect(won.world.results?.outcome).toBe('victory');
+    expect(won.world.objectives.find((o) => o.id === 'base')?.status).toBe('completed');
+
+    const lost = sim();
+    const base = lost.world.findByRef('base');
+    if (!base) throw new Error('no base');
+    killEntity(lost.world, base, false);
+    run(lost, 0.1);
+    expect(lost.world.results?.outcome).toBe('defeat');
+  });
+
+  it('with no defences and no pilot, the base falls before the last wave', () => {
+    const s = sim();
+    for (let t = 0; t < 1800 && !s.world.ended; t += 1) {
+      if (defense(s).offer) run(s, 1 / 60, { select: 'gun' });
+      run(s, 1, { ready: defense(s).phase === 'build' });
+    }
+    expect(s.world.results?.outcome).toBe('defeat');
+  }, 60_000);
+});
+
+describe('base defence: flak', () => {
+  it('a flak battery shoots down a gunship in range, and only gunships', () => {
+    const s = sim();
+    press(s, padPos(s, 'n2'), 'bombs');
+    expect(defense(s).pads.find((p) => p.id === 'n2')?.structure).toBe('flak');
+    run(s, 1 / 60, { ready: true });
+    // Park a gunship over the battery (its route loiters there).
+    const heli = createEntity(s.world, 'helicopter', { ...padPos(s, 'n2') }, { tags: [DEFENSE_WAVE_TAG], path: [{ ...padPos(s, 'n2') }] });
+    s.world.entities.push(heli);
+    let fired = 0;
+    for (let i = 0; i < 60 * 15 && heli.alive; i++) {
+      s.step(input());
+      fired += s.drainEvents().filter((e) => e.type === 'flakFired').length;
+    }
+    expect(fired).toBeGreaterThan(0);
+    expect(heli.alive).toBe(false);
+  });
+});
+
+describe('base defence: controls', () => {
+  it('a build key does not change the selected weapon', () => {
+    const s = sim();
+    run(s, 0.1);
+    expect(s.world.player.selectedWeapon).toBe('gun');
+    press(s, padPos(s, 'n2'), 'maverick');
+    expect(defense(s).pads.find((p) => p.id === 'n2')?.structure).toBe('bunker');
+    expect(s.world.player.selectedWeapon).toBe('gun');
+  });
+});
+
+describe('base defence: draft cards', () => {
+  function afterFirstWave(): Simulation {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    clearWave(s);
+    return s;
+  }
+
+  it('offers three different cards after a wave, and R waits until one is taken', () => {
+    const s = afterFirstWave();
+    const offer = defense(s).offer;
+    expect(offer).toHaveLength(3);
+    expect(new Set(offer).size).toBe(3);
+    run(s, 1 / 60, { ready: true });
+    expect(defense(s).phase).toBe('build');
+    expect(defense(s).notice?.good).toBe(false);
+  });
+
+  it('a number key takes the card, applies it and closes the draft (over a pad too)', () => {
+    const s = afterFirstWave();
+    const offer = defense(s).offer ?? [];
+    const gold = defense(s).gold;
+    // Over a pad: the draft still takes the key, nothing gets built.
+    s.world.player.pos = { ...padPos(s, 'w1') };
+    run(s, 1 / 60, { select: 'rockets' });
+    expect(defense(s).perks).toEqual([offer[1]]);
+    expect(defense(s).offer).toBeNull();
+    expect(defense(s).pads.find((p) => p.id === 'w1')?.structure).toBeNull();
+    if (offer[1] === 'supplyDrop') expect(defense(s).gold).toBe(gold + 150);
+    run(s, 1 / 60, { ready: true });
+    expect(defense(s).phase).toBe('wave');
+  });
+
+  it('perks change the rules: requisitions cut costs, war bonds raise kill gold, hot spare shortens respawn', () => {
+    const s = sim();
+    const d = defense(s);
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'gun' });
+    expect(structureCost(d, 'barracks', 0)).toBe(Math.round((STRUCTURES.barracks.costs[0] ?? 0) * 0.75));
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'rockets' });
+    expect(d.mods.goldMultiplier).toBeCloseTo(1.5);
+    d.offer = ['discount', 'warBonds', 'quickTurnaround'];
+    run(s, 1 / 60, { select: 'maverick' });
+    destroyPlayer(s.world);
+    expect(s.world.player.respawnIn).toBe(3);
+  });
+
+  it('non-repeatable cards are never offered twice', () => {
+    const s = sim();
+    const d = defense(s);
+    d.offer = ['warBonds', 'supplyDrop', 'veterans'];
+    run(s, 1 / 60, { select: 'gun' });
+    for (let i = 0; i < (holdTheLine.defense?.waves.length ?? 0) - 1; i++) {
+      run(s, 1 / 60, { ready: true });
+      clearWave(s);
+      expect(d.offer ?? []).not.toContain('warBonds');
+      run(s, 1 / 60, { select: 'gun' });
+    }
+  });
+});
+
+describe('base defence: run variety', () => {
+  const roads = (seed: number): string => {
+    const s = new Simulation(holdTheLine, seed);
+    run(s, 1 / 60);
+    return defense(s).waves.map((w) => w.lanes.map((l) => `${l.laneId}:${l.units.length}`).join(',')).join(' | ');
+  };
+
+  it('deals the roads from the seed: same seed same run, other seeds differ, unit counts kept', () => {
+    expect(roads(7)).toBe(roads(7));
+    const seen = new Set([1, 2, 3, 4, 5].map(roads));
+    expect(seen.size).toBeGreaterThan(1);
+    // Shuffling moves road groups between roads; it never changes what a wave brings.
+    const totals = (seed: number) => {
+      const s = new Simulation(holdTheLine, seed);
+      run(s, 1 / 60);
+      return defense(s).waves.map((w) => w.lanes.reduce((n, l) => n + l.units.length, 0));
+    };
+    expect(totals(3)).toEqual(totals(4));
+  });
+});
+
+describe('base defence: leaks', () => {
+  it('a wave unit that reaches the base chips its integrity and leaves the field', () => {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    const base = s.world.findByRef('base');
+    const [unit] = waveUnits(s);
+    if (!base || !unit) throw new Error('setup');
+    unit.pos = { x: base.pos.x, y: base.pos.y - 300 };
+    run(s, 1 / 60);
+    expect(s.world.entities.includes(unit)).toBe(false);
+    expect(base.hp / base.maxHp).toBeCloseTo(0.96, 2);
+    expect(defense(s).notice?.text).toContain('BROKE THROUGH');
+  });
+});
+
+describe('base defence: gunship bingo', () => {
+  it('gunships left alone after the ground units die break off, so the wave ends', () => {
+    const s = sim();
+    run(s, 1 / 60, { ready: true });
+    for (const e of waveUnits(s)) killEntity(s.world, e, false);
+    const heli = createEntity(s.world, 'helicopter', { x: 300, y: 300 }, { tags: [DEFENSE_WAVE_TAG] });
+    s.world.entities.push(heli);
+    s.world.player.pos = { x: 4300, y: 3300 };
+    run(s, 30);
+    expect(defense(s).phase).toBe('wave');
+    run(s, 15);
+    expect(defense(s).phase).toBe('build');
+  });
+});
+
+describe('base defence: sorties', () => {
+  function sortie(s: Simulation) {
+    return s.world.entities.filter((e) => e.alive && e.tags.includes(DEFENSE_SORTIE_TAG));
+  }
+  function centroid(units: readonly { pos: { x: number; y: number } }[]) {
+    return { x: units.reduce((n, u) => n + u.pos.x, 0) / units.length, y: units.reduce((n, u) => n + u.pos.y, 0) / units.length };
+  }
+
+  /** Build a barracks (upgraded `upgrades` times) on a pad and launch a wave that stays parked far away. */
+  function turnOut(padId: string, upgrades = 0): Simulation {
+    const s = sim();
+    defense(s).waves[0] = { lanes: [{ laneId: 'west', units: ['truck'] }] };
+    for (let i = 0; i <= upgrades; i++) press(s, padPos(s, padId), 'gun');
+    s.world.player.pos = { x: 4300, y: 3300 };
+    run(s, 1 / 60, { ready: true });
+    for (const e of waveUnits(s)) {
+      e.pos = { x: 60, y: 3340 };
+      if (e.mover) e.mover.halted = true;
+    }
+    return s;
+  }
+
+  it('form up on their road beside the pad and hold there when nothing comes', () => {
+    for (const padId of ['w1', 'w2', 'n1', 'e1']) {
+      const s = turnOut(padId);
+      run(s, 15);
+      const squad = sortie(s);
+      expect(squad.length, padId).toBe(STRUCTURES.barracks.count[0]);
+      for (const u of squad) {
+        expect(u.mover?.halted, padId).toBe(true);
+        expect(distance(u.pos, padPos(s, padId)), padId).toBeLessThan(260);
+        // One line, all facing the same way (up the road).
+        expect(Math.cos(u.heading - (squad[0]?.heading ?? 0)), padId).toBeGreaterThan(0.98);
+        for (const v of squad) if (v !== u) expect(distance(u.pos, v.pos), padId).toBeGreaterThan(45);
+      }
+      // Still there later: they hold, they don't wander off up the road.
+      const held = centroid(squad);
+      run(s, 15);
+      expect(distance(centroid(sortie(s)), held), padId).toBeLessThan(5);
+    }
+  });
+
+  it('spread into a firing line on an enemy inside the leash (every unit in range), then walk back', () => {
+    // Upgraded: 8 units, two ranks — the rear rank must not queue behind the front one.
+    const s = turnOut('n2', 1);
+    run(s, 15);
+    const squad = sortie(s);
+    expect(squad).toHaveLength(STRUCTURES.barracks.count[1] ?? -1);
+    const post = centroid(squad);
+    const facing = squad[0]?.heading ?? 0;
+    // A parked enemy up the road, past weapon range (220) but inside the leash.
+    const foe = createEntity(
+      s.world,
+      'infantry',
+      { x: post.x + Math.cos(facing) * 420, y: post.y + Math.sin(facing) * 420 },
+      { tags: [DEFENSE_WAVE_TAG] },
+    );
+    foe.attacker = null;
+    foe.hp = foe.maxHp = 1e6;
+    s.world.entities.push(foe);
+    run(s, 12);
+    for (const u of sortie(s)) expect(u.attacker?.targetId).toBe(foe.id);
+    killEntity(s.world, foe, false);
+    run(s, 20);
+    expect(distance(centroid(sortie(s)), post)).toBeLessThan(10);
+    for (const u of sortie(s)) expect(u.mover?.halted).toBe(true);
+  });
+});

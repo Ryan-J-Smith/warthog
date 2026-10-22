@@ -5,16 +5,16 @@ import type { World } from '../world';
 import { registerKill } from './rewards';
 
 /** What dealt the damage: drives armor multipliers, scoring and friendly-fire accounting. */
-export type DamageSource = 'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary';
+export type DamageSource = 'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary' | 'flak';
 
 /** Player-launched sources score points and can cause friendly fire. */
 function isPlayerSource(source: DamageSource): boolean {
   return source === 'gun' || source === 'rocket' || source === 'maverick' || source === 'bomb';
 }
 
-/** Airborne targets (helicopters) are only hit by the GAU-8 and rocket blasts. */
+/** Airborne targets (helicopters) are only hit by the GAU-8, rocket blasts and flak. */
 function hitsAirborne(source: DamageSource): boolean {
-  return source === 'gun' || source === 'rocket';
+  return source === 'gun' || source === 'rocket' || source === 'flak';
 }
 
 /**

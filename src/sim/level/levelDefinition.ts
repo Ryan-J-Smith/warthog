@@ -1,5 +1,6 @@
 import type { Vec2 } from '../math';
 import type { EntityKind, RadioTone } from '../types';
+import type { DefenseDefinition } from './defenseDefinition';
 import type { LaneWarDefinition } from './laneWarDefinition';
 
 // ---------------------------------------------------------------------------
@@ -226,6 +227,8 @@ export interface LevelDefinition {
   endOnResolve?: boolean;
   /** Repeating waves pushing down roads between two HQs (lane missions). */
   laneWar?: LaneWarDefinition;
+  /** Base defence: build between waves, fly during them. */
+  defense?: DefenseDefinition;
   /** Target mission time for the time bonus, seconds. */
   parTime: number;
   /** Multiplies the grade thresholds (big lane wars score far more than River Crossing). Default 1. */

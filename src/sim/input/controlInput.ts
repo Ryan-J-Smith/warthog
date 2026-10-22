@@ -16,6 +16,8 @@ export interface ControlInput {
   dive: boolean;
   flare: boolean;
   select: WeaponId | null;
+  /** Base defence: launch the next wave (edge-triggered). */
+  ready: boolean;
 }
 
 export const NO_INPUT: Readonly<ControlInput> = {
@@ -27,4 +29,5 @@ export const NO_INPUT: Readonly<ControlInput> = {
   dive: false,
   flare: false,
   select: null,
+  ready: false,
 };

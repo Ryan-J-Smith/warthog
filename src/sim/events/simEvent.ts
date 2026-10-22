@@ -1,3 +1,5 @@
+import type { GroundRoundKind } from '../../config';
+import type { ArmoryId, PerkId, StructureId } from '../defense';
 import type { Vec2 } from '../math';
 import type {
   AltitudeBand,
@@ -24,6 +26,8 @@ export type SimEvent =
   | { type: 'gunStopped' }
   /** A GAU-8 round landed. `hit` = it damaged something; `armored` = it hit armor (sparks). */
   | { type: 'gunImpact'; pos: Vec2; hit: boolean; armored: boolean }
+  /** A gun kill that made this strafing pass a multi-kill (`count` = kills so far this pass, ≥ 2). */
+  | { type: 'strafeKill'; count: number; pos: Vec2 }
   | { type: 'rocketLaunched'; pos: Vec2; heading: number }
   | { type: 'missileLaunched'; pos: Vec2; heading: number }
   | { type: 'bombReleased'; pos: Vec2 }
@@ -41,8 +45,26 @@ export type SimEvent =
   | { type: 'secondaryExplosion'; pos: Vec2; size: ExplosionSize }
   | { type: 'entitySpotted'; entityId: number; kind: EntityKind }
   | { type: 'entityRevealed'; entityId: number; kind: EntityKind; pos: Vec2 }
-  /** Ambient ground battle: a unit fired at another ground unit/structure. */
-  | { type: 'groundFire'; shooterKind: EntityKind; from: Vec2; to: Vec2 }
+  /**
+   * Ground battle: a unit fired a round at another ground unit/structure. It lands at `to` after
+   * `flightTime` seconds (see `groundRoundImpact`); damage is dealt on arrival, not here.
+   */
+  | { type: 'groundFire'; shooterKind: EntityKind; round: GroundRoundKind; from: Vec2; to: Vec2; flightTime: number }
+  /** A ground round landed. `hit` = it damaged something; `armored` = it struck armor (sparks). */
+  | { type: 'groundRoundImpact'; shooterKind: EntityKind; round: GroundRoundKind; pos: Vec2; hit: boolean; armored: boolean }
+  /** Base defence: a pad structure was built or upgraded. */
+  | { type: 'structureBuilt'; padId: string; structure: StructureId; level: number; pos: Vec2 }
+  /** Base defence: an armory upgrade was bought over the home base. */
+  | { type: 'armoryBought'; item: ArmoryId; level: number }
+  | { type: 'defenseWaveStarted'; wave: number; total: number }
+  /** A flak battery fired a shell at a gunship; it bursts at `to` after `flightTime`. */
+  | { type: 'flakFired'; from: Vec2; to: Vec2; flightTime: number }
+  | { type: 'flakBurst'; pos: Vec2; hit: boolean }
+  /** Base defence: a wave unit broke through to the base (it chipped `share` of its integrity). */
+  | { type: 'baseBreached'; kind: EntityKind; pos: Vec2; share: number }
+  /** Base defence: a draft card was taken. */
+  | { type: 'perkTaken'; perk: PerkId }
+  | { type: 'defenseWaveCleared'; wave: number; total: number; bonus: number }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }
   /** AA laser telegraph: the gun is painting the player (aim line), beam follows. */

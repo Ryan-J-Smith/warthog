@@ -1,4 +1,6 @@
 import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, PLAYER } from '../../config';
+import type { GroundRoundKind } from '../../config';
+import { initDefense, type DefenseState } from '../defense';
 import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { SimEvent } from '../events';
 import { DEFAULT_DIFFICULTY, type Difficulty } from '../difficulty';
@@ -6,7 +8,7 @@ import type { LevelDefinition } from '../level';
 import { DEFAULT_LOADOUT, type PlayerLoadout } from '../loadout';
 import { Rng, degToRad, type Vec2 } from '../math';
 import type { MissionResults } from './missionResults';
-import type { EntityKind } from '../types';
+import type { EntityKind, Team } from '../types';
 import type { ComboState, ObjectiveState, ReticleState, WorldView, ZoneState } from './worldView';
 
 /** Tag on a friendly structure that has become a forward rearm point. */
@@ -19,10 +21,32 @@ export interface PendingRound {
   damage: number;
 }
 
+/** A ground unit's round in flight (rendered from its `groundFire` event; lands at `pos`). */
+export interface GroundRound {
+  landsAt: number;
+  pos: Vec2;
+  damage: number;
+  round: GroundRoundKind;
+  shooterKind: EntityKind;
+  /** The shooter's team: rounds only hurt the other side. */
+  team: Team;
+  /** What it was aimed at (it may have moved or died by the time the round lands). */
+  targetId: number;
+}
+
 /** A delayed explosion (ammo dump cook-off). */
 export interface PendingSecondary {
   at: number;
   pos: Vec2;
+}
+
+/** The GAU-8 pass in progress (see `STRAFE`). */
+export interface StrafeState {
+  kills: number;
+  /** When the last round of this pass landed. */
+  lastRoundAt: number;
+  /** Where the last kill happened (the bonus pops there). */
+  lastKillPos: Vec2 | null;
 }
 
 /** Player combat statistics used for the results screen. */
@@ -52,8 +76,8 @@ export class World implements WorldView {
   readonly width: number;
   readonly height: number;
   readonly rng: Rng;
-  /** The aircraft as upgraded in the hangar. */
-  readonly loadout: Readonly<PlayerLoadout>;
+  /** The aircraft as upgraded in the hangar (base defence swaps it for armory upgrades mid-mission). */
+  loadout: Readonly<PlayerLoadout>;
 
   time = 0;
   player: PlayerState;
@@ -74,10 +98,14 @@ export class World implements WorldView {
   /** Global AA fire-rate multiplier (ammo dump destroyed → 0.5). */
   aaFireRate: number;
   pendingRounds: PendingRound[] = [];
+  groundRounds: GroundRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
+  strafe: StrafeState = { kills: 0, lastRoundAt: -Infinity, lastKillPos: null };
   stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0, killsByKind: {}, hullDamage: 0, deaths: 0 };
   /** Convoy vehicles that reached the end of their road (score-attack missions). */
   escapes = 0;
+  /** Base-defence state (null outside base-defence levels). */
+  defense: DefenseState | null;
   /** Group ids that have spawned. */
   spawnedGroups = new Set<string>();
   /** Indices of radio cues already played. */
@@ -99,6 +127,7 @@ export class World implements WorldView {
     this.height = level.height;
     this.rng = new Rng(seed);
     this.player = createPlayer(level, loadout);
+    this.defense = initDefense(level);
     this.reticle = { weapon: 'gun', impact: null, ready: true, onTarget: false, blockedReason: null };
   }
 

@@ -6,6 +6,8 @@ interface Floater {
   y: number;
   age: number;
   life: number;
+  /** Size multiplier (bonus banners are bigger than per-kill points). */
+  scale: number;
   active: boolean;
 }
 
@@ -30,12 +32,12 @@ export class FloatingTexts {
     private readonly max = 14,
   ) {}
 
-  spawn(x: number, y: number, label: string, positive: boolean): void {
+  spawn(x: number, y: number, label: string, positive: boolean, scale = 1): void {
     let f = this.items.find((i) => !i.active);
     if (!f) {
       if (this.items.length < this.max) {
         const text = this.scene.add.text(0, 0, '', STYLE).setOrigin(0.5).setDepth(this.depth);
-        f = { text, x: 0, y: 0, age: 0, life: 1.4, active: false };
+        f = { text, x: 0, y: 0, age: 0, life: 1.4, scale: 1, active: false };
         this.items.push(f);
       } else {
         // Recycle the oldest.
@@ -45,6 +47,8 @@ export class FloatingTexts {
     f.x = x;
     f.y = y;
     f.age = 0;
+    f.scale = scale;
+    f.life = scale > 1 ? 1.9 : 1.4;
     f.active = true;
     f.text.setText(label).setColor(positive ? '#ffe36e' : '#ff6a55').setVisible(true);
   }
@@ -63,7 +67,7 @@ export class FloatingTexts {
       const pop = t < 0.1 ? 1.35 - (t / 0.1) * 0.35 : 1;
       const rise = (1 - Math.pow(1 - t, 2)) * 56;
       f.text.setPosition(f.x, f.y - rise / zoom);
-      f.text.setScale(pop / zoom);
+      f.text.setScale((pop * f.scale) / zoom);
       f.text.setAlpha(t < 0.55 ? 1 : 1 - (t - 0.55) / 0.45);
     }
   }

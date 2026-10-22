@@ -46,7 +46,7 @@ export function createEntity(world: World, kind: EntityKind, pos: Vec2, options:
     sam: stats.sam
       ? { range: stats.sam.range, lock: 0, locking: false, reload: 0, missilesInFlight: 0, launcherHeading: heading }
       : null,
-    attacker: stats.attacker ? { targetId: null, range: stats.attacker.range, cooldown: world.rng.range(0, stats.attacker.cooldown) } : null,
+    attacker: stats.attacker ? { targetId: null, range: stats.attacker.range, cooldown: world.rng.range(0, stats.attacker.cooldown), damageMultiplier: 1 } : null,
     heli: stats.heli
       ? {
           path,

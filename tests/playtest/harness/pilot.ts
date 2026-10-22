@@ -159,6 +159,7 @@ export class Pilot {
       dive: want < have,
       flare,
       select: p.selectedWeapon !== intent.weapon ? intent.weapon : null,
+      ready: false,
     };
   }
 }

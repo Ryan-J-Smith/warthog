@@ -11,6 +11,11 @@ export interface MoverState {
   halted: boolean;
   /** Stop on reaching this waypoint index (e.g. column stalled at a destroyed bridge). */
   stopAtWaypoint: number | null;
+  /**
+   * Moves to its own formation slot (slots are spaced apart), so it never waits behind a friend
+   * for convoy spacing: queued behind one that stopped to fight, it would never get into range.
+   */
+  formation?: boolean;
 }
 
 /**
@@ -112,6 +117,8 @@ export interface AttackerState {
   targetId: number | null;
   range: number;
   cooldown: number;
+  /** Scales this unit's damage per shot (base-defence structures field upgraded units). */
+  damageMultiplier: number;
 }
 
 export interface Entity {
