@@ -2,11 +2,12 @@ import { ENTITY_STATS } from '../../config';
 import type { Entity, Projectile } from '../entities';
 import { angleOf, degToRad, distance, fromAngle, rotateToward, sub, type Vec2 } from '../math';
 import type { World } from '../world';
+import { damagePlayer } from './playerDamage';
 import { SimSystem, type StepContext } from './simSystem';
 
 const TURRET_TURN_RATE = degToRad(180);
 
-/** AA guns (burst fire with lead) and SAM sites (radar lock → launch). */
+/** AA lasers (telegraph → slewing beam) and SAM sites (radar lock → launch). */
 export class AirDefenseSystem extends SimSystem {
   update({ world, dt }: StepContext): void {
     let radarLocks = 0;
@@ -26,44 +27,57 @@ export class AirDefenseSystem extends SimSystem {
     const stats = ENTITY_STATS[gun.kind].aa;
     if (!aa || !stats) return;
     const p = world.player;
-    aa.cooldown -= dt;
+    const toPlayer = angleOf(sub(p.pos, gun.pos));
     const inRange = distance(gun.pos, p.pos) <= aa.range;
     const canEngage = p.alive && p.band !== 'high' && inRange;
-    aa.engaging = canEngage;
-    if (!canEngage) {
-      aa.burstRemaining = 0;
-      return;
+    aa.phaseTime -= dt;
+    aa.beamOnTarget = false;
+
+    switch (aa.phase) {
+      case 'idle':
+        aa.beamAngle = rotateToward(aa.beamAngle, toPlayer, TURRET_TURN_RATE * dt);
+        if (canEngage) {
+          aa.phase = 'aiming';
+          aa.phaseTime = stats.aimTime;
+          gun.spotted = true;
+          world.emit({ type: 'aaAiming', entityId: gun.id, pos: { ...gun.pos } });
+        }
+        break;
+      case 'aiming':
+        if (!canEngage) {
+          aa.phase = 'idle';
+          break;
+        }
+        // Track the aircraft, then hold the line for the last `lockTime` s: that's the dodge window.
+        if (aa.phaseTime > stats.lockTime) aa.beamAngle = rotateToward(aa.beamAngle, toPlayer, degToRad(stats.aimTrackDeg) * dt);
+        if (aa.phaseTime <= 0) {
+          aa.phase = 'firing';
+          aa.phaseTime = stats.beamTime;
+          world.emit({ type: 'aaBeamStarted', entityId: gun.id, pos: { ...gun.pos } });
+        }
+        break;
+      case 'firing': {
+        const lowBand = p.band === 'low';
+        aa.beamAngle = rotateToward(aa.beamAngle, toPlayer, degToRad(lowBand ? stats.slewDegLow : stats.slewDegMedium) * dt);
+        if (canEngage && beamHits(gun.pos, aa.beamAngle, aa.range, p.pos, stats.hitHalfWidth)) {
+          aa.beamOnTarget = true;
+          damagePlayer(world, (lowBand ? stats.dpsLow : stats.dpsMedium) * dt, 'beam', p.pos);
+        }
+        if (aa.phaseTime <= 0 || !p.alive || p.band === 'high') {
+          aa.phase = 'cooldown';
+          aa.phaseTime = stats.cooldown / world.aaFireRate;
+          world.emit({ type: 'aaBeamStopped', entityId: gun.id });
+        }
+        break;
+      }
+      case 'cooldown':
+        aa.beamAngle = rotateToward(aa.beamAngle, toPlayer, TURRET_TURN_RATE * 0.5 * dt);
+        if (aa.phaseTime <= 0) aa.phase = 'idle';
+        break;
     }
-    gun.spotted = true;
-    gun.turretHeading = rotateToward(gun.turretHeading, angleOf(sub(p.pos, gun.pos)), TURRET_TURN_RATE * dt);
+    aa.engaging = aa.phase === 'aiming' || aa.phase === 'firing';
+    gun.turretHeading = aa.beamAngle;
     if (!gun.mover) gun.heading = gun.turretHeading;
-    if (aa.cooldown > 0) return;
-
-    if (aa.burstRemaining <= 0) {
-      aa.burstRemaining = Math.max(1, Math.round(stats.roundsPerBurst * (world.aaFireRate < 1 ? 0.6 : 1)));
-      world.emit({ type: 'aaBurst', entityId: gun.id, pos: { ...gun.pos } });
-    }
-
-    const lead = leadPoint(gun.pos, p.pos, world.playerVelocity(), stats.roundSpeed);
-    const spread = p.band === 'low' ? stats.spreadLow : stats.spreadMedium;
-    const off = world.rng.inDisc(spread);
-    const aim = { x: lead.x + off.x, y: lead.y + off.y };
-    const dist = distance(gun.pos, aim);
-    const heading = angleOf(sub(aim, gun.pos));
-    world.projectiles.push(
-      enemyProjectile(world, 'aaRound', gun, heading, stats.roundSpeed, {
-        life: (dist / stats.roundSpeed) * 1.35,
-        damage: stats.roundDamage,
-        startDistance: dist,
-        targetId: -1,
-      }),
-    );
-
-    aa.burstRemaining -= 1;
-    aa.cooldown =
-      aa.burstRemaining > 0
-        ? stats.roundInterval
-        : (stats.burstPause / world.aaFireRate) * world.rng.range(0.85, 1.15);
   }
 
   private updateSam(world: World, site: Entity, dt: number): void {
@@ -101,11 +115,21 @@ export class AirDefenseSystem extends SimSystem {
       });
       world.projectiles.push(missile);
       sam.missilesInFlight += 1;
-      sam.reload = stats.reload;
+      sam.reload = stats.reload / world.difficulty.enemyFireRate;
       sam.lock = 0.5;
       world.emit({ type: 'samLaunched', siteId: site.id, missileId: missile.id, pos: { ...site.pos } });
     }
   }
+}
+
+/** Is `target` within `halfWidth` of the beam from `from` along `angle`, up to `range` (+ slack)? */
+export function beamHits(from: Vec2, angle: number, range: number, target: Vec2, halfWidth: number): boolean {
+  const dx = target.x - from.x;
+  const dy = target.y - from.y;
+  const along = dx * Math.cos(angle) + dy * Math.sin(angle);
+  if (along < 0 || along > range + halfWidth) return false;
+  const across = Math.abs(-dx * Math.sin(angle) + dy * Math.cos(angle));
+  return across <= halfWidth;
 }
 
 /** Where to aim so a projectile at `speed` meets a target moving at `velocity`. */

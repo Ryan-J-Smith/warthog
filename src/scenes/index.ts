@@ -7,6 +7,7 @@ export type {
   HudSceneData,
   PauseSceneData,
   ResultsSceneData,
+  HangarSceneData,
 } from './sceneKeys';
 export { BootScene } from './BootScene';
 export { PreloadScene } from './PreloadScene';
@@ -16,3 +17,5 @@ export { GameScene } from './GameScene';
 export { HudScene } from './HudScene';
 export { PauseScene } from './PauseScene';
 export { ResultsScene } from './ResultsScene';
+export { LevelSelectScene } from './LevelSelectScene';
+export { HangarScene } from './HangarScene';

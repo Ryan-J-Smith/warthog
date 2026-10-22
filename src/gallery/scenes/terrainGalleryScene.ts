@@ -8,6 +8,7 @@ import { SPRITE_SCALE, addSpriteImage } from '../../render/sprites';
 import { TerrainRenderer } from '../../render/terrain';
 import { degToRad } from '../../sim/math';
 import type { Vec2 } from '../../sim/math';
+import { withGalleryBiome } from './galleryBiome';
 
 const ZOOMS = [1.0, 0.72, 0.45];
 /** Tank turret pivot in sprite units, exactly as the game draws it. */
@@ -27,7 +28,7 @@ const POINTS: Array<{ name: string; pos: Vec2 }> = [
 ];
 
 /**
- * River Crossing terrain with sprites at their level positions.
+ * River Crossing terrain with sprites at their level positions (`?biome=winter` repaints it as winter).
  * Arrows pan (Shift = fast), Z / 1-2-3 zoom, J jumps between points of interest, C toggles clouds.
  */
 export class TerrainGalleryScene extends Phaser.Scene {
@@ -45,7 +46,7 @@ export class TerrainGalleryScene extends Phaser.Scene {
   }
 
   create(): void {
-    const level = riverCrossing;
+    const level = withGalleryBiome(riverCrossing);
     const params = new URLSearchParams(window.location.search);
     const cam = this.cameras.main;
     const start = POINTS[Number(params.get('point') ?? '0')] ?? POINTS[0];

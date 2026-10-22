@@ -11,6 +11,12 @@ export class MissionSystem extends SimSystem {
     if (world.ended) return;
     const p = world.player;
 
+    if (world.level.endOnResolve && allPrimariesResolved(world)) {
+      const anyPrimaryFailed = world.objectives.some((o) => o.primary && o.status === 'failed');
+      endMission(world, anyPrimaryFailed ? 'defeat' : 'victory');
+      return;
+    }
+
     if (!world.rtb && allPrimariesResolved(world)) {
       world.rtb = true;
       world.rtbAt = world.time;
@@ -49,13 +55,25 @@ export function computeResults(world: World, outcome: MissionOutcome): MissionRe
   const timeBonus = won ? Math.max(0, Math.round((world.level.parTime - world.time) * SCORING.timeBonusPerSecondUnderPar)) : 0;
   const livesBonus = won ? Math.max(0, world.player.lives) * SCORING.lifeBonus : 0;
   const total = Math.round(world.score + timeBonus + livesBonus);
-  const grade = SCORING.grades.find((g) => total >= g.min)?.grade ?? 'D';
+  const scale = world.level.gradeScale ?? 1;
+  const grade = SCORING.grades.find((g) => total >= g.min * scale)?.grade ?? 'D';
   return {
     outcome,
     time: world.time,
     killPoints: world.stats.killPoints,
     kills: world.stats.kills,
     bonusPoints: world.stats.bonusPoints,
+    difficulty: world.difficulty.id,
+    feats: {
+      bestChain: world.stats.bestChain,
+      missilesDefeated: world.stats.missilesDefeated,
+      zonesCleared: world.stats.zonesCleared,
+      pickupsCollected: world.stats.pickupsCollected,
+      killsByKind: { ...world.stats.killsByKind },
+      hullDamage: Math.round(world.stats.hullDamage),
+      deaths: world.stats.deaths,
+      escapes: world.escapes,
+    },
     objectives,
     objectivePoints: objectives.reduce((sum, o) => sum + o.points, 0),
     timeBonus,

@@ -3,6 +3,7 @@ import { AudioDirector, MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
 import { KeyboardControls } from '../controls';
+import { difficultyForGame, loadoutForGame } from '../meta/session';
 import { CameraRig } from '../render/camera';
 import { CloudLayer } from '../render/clouds';
 import { EntityRenderer, PlayerRenderer } from '../render/entities';
@@ -51,7 +52,7 @@ export class GameScene extends Phaser.Scene {
   create(data: GameSceneData): void {
     this.levelId = data.levelId;
     const level = getLevel(data.levelId);
-    this.sim = new Simulation(level);
+    this.sim = new Simulation(level, undefined, undefined, loadoutForGame(this.game), difficultyForGame(this.game));
     this.finishing = false;
     this.hitStopMs = 0;
     this.slowMoMs = 0;
@@ -73,7 +74,7 @@ export class GameScene extends Phaser.Scene {
     this.controls = new KeyboardControls(this);
     this.audio = new AudioDirector(this);
     this.music = new MusicManager(this);
-    this.music.playMission();
+    this.music.playMission(this.levelId);
 
     const hudData: HudSceneData = { levelId: this.levelId };
     this.scene.launch(SCENES.hud, hudData);
@@ -99,7 +100,7 @@ export class GameScene extends Phaser.Scene {
     this.cameraRig.update(delta, view);
     this.clouds.update(delta, view);
     this.worldUi.sync(view);
-    this.effects.handleEvents(events);
+    this.effects.handleEvents(events, view);
     this.effects.update(delta, view);
     this.audio.update(delta, view);
     this.audio.handleEvents(events);

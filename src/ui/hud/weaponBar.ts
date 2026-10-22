@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { SpriteKey } from '../../assets';
-import { FLARES, KEYS, WEAPON_AMMO, WEAPON_BANDS, WEAPON_NAMES } from '../../config';
+import { KEYS, WEAPON_BANDS, WEAPON_NAMES } from '../../config';
 import { ALTITUDE_BANDS, WEAPON_ORDER, type AltitudeBand, type WeaponId } from '../../sim/types';
 import { keyLabel } from '../copy';
 import { weaponSlotStatus } from '../model';
@@ -103,7 +103,7 @@ export class WeaponBar extends HudWidget {
       if (ammo !== slot.ammoShown) {
         slot.ammoShown = ammo;
         slot.ammo.setText(String(ammo));
-        slot.bar.width = (LAYOUT.weapons.slotW - 20) * Math.max(0, Math.min(1, ammo / WEAPON_AMMO[slot.weapon]));
+        slot.bar.width = (LAYOUT.weapons.slotW - 20) * Math.max(0, Math.min(1, ammo / view.loadout.ammo[slot.weapon]));
       }
     }
 
@@ -112,7 +112,7 @@ export class WeaponBar extends HudWidget {
       this.flaresShown = p.flares;
       this.flareCount.setText(String(p.flares));
       this.flareCount.setColor(css(p.flares > 0 ? COLOR.green : COLOR.grey));
-      this.flareBar.width = (LAYOUT.weapons.flareW - 20) * (p.flares / FLARES.count);
+      this.flareBar.width = (LAYOUT.weapons.flareW - 20) * (p.flares / view.loadout.flares);
     }
     if (events.some((e) => e.type === 'flareDeployed')) this.flareFlash = 1;
     if (this.flareFlash > 0) {

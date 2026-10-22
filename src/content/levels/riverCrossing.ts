@@ -150,11 +150,44 @@ export const riverCrossing: LevelDefinition = {
       { x: 4500, y: 3850 },
       { x: 4950, y: 3900 },
     ],
+    // Friendly counter-attack once the bridge is taken intact: across the span, north to the SAM nest.
+    counterattack: [
+      { x: 3400, y: 3800 },
+      { x: 3100, y: 3400 },
+      { x: 3000, y: 2880 },
+      { x: 3000, y: 2645 },
+      { x: 3000, y: 2420 },
+      { x: 3250, y: 2250 },
+      { x: 3500, y: 2080 },
+      { x: 3620, y: 1990 },
+    ],
     eastRoad: [
       { x: 7300, y: 3500 },
       { x: 6400, y: 3700 },
       { x: 5700, y: 3900 },
       { x: 5350, y: 3900 },
+    ],
+    // Attack helicopters: the wave-2 pair flies in from the east and circles over Bravo's attackers
+    // (an open route: flown once, then they loiter at its end); one gunship patrols the ammo dump
+    // (a closed route: looped).
+    hindsInbound: [
+      { x: 7450, y: 3050 },
+      { x: 6500, y: 3300 },
+      { x: 5750, y: 3600 },
+    ],
+    // Rocket artillery drives down from the north-east and parks in range of Bravo.
+    mlrsBravo: [
+      { x: 7450, y: 2200 },
+      { x: 6700, y: 2450 },
+      { x: 6250, y: 2760 },
+    ],
+    dumpPatrol: [
+      { x: 1300, y: 450 },
+      { x: 1500, y: 1000 },
+      { x: 950, y: 1300 },
+      { x: 450, y: 1000 },
+      { x: 500, y: 420 },
+      { x: 1250, y: 430 },
     ],
   },
 
@@ -189,6 +222,7 @@ export const riverCrossing: LevelDefinition = {
     { kind: 'aaGun', pos: { x: 1120, y: 860 }, headingDeg: 135 },
     { kind: 'truck', pos: { x: 1020, y: 600 }, headingDeg: 90 },
     { kind: 'truck', pos: { x: 760, y: 820 }, headingDeg: 30 },
+    { refId: 'hindDump', kind: 'helicopter', pos: { x: 1300, y: 450 }, headingDeg: 70, pathId: 'dumpPatrol', tags: ['hinds'] },
 
     // Hidden caches (Xevious nod) — revealed by overflying at Low.
     { refId: 'cache1', kind: 'cache', pos: { x: 1950, y: 3620 }, hidden: true },
@@ -225,6 +259,36 @@ export const riverCrossing: LevelDefinition = {
       tags: ['assault', 'waveB'],
       units: [{ kind: 'tank' }, { kind: 'truck' }, { kind: 'tank' }, { kind: 'truck' }],
     },
+    {
+      id: 'hinds',
+      trigger: { kind: 'time', at: 120 },
+      pathId: 'hindsInbound',
+      spacing: 150,
+      speed: 0,
+      tags: ['hinds'],
+      units: [{ kind: 'helicopter' }, { kind: 'helicopter' }],
+    },
+    {
+      // Not an assault unit (Bravo's defence doesn't wait on it), but it shells Bravo until it is killed.
+      // Rolls in with the second wave.
+      id: 'mlrsBravo',
+      trigger: { kind: 'time', at: 125 },
+      pathId: 'mlrsBravo',
+      spacing: 80,
+      speed: 45,
+      tags: ['mlrs'],
+      units: [{ kind: 'mlrs', refId: 'mlrsBravo' }, { kind: 'infantry' }],
+    },
+    {
+      // Reward for taking the bridge intact: friendly armour crosses and assaults the Tango nest.
+      id: 'counterattack',
+      trigger: { kind: 'objectiveResolved', objectiveId: 'bridgeIntact', status: 'completed' },
+      pathId: 'counterattack',
+      spacing: 90,
+      speed: 34,
+      tags: ['counterattack'],
+      units: [{ kind: 'friendlyTank' }, { kind: 'friendlyTank' }, { kind: 'friendlyTank' }, { kind: 'friendlyTank' }],
+    },
   ],
 
   objectives: [
@@ -256,6 +320,7 @@ export const riverCrossing: LevelDefinition = {
       primary: true,
       targetRefId: 'outpost',
       attackerTags: ['assault'],
+      effect: 'forwardRearm',
     },
     {
       id: 'sam',
@@ -272,6 +337,12 @@ export const riverCrossing: LevelDefinition = {
       targetRefIds: ['ammoDump'],
       effect: 'aaFireRateHalved',
     },
+  ],
+
+  zones: [
+    { id: 'tangoNest', name: 'Tango Nest', center: { x: 3700, y: 1900 }, radius: 420 },
+    { id: 'dumpGuard', name: 'Dump Guard', center: { x: 1000, y: 760 }, radius: 320 },
+    { id: 'bridgeGun', name: 'Bridge Battery', center: { x: 3230, y: 2360 }, radius: 120 },
   ],
 
   radio: [
@@ -306,16 +377,46 @@ export const riverCrossing: LevelDefinition = {
       text: 'SAM radar north of the river! Stay on the deck near the bridge, or kill it.',
     },
     {
+      trigger: { kind: 'artilleryFiring', refId: 'mlrsBravo' },
+      speaker: 'BRAVO',
+      tone: 'urgent',
+      text: 'Rocket artillery shelling Bravo! It is coming from the north-east. Find that launcher!',
+    },
+    {
+      trigger: { kind: 'entityDestroyed', refId: 'mlrsBravo' },
+      speaker: 'BRAVO',
+      tone: 'good',
+      text: 'The rockets have stopped! Thanks, Warthog.',
+    },
+    {
       trigger: { kind: 'time', at: 110 },
       speaker: 'BRAVO',
       tone: 'urgent',
       text: 'More armor on the east road, one minute out!',
     },
     {
+      trigger: { kind: 'time', at: 121 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Hinds inbound from the east! When a gunship lines up on you, break across its nose.',
+    },
+    {
+      trigger: { kind: 'entitySpotted', refId: 'hindDump' },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Gunship patrolling the ammo dump! Gun it down — it carries a boost pickup.',
+    },
+    {
       trigger: { kind: 'objectiveResolved', objectiveId: 'column', status: 'completed' },
       speaker: 'OVERLORD',
       tone: 'good',
       text: 'Column stopped! Good work, Warthog.',
+    },
+    {
+      trigger: { kind: 'objectiveResolved', objectiveId: 'bridgeIntact', status: 'completed' },
+      speaker: 'OVERLORD',
+      text: 'Bridge is ours! Second Armored is rolling across to hit the SAM nest. Cover them, Warthog!',
+      tone: 'good',
     },
     {
       trigger: { kind: 'objectiveResolved', objectiveId: 'column', status: 'failed' },

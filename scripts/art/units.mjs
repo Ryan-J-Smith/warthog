@@ -1,7 +1,7 @@
-// Ground unit sprites (art direction v1: bold outlined arcade units): tanks, mechs, AA, truck.
-// The player aircraft live in player.mjs.
+// Unit sprites (art direction v1: bold outlined arcade units): tanks, mechs, AA, truck, MLRS and
+// the enemy attack helicopter. The player aircraft live in player.mjs.
 // Everything faces EAST at rotation 0; viewBoxes match src/assets/spriteKeys.ts exactly.
-import { svg, r2, rng } from './lib.mjs';
+import { svg, r2, rng, rad, lin } from './lib.mjs';
 import {
   T, IW, dRect, dEllipse, dRound, mirrorY, ids, fill, strokeD, outline, cel, glint, contactShadow, glowDefs, lamp, stripLight,
 } from './style.mjs';
@@ -541,4 +541,209 @@ export function samLauncher() {
   }
   p.push(lamp(35, 19, 1.8, c.gid, c.glow, c.core));
   return svg(W, H, glowFor(c), p.join(''));
+}
+
+// ---------------------------------------------------------------------------
+// MLRS rocket artillery — 64 × 30, cab east. Told apart from the supply truck by the fat
+// tube-bundle launcher box (rows of tubes with crimson rocket noses, tie-down straps) and the
+// hazard-striped outrigger jacks; from the AA by having no turret, no dish and only 3 axles.
+// ---------------------------------------------------------------------------
+const MLRS_WHEELS = [5, 16.5, 46.5];
+const MLRS_TUBES = [7.4, 11.2, 15, 18.8, 22.6];
+
+function mlrsParts() {
+  const wheels = MLRS_WHEELS.flatMap((x) => [dRect(x, 1.6, 10, 5.4, 2.3), dRect(x, 23, 10, 5.4, 2.3)]);
+  const jacks = [dRect(30, 1.2, 6, 5, 1.2), dRect(30, 23.8, 6, 5, 1.2)];
+  const frame = dRect(36, 8, 10, 14, 1.5);
+  const pod = dRect(3, 4.4, 37, 21.2, 2.4);
+  const cab = dRound([[44.5, 5.6], [56.5, 5.6], [61.6, 10], [61.6, 20], [56.5, 24.4], [44.5, 24.4]], 2.6);
+  return { wheels, jacks, frame, pod, cab };
+}
+
+export function mlrs() {
+  const c = ENEMY;
+  const W = 64;
+  const H = 30;
+  const id = ids('ml');
+  const { wheels, jacks, frame, pod, cab } = mlrsParts();
+  const p = [];
+  p.push(contactShadow(id, [...wheels, pod, cab], { blur: 1.8, opacity: 0.4 }));
+  p.push(outline([...wheels, ...jacks, frame, pod, cab]));
+  for (const w of wheels) p.push(cel(id, w, T.trkL, T.trk, { s: 1.2, line: 0.7 }));
+  // Outrigger jacks with hazard stripes, chassis frame between pod and cab.
+  p.push(hazard(id, jacks[0], 29, 0, 8, 7, 2.4), hazard(id, jacks[1], 29, 23, 8, 7, 2.4));
+  p.push(cel(id, frame, c.secD, T.chD, { s: 1 }));
+  p.push(strokeD('M37,12H45 M37,18H45', c.secL, 0.9, { opacity: 0.7 }));
+  // Launcher box: crimson frame around a bundle of charcoal tubes with rocket noses at the east end.
+  p.push(cel(id, pod, c.base, c.d, { s: 2.2 }));
+  p.push(fill(dRect(5, 5.6, 33, 18.8, 1.4), T.chD, { stroke: T.ink, 'stroke-width': 0.8 }));
+  for (const y of MLRS_TUBES) {
+    const tube = dRect(5.6, y - 1.7, 30.4, 3.4, 1.6);
+    p.push(cel(id, tube, T.chL, T.ch, { s: 0.9, sx: 0, line: 0.5 }));
+    p.push(strokeD(`M7.4,${y - 0.8}H34`, '#ffffff', 0.6, { opacity: 0.22 }));
+    p.push(fill(`M36,${y - 1.6} L38.4,${y - 1.3} Q39.6,${y} 38.4,${y + 1.3} L36,${y + 1.6}Z`, T.eHi, { stroke: T.ink, 'stroke-width': 0.5 }));
+  }
+  // Tie-down straps across the bundle.
+  for (const x of [14, 26]) p.push(fill(dRect(x, 4.8, 2.6, 20.4, 0.8), c.d, { stroke: T.ink, 'stroke-width': 0.6 }));
+  p.push(stripLight(1.6, 12.6, 2.2, 4.8, c.gid, c.glow, c.core));
+  // Armoured cab: crimson, slatted windscreen shield, roof hatch, orange headlights.
+  p.push(cel(id, cab, c.base, c.d, { s: 2 }));
+  p.push(cel(id, dEllipse(50, 15, 3.4, 3.2), c.d, c.dd, { s: 0.9 }));
+  p.push(fill(dRound([[55.4, 7.6], [57.6, 7.6], [60.2, 10.6], [60.2, 19.4], [57.6, 22.4], [55.4, 22.4]], 1), T.glassD, { stroke: T.ink, 'stroke-width': 0.7 }));
+  p.push(strokeD('M55.6,11.2H59.6 M55.6,15H60 M55.6,18.8H59.6', T.chL, 1, { opacity: 0.9 }));
+  p.push(lamp(61, 8.4, 1.5, c.gid, c.glow, c.core, { halo: 2.2 }), lamp(61, 21.6, 1.5, c.gid, c.glow, c.core, { halo: 2.2 }));
+  p.push(glint('M5.6,5.4 L37,5.4', 1, '#ffffff', 0.4), glint('M46,7 L55,7', 1, '#ffffff', 0.45));
+  return svg(W, H, glowFor(c), p.join(''));
+}
+
+export function mlrsWreck() {
+  const W = 64;
+  const H = 30;
+  const id = ids('mw');
+  const { wheels, frame, cab } = mlrsParts();
+  const pod = dRect(0, 0, 33, 19, 2.4);
+  const p = [];
+  p.push(soot(id, 32, 15, 33, 16));
+  p.push(outline([...wheels.slice(0, 5), frame, cab]));
+  for (const w of wheels.slice(0, 5)) p.push(cel(id, w, '#2a2622', '#141210', { s: 1, line: 0.7 }));
+  p.push(cel(id, frame, '#1d1916', '#100d0b', { s: 1 }));
+  p.push(cel(id, cab, T.b, T.bD, { s: 1.8 }));
+  p.push(rustOn(id, cab, [[50, 19, 4, 3], [58, 10, 2.5, 2, T.rustL]]));
+  p.push(fill(dRound([[55.4, 8.2], [57.4, 8.2], [59.6, 11], [59.6, 19], [57.4, 21.8], [55.4, 21.8]], 1), '#0d0b09', { stroke: T.ink, 'stroke-width': 0.6 }));
+  // Launcher box knocked askew on the chassis, tubes burst open.
+  p.push(
+    `<g transform="translate(4,7) rotate(-9 16 9)">` +
+      outline([pod]) +
+      cel(id, pod, T.b, T.bD, { s: 2 }) +
+      fill(dRect(2, 1.6, 29, 15.8, 1.2), '#120f0d') +
+      [3.4, 7.2, 11, 14.8].map((y) => fill(dRect(3, y - 1.4, 22 + (y % 3) * 2, 2.8, 1.3), '#2e2924', { stroke: T.ink, 'stroke-width': 0.4 })).join('') +
+      rustOn(id, pod, [[10, 13, 6, 3], [24, 4, 4, 2.5, T.rustL]]) +
+      `</g>`,
+  );
+  // A couple of spilled tubes.
+  p.push(`<g transform="translate(18,25) rotate(12)">${outline([dRect(0, 0, 14, 2.8, 1.3)], 1.2)}${fill(dRect(0, 0, 14, 2.8, 1.3), '#2e2924')}</g>`);
+  p.push(`<g transform="translate(36,2.5) rotate(-18)">${outline([dRect(0, 0, 10, 2.8, 1.3)], 1.2)}${fill(dRect(0, 0, 10, 2.8, 1.3), '#2e2924')}</g>`);
+  return svg(W, H, '', p.join(''));
+}
+
+// ---------------------------------------------------------------------------
+// Attack helicopter (Hind-like gunship) — body 90 × 44, nose east, main-rotor hub at the sprite
+// centre (45, 22) so heliRotor (110 × 110) overlays it at the same position. Airborne: no baked
+// contact shadow (the renderer draws the altitude shadow, like the A-10's).
+// ---------------------------------------------------------------------------
+function heliParts() {
+  const fusUpper = [[27, 19.2], [33, 16.4], [42, 14.4], [56, 13.8], [66, 14.6], [74, 16.2], [80.5, 18.2], [84.6, 20.6]];
+  const fuselage = dRound([...fusUpper, [85.6, 22], ...mirrorY(fusUpper, 22).reverse(), [26, 22]], 2.4);
+  const boom = dRound([[30, 19.4], [8, 20.4], [5, 21], [5, 23], [8, 23.6], [30, 24.6]], 1.2);
+  const stab = dRound([[15.5, 12.6], [19.5, 12.6], [21, 21], [21, 23], [19.5, 31.4], [15.5, 31.4], [14.4, 23], [14.4, 21]], 1.4);
+  const fin = dRect(3.6, 21, 5.4, 6.2, 1.4);
+  const wingN = dRound([[41, 15.6], [55, 15.6], [53.6, 3.4], [45.6, 3.4]], 1.4);
+  const wingS = dRound(mirrorY([[41, 15.6], [55, 15.6], [53.6, 3.4], [45.6, 3.4]], 22).reverse(), 1.4);
+  // Inboard rocket pods (fat) + wingtip anti-tank missiles (slim, white).
+  const pods = [dRect(43, 8.4, 16.4, 6, 2.8), dRect(43, 29.6, 16.4, 6, 2.8)];
+  const atgms = [dRect(44.4, 3.4, 16.6, 2.8, 1.3), dRect(44.4, 37.8, 16.6, 2.8, 1.3)];
+  const engN = dRect(33, 14.6, 23, 5.4, 2.6);
+  const engS = dRect(33, 24, 23, 5.4, 2.6);
+  const gun = dRect(83.4, 20.7, 4.4, 2.6, 1);
+  return { fuselage, boom, stab, fin, wingN, wingS, pods, atgms, engN, engS, gun };
+}
+
+export function heliBody() {
+  const c = ENEMY;
+  const W = 90;
+  const H = 44;
+  const id = ids('hb');
+  const { fuselage, boom, stab, fin, wingN, wingS, pods, atgms, engN, engS, gun } = heliParts();
+  const p = [];
+  p.push(outline([boom, stab, fin, wingN, wingS, ...pods, ...atgms, fuselage, gun]));
+  // Tail: boom with crimson/charcoal bands, stabiliser, fin with the tail-rotor blur on the south.
+  p.push(cel(id, stab, c.sec, c.secD, { s: 1.4 }));
+  p.push(cel(id, boom, c.base, c.d, { s: 1.2, sx: 0 }));
+  for (const x of [11, 23]) p.push(fill(dRect(x, 20.4, 2.4, 4, 0), c.secD, { opacity: 0.85 }));
+  p.push(cel(id, fin, c.l, c.d, { s: 1 }));
+  // Tail rotor: a pale translucent blur disc seen edge-on, south of the fin.
+  p.push(fill(dEllipse(6.4, 29.4, 6.2, 1.5), '#ffffff', { opacity: 0.32, stroke: T.ink, 'stroke-width': 0.5, 'stroke-opacity': 0.5 }), fill(dEllipse(6.4, 29.4, 1.2), T.ch, { stroke: T.ink, 'stroke-width': 0.5 }));
+  // Stub wings: fat rocket pods (crimson nose ring, tube holes) and white wingtip missiles.
+  p.push(cel(id, wingN, c.sec, c.secD, { s: 1.4 }), cel(id, wingS, c.sec, c.secD, { s: 1.4 }));
+  for (const pod of pods) p.push(cel(id, pod, T.gunL, T.gunD, { s: 1.4, sx: 0, line: 0.7 }));
+  for (const y of [11.4, 32.6]) {
+    p.push(fill(dRect(56.4, y - 3, 3, 6, 1.2), c.l, { stroke: T.ink, 'stroke-width': 0.6 }));
+    for (const dy of [-1.3, 1.3]) p.push(fill(dEllipse(58.4, y + dy, 0.6), T.ink));
+  }
+  for (const m of atgms) p.push(cel(id, m, '#f1efe8', '#b3b0a7', { s: 0.8, sx: 0, line: 0.6 }));
+  for (const y of [4.8, 39.2]) p.push(fill(dRect(55.4, y - 1.4, 2, 2.8, 0), c.base), fill(dRect(59.4, y - 1.4, 1.6, 2.8, 0.8), '#2a2430'));
+  p.push(lamp(49.6, 3.2, 1.3, c.gid, c.glow, c.core, { halo: 2.2 }), lamp(49.6, 40.8, 1.3, c.gid, c.glow, c.core, { halo: 2.2 }));
+  // Fuselage, engine deck with outward exhausts, glowing exhaust mouths.
+  p.push(cel(id, fuselage, c.base, c.d, { s: 2.6 }));
+  p.push(fill(dRect(26.8, 21, 8, 2, 0.8), c.dd, { opacity: 0.7 }));
+  p.push(cel(id, engN, c.sec, c.secD, { s: 1.4 }), cel(id, engS, c.sec, c.secD, { s: 1.4 }));
+  for (const y of [15.6, 25]) p.push(strokeD(`M38,${y + 1.7}H52`, c.secL, 0.9, { opacity: 0.8 }));
+  p.push(stripLight(30.2, 14.2, 3.6, 3.2, c.gid, c.glow, c.core), stripLight(30.2, 26.6, 3.6, 3.2, c.gid, c.glow, c.core));
+  // Rotor mast fairing (the rotor sprite covers it).
+  p.push(cel(id, dEllipse(45, 22, 4.6, 4.2), c.sec, c.secD, { s: 1 }));
+  // Tandem bubble canopies + chin gun.
+  p.push(cel(id, gun, T.gunL, T.gunD, { s: 0.8, sx: 0, line: 0.6 }));
+  p.push(fill(dEllipse(70, 22, 5.4, 5.6), T.glassD, { stroke: T.ink, 'stroke-width': 0.9 }));
+  p.push(fill(dEllipse(79.4, 22, 4.2, 4.4), T.glassD, { stroke: T.ink, 'stroke-width': 0.9 }));
+  p.push(strokeD('M74.9,18.4 V25.6', T.ink, 0.8));
+  p.push(glint('M67.4,19.2 Q69.6,17.6 72,18', 1.1, T.glassHi, 0.9), glint('M77.6,19.4 Q79,18.4 80.6,18.8', 1, T.glassHi, 0.9));
+  p.push(fill(dRect(60, 14.8, 3, 14.4, 0.8), c.accent, { opacity: 0.9 }));
+  p.push(glint('M34,15.2 Q48,13.4 64,14.6', 1.2, '#ffffff', 0.45));
+  return svg(W, H, glowFor(c), p.join(''));
+}
+
+/** Main rotor: blurred disc + five soft blades, hub at the centre. Rotated at runtime. */
+export function heliRotor() {
+  const S = 110;
+  const c = S / 2;
+  const R = 53;
+  const id = ids('hr');
+  const fid = id();
+  const disc = rad('rD', 0.5, 0.5, 0.5, [[0, T.ink, 0.06], [0.55, T.ink, 0.12], [0.9, T.ink, 0.2], [0.97, T.ink, 0.26], [1, T.ink, 0]]);
+  const smear = lin('rS', 0, 0, 1, 0, [[0, T.ink, 0], [1, T.ink, 0.22]]);
+  let blades = '';
+  let smears = '';
+  for (let k = 0; k < 5; k++) {
+    const deg = k * 72;
+    // Trailing motion smear: a thin wedge behind each blade (rotation is clockwise on screen).
+    smears += `<path d="M${c},${c} L${r2(c + R)},${c} A${R},${R} 0 0 0 ${r2(c + R * Math.cos(-0.36))},${r2(c + R * Math.sin(-0.36))}Z" fill="url(#rS)" transform="rotate(${deg} ${c} ${c})"/>`;
+    blades += `<path d="${dRect(c + 3, c - 1.6, R - 4, 3.2, 1.4)}" transform="rotate(${deg} ${c} ${c})"/>`;
+  }
+  const body =
+    `<circle cx="${c}" cy="${c}" r="${R + 1}" fill="url(#rD)"/>` +
+    `<g opacity="0.85">${smears}</g>` +
+    `<filter id="${fid}" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="0.7"/></filter>` +
+    `<g filter="url(#${fid})" fill="${T.chD}" opacity="0.7">${blades}</g>` +
+    `<circle cx="${c}" cy="${c}" r="${R - 1.5}" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.18"/>` +
+    fill(dEllipse(c, c, 5.4), T.ch, { stroke: T.ink, 'stroke-width': 1.4 }) +
+    fill(dEllipse(c, c, 2.4), T.e, { stroke: T.ink, 'stroke-width': 0.6 });
+  return svg(S, S, disc + smear, body);
+}
+
+export function heliWreck() {
+  const W = 90;
+  const H = 44;
+  const id = ids('hw');
+  const { fuselage, wingN, wingS, pods, engN, engS } = heliParts();
+  const boom = dRound([[0, -2.2], [24, -1.4], [24, 1.4], [0, 2.2]], 1);
+  const p = [];
+  p.push(soot(id, 50, 22, 40, 21, 0.6));
+  // Snapped tail boom lying askew behind the hull.
+  p.push(`<g transform="translate(5,15) rotate(14)">${outline([boom, dRect(-2, -1.8, 6, 7.4, 1.4)])}${cel(id, boom, T.b, T.bD, { s: 1, sx: 0 })}${fill(dRect(-2, -1.8, 6, 7.4, 1.4), T.bD)}</g>`);
+  p.push(outline([wingN, pods[0], fuselage]));
+  p.push(cel(id, wingN, T.bL, T.bD, { s: 1.2 }));
+  p.push(cel(id, pods[0], '#2d2926', '#171411', { s: 1, sx: 0, line: 0.6 }));
+  p.push(cel(id, fuselage, T.b, T.bD, { s: 2.4 }));
+  p.push(rustOn(id, fuselage, [[56, 26, 8, 4], [70, 17, 4, 2.6, T.rustL], [38, 20, 5, 3]]));
+  p.push(fill(engN, '#1d1916', { stroke: T.ink, 'stroke-width': 0.7 }), fill(engS, '#15110e', { stroke: T.ink, 'stroke-width': 0.7 }));
+  // Burnt-out cockpits, torn-off south wing lying beside.
+  p.push(fill(dEllipse(70, 22, 5, 5.2), '#0d0b09', { stroke: T.ink, 'stroke-width': 0.8 }), fill(dEllipse(79.4, 22, 3.8, 4), '#0d0b09', { stroke: T.ink, 'stroke-width': 0.8 }));
+  p.push(`<g transform="translate(14,10) rotate(-28 50 32)">${outline([wingS])}${cel(id, wingS, T.bL, T.bD, { s: 1.2 })}</g>`);
+  p.push(fill(dEllipse(45, 22, 5, 4.6), '#100d0b', { stroke: T.ink, 'stroke-width': 0.8 }));
+  // Bent rotor blades flung across the wreck.
+  const blade = (len) => dRound([[0, -1.5], [len, -1.1], [len, 1.1], [0, 1.5]], 0.8);
+  for (const [x, y, deg, len] of [[45, 22, -30, 22], [45, 22, 62, 15], [45, 22, 170, 19]]) {
+    p.push(`<g transform="translate(${x},${y}) rotate(${deg})">${outline([blade(len)], 1.1)}${fill(blade(len), '#4a443d')}</g>`);
+  }
+  return svg(W, H, '', p.join(''));
 }

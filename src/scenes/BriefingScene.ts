@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { ENTITY_STATS } from '../config';
 import { getLevel } from '../content/levels';
+import { saveStoreFor } from '../meta/session';
 import type { LevelDefinition } from '../sim/level';
 import type { Vec2 } from '../sim/math';
 import { briefingFor, controlsReminder, type Briefing, type IntelItem } from '../ui/copy';
@@ -9,7 +10,7 @@ import { objectiveShortLabel } from '../ui/model';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { TACMAP_BRIEFING, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, textStyle } from '../ui/theme';
-import { TypewriterText, bindMenuKeys, blink, createBackdrop, drawPanel, drawRule, pulse } from '../ui/widgets';
+import { MEDAL_COLOR, TypewriterText, bindMenuKeys, blink, createBackdrop, drawPanel, drawRule, pulse } from '../ui/widgets';
 import { SCENES, type BriefingSceneData, type GameSceneData } from './sceneKeys';
 
 const MAP = { x: 64, y: 206, w: 1040, h: 780 } as const;
@@ -78,6 +79,7 @@ export class BriefingScene extends Phaser.Scene {
     createBackdrop(this, { grid: 60, scanlines: 0.25, vignette: 0.75 });
 
     this.buildHeader(briefing);
+    this.buildChallenges();
     this.buildMap(level, briefing);
     this.buildText(briefing);
     this.buildFooter();
@@ -159,7 +161,7 @@ export class BriefingScene extends Phaser.Scene {
     if (this.leaving) return;
     this.leaving = true;
     this.uiSound.back();
-    this.scene.start(SCENES.title);
+    this.scene.start(SCENES.levelSelect);
   }
 
   private fadeIn(o: Showable): void {
@@ -171,9 +173,27 @@ export class BriefingScene extends Phaser.Scene {
   // --- Layout --------------------------------------------------------------
 
   private buildHeader(briefing: Briefing): void {
-    this.add.text(70, 40, 'MISSION BRIEFING  ·  WARTHOG 1-1  ·  CAS', textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
+    const difficulty = saveStoreFor(this.game).difficulty.label;
+    this.add.text(70, 40, `MISSION BRIEFING  ·  WARTHOG 1-1  ·  CAS  ·  ${difficulty}`, textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
     this.add.text(66 - 14, 64 - 14, briefing.operation, textStyle({ size: 66, font: 'display', color: COLOR.green, glow: 14 }));
     this.add.text(TEXT.x + TEXT.w, 142, `“${briefing.tagline}”`, textStyle({ size: 22, color: COLOR.amber, glow: false })).setOrigin(1, 0);
+  }
+
+  /** Top right, above the tagline: the mission's three challenges, earned ones ticked. */
+  private buildChallenges(): void {
+    const statuses = saveStoreFor(this.game).challengeStatus(this.levelId);
+    if (statuses.length === 0) return;
+    const right = TEXT.x + TEXT.w;
+    const earned = statuses.filter((s) => s.earned).length;
+    this.add
+      .text(right, 34, `CHALLENGES  ${earned}/${statuses.length}`, textStyle({ size: 16, color: COLOR.greenDim, glow: false, letterSpacing: 3 }))
+      .setOrigin(1, 0);
+    statuses.forEach((s, i) => {
+      const y = 58 + i * 25;
+      const text = `${s.challenge.title}  ·  ${s.challenge.description.toUpperCase()}`;
+      this.add.text(right - 30, y, text, textStyle({ size: 16, color: s.earned ? MEDAL_COLOR : COLOR.greenDim, glow: false })).setOrigin(1, 0);
+      this.add.text(right, y - 1, s.earned ? '✔' : '◇', textStyle({ size: 18, color: s.earned ? MEDAL_COLOR : COLOR.greenFaint, glow: s.earned ? 6 : false })).setOrigin(1, 0);
+    });
   }
 
   private buildMap(level: LevelDefinition, briefing: Briefing): void {
@@ -248,7 +268,7 @@ export class BriefingScene extends Phaser.Scene {
       ['◆ DEFEND', COLOR.blue],
       ['▲ AA', COLOR.red],
       ['◯ SAM RANGE', COLOR.red],
-      ['→ ARMOR ROUTE', COLOR.red],
+      ['→ ENEMY ROUTE', COLOR.red],
     ];
     let lx = MAP.x + 20;
     for (const [text, color] of items) {
@@ -295,7 +315,7 @@ export class BriefingScene extends Phaser.Scene {
       if (start) {
         const x = Phaser.Math.Clamp(start.x, MAP.x + 70, MAP.x + MAP.w - 70);
         const y = Phaser.Math.Clamp(start.y - 26, MAP.y + 12, MAP.y + MAP.h - 40);
-        parts.push(this.add.text(x, y, 'ARMOR', textStyle({ size: 17, color: COLOR.red, stroke: true })).setOrigin(0.5, 0));
+        parts.push(this.add.text(x, y, item.routeLabel ?? 'ARMOR', textStyle({ size: 17, color: COLOR.red, stroke: true })).setOrigin(0.5, 0));
       }
     }
     for (const p of parts) p.setVisible(false);
@@ -372,7 +392,7 @@ export class BriefingScene extends Phaser.Scene {
       const num = this.add.text(x + 15, y + 14, String(o.number), textStyle({ size: 18, color, glow: false })).setOrigin(0.5);
       const title = this.add.text(x + 42, y + 1, o.title.toUpperCase(), textStyle({ size: 22, color: COLOR.white, glow: false }));
       const tag = this.add
-        .text(x + w, y + 4, o.primary ? 'PRIMARY · TIMED' : 'OPTIONAL', textStyle({ size: 15, color: o.primary ? COLOR.green : COLOR.greenDim, glow: false }))
+        .text(x + w, y + 4, o.primary ? 'PRIMARY' : 'OPTIONAL', textStyle({ size: 15, color: o.primary ? COLOR.green : COLOR.greenDim, glow: false }))
         .setOrigin(1, 0);
       const body = this.add.text(x + 42, y + 34, '', textStyle({ size: size.body, color: COLOR.green, glow: 3, wrap: w - 42, lineSpacing: 3 }));
       const height = measure(body, o.text);

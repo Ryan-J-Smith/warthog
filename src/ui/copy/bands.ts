@@ -30,9 +30,9 @@ export interface BandPrimerRow {
 }
 
 const BAND_NOTE: Record<AltitudeBand, string> = {
-  low: 'Nimble, under the SAM radar. Deadly gun runs \u2014 but AA guns shred you.',
+  low: 'Nimble, under the SAM radar. Deadly gun runs \u2014 cross the AA beams, never fly along them.',
   medium: 'Mavericks lock on, bombs land true. Everything can shoot at you.',
-  high: 'Fast, wide view, spots threats early. Bombs scatter. Safe from AA.',
+  high: 'Fast, wide view, spots threats early. Bombs land true. Safe from AA \u2014 SAMs are faster up here.',
 };
 
 /** Altitude-band primer for How to Play, built from the tuning tables. */
@@ -50,7 +50,9 @@ export function bandPrimer(): BandPrimerRow[] {
 }
 
 export const PLAY_TIPS: readonly string[] = [
-  'Rearm + repair: hold LOW over home base for 3 seconds.',
-  'SAM locking you? Dive to LOW to break it, or pop flares [Q].',
-  'Only bombs can drop the bridge. The clock never stops — triage.',
+  'SHIELD recharges when you stop taking hits. HULL heals at base or with REPAIR.',
+  'AA lasers paint you red, then lock and flash: turn ACROSS the line, or BOOST.',
+  'SAM inbound: put it off your wing and BOOST so it overshoots. Or dive, or flare.',
+  'Kills within 4 s chain a multiplier. Wrecks drop pickups: fly over at LOW/MED.',
+  'Clear an air-defence nest for a supply drop. Only bombs can drop the bridge.',
 ];

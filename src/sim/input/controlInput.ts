@@ -8,6 +8,10 @@ export interface ControlInput {
   /** -1 = turn left, +1 = turn right. */
   turn: number;
   fire: boolean;
+  /** Held: afterburner (drains the boost meter). */
+  boost: boolean;
+  /** Held: air brake (slower, much tighter turns). */
+  brake: boolean;
   climb: boolean;
   dive: boolean;
   flare: boolean;
@@ -17,6 +21,8 @@ export interface ControlInput {
 export const NO_INPUT: Readonly<ControlInput> = {
   turn: 0,
   fire: false,
+  boost: false,
+  brake: false,
   climb: false,
   dive: false,
   flare: false,

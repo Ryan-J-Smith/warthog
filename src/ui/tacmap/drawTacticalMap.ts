@@ -1,15 +1,17 @@
 import type { LevelDefinition } from '../../sim/level';
 import { Rng, type Vec2 } from '../../sim/math';
+import { tacMapStyleForBiome } from './tacMapStyle';
 import type { TacMapStyle } from './tacMapStyle';
 
 type Ctx = CanvasRenderingContext2D;
 
 /**
  * Draw a stylised miniature of a level's terrain (river, roads, forests, hills, fields,
- * villages, home base) onto a 2D canvas of `width` × `height` pixels. Pure canvas drawing, no
- * Phaser; deterministic for a given level.
+ * villages, home base) onto a 2D canvas of `width` × `height` pixels, in the style's colours for
+ * the level's biome. Pure canvas drawing, no Phaser; deterministic for a given level.
  */
-export function drawTacticalMap(ctx: Ctx, level: LevelDefinition, width: number, height: number, style: TacMapStyle): void {
+export function drawTacticalMap(ctx: Ctx, level: LevelDefinition, width: number, height: number, baseStyle: TacMapStyle): void {
+  const style = tacMapStyleForBiome(baseStyle, level.terrain.biome);
   const sx = width / level.width;
   const sy = height / level.height;
   const s = Math.min(sx, sy);

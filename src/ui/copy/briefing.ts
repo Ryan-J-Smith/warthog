@@ -23,6 +23,8 @@ export interface IntelItem {
   positions: Vec2[];
   /** Expected route for armor groups, else null. */
   route: Vec2[] | null;
+  /** Label at the start of the route on the briefing map ("ARMOR", "GUNSHIPS", "CONVOYS"). */
+  routeLabel?: string;
 }
 
 export interface Briefing {
@@ -37,11 +39,24 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
   'river-crossing': {
     column:
       'An armor column is rolling down the river road toward the only bridge. Drop the bridge with bombs from MEDIUM or HIGH before they cross — or kill every vehicle.',
-    bridgeIntact: 'HQ wants that bridge for the counter-attack. Kill the column if you can; drop the bridge if you must.',
+    bridgeIntact: 'Kill the column and keep the bridge: our armor will cross it for a counter-attack on the SAM nest. Drop the bridge only if you must.',
     outpost:
-      'Outpost Bravo is under assault from the east, and a second wave is on its way. Break both waves before Bravo falls.',
-    sam: 'SAM site Tango covers the bridge. Kill it and the sky over the river is yours.',
+      'Outpost Bravo is under assault from the east, and a second wave is on its way. Break both waves and Bravo\'s pad becomes your forward rearm point.',
+    sam: 'SAM site Tango and its laser AA nest cover the bridge. Clear the whole nest for a supply drop.',
     dump: 'Enemy ammo dump, far north-west. Blow it and every AA gun on the map fires at half rate.',
+  },
+  'three-roads': {
+    hq: 'Their HQ is hardened: bombs only. A SAM on the Center road covers it. Push a road to its gate and our armor will shell it with you.',
+    home: 'Waves come down all three roads every half minute and keep getting heavier. If our HQ falls, it is over.',
+    westDepot: 'Feeds the West road. Blow it: their waves there lose a tank and ours gain one.',
+    centerDepot: 'Feeds the Center road and hosts the SAM that guards their HQ. Blow it: their waves lose a tank, ours gain one.',
+    eastDepot: 'Feeds the East road. Blow it: their waves there lose a tank and ours gain one.',
+  },
+  'iron-sleet': {
+    interdict:
+      'Supply convoys run south down both highways for five minutes, heavier as the clock runs. More than twelve vehicles off the south edge and the line breaks. Chain kills for score.',
+    depot: 'The ammo dump north of the hills, ringed by triple-A. A long way from the roads: worth it only if you can spare the time.',
+    sam: 'A SAM site covers the east highway. Kill it and the whole road is yours at any altitude.',
   },
 };
 
@@ -53,6 +68,8 @@ function fallbackNote(def: ObjectiveDefinition): string {
       return 'Protect the position until every attacker is destroyed.';
     case 'destroy':
       return 'Destroy the target.';
+    case 'interdict':
+      return `Convoys stream down the roads for ${Math.round(def.timeLimit / 60)} minutes. Stop them: if more than ${def.maxEscapes} vehicles get away, the line breaks.`;
   }
 }
 
@@ -62,6 +79,8 @@ const LANDMARK_NAME: Partial<Record<EntityKind, string>> = {
   ammoDump: 'the ammo dump',
   homeBase: 'home base',
   samSite: 'the SAM site',
+  enemyHq: 'the enemy HQ',
+  friendlyHq: 'our HQ',
 };
 
 interface Landmark {
@@ -135,11 +154,41 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
     const start = path?.[0];
     if (!start) continue;
     const from = compassWord(compassDirection(centre, start));
+    const when = `from the ${from} around ${formatClock(group.trigger.at)}`;
+    // Attack helicopters are called out separately from ground vehicles.
+    const helis = group.units.filter((u) => u.kind === 'helicopter').length;
+    // So is rocket artillery (the vehicles with it are its escort).
+    const launchers = group.units.filter((u) => u.kind === 'mlrs').length;
+    const vehicles = launchers > 0 ? 0 : group.units.length - helis;
+    const parts: string[] = [];
+    if (vehicles > 0) parts.push(`${vehicles} vehicles expected ${when}.`);
+    if (helis > 0) parts.push(`${helis === 1 ? 'An attack helicopter' : `${helis} attack helicopters`} expected ${when}.`);
+    if (launchers > 0) {
+      parts.push(
+        `${launchers === 1 ? 'Rocket artillery' : `${launchers} rocket launchers`} expected ${when}. Its rockets land on the red rings: fly out of them.`,
+      );
+    }
+    const routeLabel = launchers > 0 ? 'ARTILLERY' : vehicles === 0 && helis > 0 ? 'GUNSHIPS' : 'ARMOR';
     intel.push({
       kind: 'armor',
-      text: `${group.units.length} vehicles expected from the ${from} around ${formatClock(group.trigger.at)}.`,
+      routeLabel,
+      text: parts.join(' '),
       positions: [{ ...start }],
       route: path ? briefingRoute(level, group.tags, path).map((p) => ({ ...p })) : null,
+    });
+  }
+  for (const stream of level.convoys ?? []) {
+    const path = level.paths[stream.pathId];
+    const start = path?.[0];
+    if (!path || !start) continue;
+    const from = compassWord(compassDirection(centre, start));
+    const heavier = stream.escalation.length > 0 ? ', growing heavier' : '';
+    intel.push({
+      kind: 'armor',
+      routeLabel: 'CONVOYS',
+      text: `Convoys from the ${from} every ${Math.round(stream.interval)} s${heavier}.`,
+      positions: [{ ...start }],
+      route: path.map((p) => ({ ...p })),
     });
   }
   return intel;

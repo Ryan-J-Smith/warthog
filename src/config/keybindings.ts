@@ -13,6 +13,8 @@ export const KEYS = {
   weaponMaverick: ['THREE'],
   weaponBombs: ['FOUR'],
   flare: ['Q'],
+  boost: ['SHIFT'],
+  brake: ['E', 'C'],
   pause: ['ESC', 'P'],
   mute: ['M'],
   confirm: ['ENTER', 'SPACE'],

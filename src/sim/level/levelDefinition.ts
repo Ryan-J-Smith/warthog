@@ -1,5 +1,6 @@
 import type { Vec2 } from '../math';
 import type { EntityKind, RadioTone } from '../types';
+import type { LaneWarDefinition } from './laneWarDefinition';
 
 // ---------------------------------------------------------------------------
 // Terrain (purely visual in v1; baked to textures by the render layer)
@@ -48,7 +49,8 @@ export interface VillageDefinition {
 }
 
 export interface TerrainDefinition {
-  biome: 'steppe';
+  /** Visual palette and painter style (`steppe` = muted desert; `winter` = muted snowfield). Same feature set. */
+  biome: 'steppe' | 'winter';
   rivers: RiverDefinition[];
   roads: RoadDefinition[];
   forests: ForestDefinition[];
@@ -93,6 +95,8 @@ export type Trigger =
   | { kind: 'objectiveResolved'; objectiveId: string; status?: 'completed' | 'failed' }
   | { kind: 'entityDestroyed'; refId: string }
   | { kind: 'entitySpotted'; refId: string }
+  /** An MLRS has started its first barrage (radio: "find that launcher"). */
+  | { kind: 'artilleryFiring'; refId: string }
   | { kind: 'allPrimariesResolved' };
 
 // ---------------------------------------------------------------------------
@@ -133,6 +137,13 @@ export interface DefendObjective extends ObjectiveBase {
   attackerTags: string[];
   /** Also fails if this other objective fails (e.g. "take the bridge intact" fails if the column crosses). */
   failsWith?: string;
+  /** Reward on success: the defended structure becomes a forward rearm/repair point. */
+  effect?: 'forwardRearm';
+  /**
+   * Open-ended defence (endless lane waves): completed when this other objective completes,
+   * instead of when the attackers are all dead.
+   */
+  until?: string;
 }
 
 /** Destroy specific entities. Optional global effect on completion. */
@@ -142,7 +153,46 @@ export interface DestroyObjective extends ObjectiveBase {
   effect?: 'aaFireRateHalved';
 }
 
-export type ObjectiveDefinition = StopColumnObjective | DefendObjective | DestroyObjective;
+/**
+ * Score attack: convoys (units tagged `convoyTag`) stream toward the map edge. Completed when
+ * `timeLimit` seconds have passed; failed the moment more than `maxEscapes` vehicles get away.
+ */
+export interface InterdictObjective extends ObjectiveBase {
+  kind: 'interdict';
+  convoyTag: string;
+  maxEscapes: number;
+  timeLimit: number;
+}
+
+export type ObjectiveDefinition = StopColumnObjective | DefendObjective | DestroyObjective | InterdictObjective;
+
+/**
+ * A road that keeps sending convoys: one every `interval` seconds from `firstAt`, in single file
+ * along `pathId`. Vehicles that reach the end of the path have escaped and leave the map.
+ */
+export interface ConvoyStreamDefinition {
+  id: string;
+  pathId: string;
+  firstAt: number;
+  interval: number;
+  speed: number;
+  spacing: number;
+  units: EntityKind[];
+  /** Units added to every convoy from sim time `at` onward. */
+  escalation: Array<{ at: number; add: EntityKind[] }>;
+  tags: string[];
+}
+
+/**
+ * A defence zone: every enemy AA gun / SAM site within `radius` of `center` at mission start.
+ * Destroying all of them clears the zone: bonus points, a supply drop and a radio call.
+ */
+export interface DefenceZoneDefinition {
+  id: string;
+  name: string;
+  center: Vec2;
+  radius: number;
+}
 
 export interface RadioCue {
   trigger: Trigger;
@@ -168,6 +218,16 @@ export interface LevelDefinition {
   groups: GroupSpawn[];
   objectives: ObjectiveDefinition[];
   radio: RadioCue[];
+  /** Air-defence clusters that pay out when cleared. */
+  zones?: DefenceZoneDefinition[];
+  /** Roads that keep sending convoys (score-attack missions). */
+  convoys?: ConvoyStreamDefinition[];
+  /** End the mission the moment every primary is resolved (no RTB leg). */
+  endOnResolve?: boolean;
+  /** Repeating waves pushing down roads between two HQs (lane missions). */
+  laneWar?: LaneWarDefinition;
   /** Target mission time for the time bonus, seconds. */
   parTime: number;
+  /** Multiplies the grade thresholds (big lane wars score far more than River Crossing). Default 1. */
+  gradeScale?: number;
 }

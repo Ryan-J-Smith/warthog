@@ -54,6 +54,8 @@ describe('briefing', () => {
     expect(armor.map((a) => a.text)).toEqual([
       '9 vehicles expected from the west around 0:55.',
       '4 vehicles expected from the east around 2:00.',
+      '2 attack helicopters expected from the east around 2:00.',
+      'Rocket artillery expected from the east around 2:05. Its rockets land on the red rings: fly out of them.',
     ]);
   });
 });

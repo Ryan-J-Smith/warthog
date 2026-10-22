@@ -1,3 +1,7 @@
+import type { TerrainDefinition } from '../../sim/level';
+
+type Biome = TerrainDefinition['biome'];
+
 /** Colours and switches for one look of the tactical map. CSS colour strings (Canvas 2D). */
 export interface TacMapStyle {
   groundTop: string;
@@ -31,6 +35,14 @@ export interface TacMapStyle {
   /** Minimum on-canvas stroke widths so thin features survive tiny scales. */
   minRiverWidth: number;
   minRoadWidth: number;
+  /** Per-biome colour overrides (natural-colour looks follow the level's biome; phosphor ones don't). */
+  biomes?: Partial<Record<Biome, Partial<Omit<TacMapStyle, 'biomes'>>>>;
+}
+
+/** `style` with the overrides for `biome` applied (the same object when there are none). */
+export function tacMapStyleForBiome(style: TacMapStyle, biome: Biome): TacMapStyle {
+  const override = style.biomes?.[biome];
+  return override ? { ...style, ...override } : style;
 }
 
 /** Dark phosphor display: minimap. */
@@ -103,4 +115,28 @@ export const TACMAP_TERRAIN: TacMapStyle = {
   gridLabels: null,
   minRiverWidth: 4,
   minRoadWidth: 1.5,
+  biomes: {
+    // Overcast snowfield, dark conifers, a frozen river and dark slushy roads.
+    winter: {
+      groundTop: '#9ba3ac',
+      groundBottom: '#8b939d',
+      noiseLight: '#adb5bd',
+      noiseDark: '#79818b',
+      hillFill: 'rgba(228, 234, 240, 0.35)',
+      hillShade: 'rgba(48, 62, 92, 0.35)',
+      contour: 'rgba(58, 70, 94, 0.3)',
+      forest: 'rgba(26, 40, 34, 0.9)',
+      forestCanopy: 'rgba(36, 56, 45, 0.95)',
+      forestHighlight: 'rgba(206, 216, 224, 0.5)',
+      field: { wheat: 'rgba(202, 206, 206, 0.6)', green: 'rgba(180, 192, 188, 0.6)', plowed: 'rgba(118, 110, 98, 0.6)' },
+      fieldRows: 'rgba(58, 62, 68, 0.25)',
+      river: '#aabdc9',
+      riverEdge: '#e4ebf1',
+      riverGlow: 'rgba(58, 78, 100, 0.35)',
+      roadDirt: 'rgba(104, 98, 86, 0.95)',
+      roadPaved: 'rgba(66, 68, 72, 0.95)',
+      roadEdge: 'rgba(232, 236, 240, 0.5)',
+      village: 'rgba(236, 238, 242, 0.95)',
+    },
+  },
 };

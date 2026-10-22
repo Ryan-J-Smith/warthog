@@ -6,7 +6,10 @@ import { drawPanel } from '../widgets';
 import { HudWidget, type HudFrame } from './hudWidget';
 import { LAYOUT } from './layout';
 
-/** Top-centre strip: mission clock (with par) and the score ticking up, with +points pops. */
+/**
+ * Top-centre strip: mission clock (with par) and the score ticking up, with +points pops.
+ * Score-attack missions pass `countdown` (their time limit) and the clock counts down instead.
+ */
 export class MissionStrip extends HudWidget {
   private readonly container: Phaser.GameObjects.Container;
   private readonly clock: Phaser.GameObjects.Text;
@@ -18,15 +21,20 @@ export class MissionStrip extends HudWidget {
   private deltaSum = 0;
   private deltaAge = 99;
 
-  constructor(scene: Phaser.Scene, parTime: number) {
+  constructor(
+    scene: Phaser.Scene,
+    parTime: number,
+    private readonly countdown: number | null = null,
+  ) {
     super();
     const { cx, y, w, h } = LAYOUT.strip;
     const g = scene.add.graphics();
     drawPanel(g, 0, 0, w, h);
     g.lineStyle(1, COLOR.green, 0.25);
     g.lineBetween(w * 0.42, 12, w * 0.42, h - 12);
-    const clockLabel = scene.add.text(18, 10, 'MISSION', textStyle({ size: 15, color: COLOR.greenDim, glow: false }));
-    const par = scene.add.text(w * 0.42 - 14, 10, `PAR ${formatClock(parTime)}`, textStyle({ size: 15, color: COLOR.greenDim, glow: false })).setOrigin(1, 0);
+    const clockLabel = scene.add.text(18, 10, countdown === null ? 'MISSION' : 'TIME LEFT', textStyle({ size: 15, color: COLOR.greenDim, glow: false }));
+    const parText = countdown === null ? `PAR ${formatClock(parTime)}` : '';
+    const par = scene.add.text(w * 0.42 - 14, 10, parText, textStyle({ size: 15, color: COLOR.greenDim, glow: false })).setOrigin(1, 0);
     this.clock = scene.add.text(18, 28, '', textStyle({ size: 38, color: COLOR.green }));
     const scoreLabel = scene.add.text(w * 0.42 + 18, 10, 'SCORE', textStyle({ size: 15, color: COLOR.greenDim, glow: false }));
     this.score = scene.add.text(w - 18, 28, '', textStyle({ size: 38, color: COLOR.green })).setOrigin(1, 0);
@@ -38,7 +46,15 @@ export class MissionStrip extends HudWidget {
     const second = Math.floor(view.time);
     if (second !== this.secondShown) {
       this.secondShown = second;
-      this.clock.setText(formatMissionClock(view.time));
+      if (this.countdown === null) {
+        this.clock.setText(formatMissionClock(view.time));
+      } else {
+        const left = Math.max(0, Math.ceil(this.countdown - view.time));
+        this.clock.setText(formatMissionClock(left));
+        const color = left <= 30 ? COLOR.red : COLOR.green;
+        this.clock.setColor(css(color));
+        this.clock.setShadowColor(css(color));
+      }
     }
 
     for (const e of events) {

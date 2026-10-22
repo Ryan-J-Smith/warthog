@@ -109,9 +109,10 @@ async function main() {
       throw new Error(`${c.key}: recipe kind/loop (${r.kind}/${r.loop}) disagrees with audioKeys.ts (${c.kind}/${c.loop})`);
     }
   }
-  await fetchAll();
-
   const keys = contract.map((c) => c.key).filter((k) => !only || only.includes(k));
+  // A partial rebuild only needs the recordings its recipes credit (so it works when an unrelated
+  // source host is unreachable).
+  await fetchAll(only ? [...new Set(keys.flatMap((k) => RECIPES[k].credits.map((c) => c.source.split(':')[0])))] : undefined);
   const mastersDir = previewDir ?? join(CACHE_DIR, 'masters');
   mkdirSync(mastersDir, { recursive: true });
   const report = [];

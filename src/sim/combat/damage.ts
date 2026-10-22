@@ -2,6 +2,7 @@ import { ARMOR_MULTIPLIER, ENTITY_STATS, SCORING, SECONDARIES } from '../../conf
 import type { Entity } from '../entities';
 import { distance, type Vec2 } from '../math';
 import type { World } from '../world';
+import { registerKill } from './rewards';
 
 /** What dealt the damage: drives armor multipliers, scoring and friendly-fire accounting. */
 export type DamageSource = 'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary';
@@ -9,6 +10,11 @@ export type DamageSource = 'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | '
 /** Player-launched sources score points and can cause friendly fire. */
 function isPlayerSource(source: DamageSource): boolean {
   return source === 'gun' || source === 'rocket' || source === 'maverick' || source === 'bomb';
+}
+
+/** Airborne targets (helicopters) are only hit by the GAU-8 and rocket blasts. */
+function hitsAirborne(source: DamageSource): boolean {
+  return source === 'gun' || source === 'rocket';
 }
 
 /**
@@ -19,6 +25,7 @@ export function damageEntity(world: World, entity: Entity, rawDamage: number, so
   if (!entity.alive || entity.hidden) return 0;
   const stats = ENTITY_STATS[entity.kind];
   if (stats.invulnerable) return 0;
+  if (stats.airborne && !hitsAirborne(source)) return 0;
   const amount = rawDamage * ARMOR_MULTIPLIER[source][entity.armor];
   if (amount <= 0) return 0;
 
@@ -55,10 +62,12 @@ export function killEntity(world: World, entity: Entity, byPlayer: boolean): voi
 
   if (byPlayer) {
     if (entity.team === 'enemy' && stats.score > 0) {
+      const points = Math.round(stats.score * registerKill(world, entity) * world.difficulty.scoreMultiplier);
       world.stats.kills += 1;
-      world.stats.killPoints += stats.score;
-      world.score += stats.score;
-      world.emit({ type: 'scoreAwarded', points: stats.score, reason: entity.kind, pos: entity.pos });
+      world.stats.killsByKind[entity.kind] = (world.stats.killsByKind[entity.kind] ?? 0) + 1;
+      world.stats.killPoints += points;
+      world.score += points;
+      world.emit({ type: 'scoreAwarded', points, reason: entity.kind, pos: entity.pos });
     } else if (entity.team === 'friendly') {
       world.stats.friendlyFirePenalty += SCORING.friendlyKillPenalty;
       world.score -= SCORING.friendlyKillPenalty;
@@ -84,7 +93,9 @@ export function applySplash(world: World, center: Vec2, radius: number, damage: 
 
 /** Can `source` actually hurt this entity? */
 export function canDamage(entity: Entity, source: DamageSource): boolean {
-  return !ENTITY_STATS[entity.kind].invulnerable && ARMOR_MULTIPLIER[source][entity.armor] > 0;
+  const stats = ENTITY_STATS[entity.kind];
+  if (stats.airborne && !hitsAirborne(source)) return false;
+  return !stats.invulnerable && ARMOR_MULTIPLIER[source][entity.armor] > 0;
 }
 
 /**

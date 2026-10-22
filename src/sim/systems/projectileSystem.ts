@@ -1,10 +1,12 @@
 import { AIRCRAFT_BASE_HEIGHT, ENTITY_STATS, MAVERICK } from '../../config';
 import { applySplash, damageEntity } from '../combat';
 import type { Projectile } from '../entities';
-import { angleOf, approach, clamp, degToRad, distance, fromAngle, rotateToward, sub } from '../math';
+import { angleDelta, angleOf, approach, clamp, degToRad, distance, fromAngle, rotateToward, sub } from '../math';
 import type { World } from '../world';
 import { damagePlayer } from './playerDamage';
 import { SimSystem, type StepContext } from './simSystem';
+
+const AA_ROUND_HIT_RADIUS = 22;
 
 /** Moves every projectile and resolves detonations and hits. */
 export class ProjectileSystem extends SimSystem {
@@ -29,6 +31,19 @@ export class ProjectileSystem extends SimSystem {
         case 'aaRound':
           done = this.updateAaRound(world, proj, dt);
           break;
+        case 'heliRocket':
+          done = this.updateHeliRocket(world, proj, dt);
+          break;
+        case 'mlrsRocket': {
+          // Arcs onto its ring (the MLRS strike resolves the impact): straight ground track, parabolic height.
+          proj.pos.x += proj.vel.x * dt;
+          proj.pos.y += proj.vel.y * dt;
+          const t = clamp(proj.age / proj.life, 0, 1);
+          proj.alt = proj.startAlt * 4 * t * (1 - t);
+          done = proj.age >= proj.life - 1e-9;
+          if (done && proj.aimPoint) proj.pos = { ...proj.aimPoint };
+          break;
+        }
         case 'flare':
         case 'tankShell':
           proj.pos.x += proj.vel.x * dt;
@@ -97,9 +112,22 @@ export class ProjectileSystem extends SimSystem {
       proj.lostLock = true;
       proj.targetId = null;
       world.emit({ type: 'samLostLock', missileId: proj.id, pos: { ...proj.pos } });
+    } else if (tracking && proj.age >= stats.gimbalArmTime) {
+      // Out-turned: the aircraft left the seeker's field of view.
+      const offBore = Math.abs(angleDelta(proj.heading, angleOf(sub(p.pos, proj.pos))));
+      if (offBore > degToRad(stats.gimbalDeg)) {
+        proj.lostLock = true;
+        proj.targetId = null;
+        world.score += stats.evadeBonus;
+        world.stats.bonusPoints += stats.evadeBonus;
+        world.stats.missilesDefeated += 1;
+        world.emit({ type: 'samEvaded', missileId: proj.id, pos: { ...proj.pos }, bonus: stats.evadeBonus });
+        world.emit({ type: 'scoreAwarded', points: stats.evadeBonus, reason: 'MISSILE DEFEATED', pos: { ...p.pos } });
+      }
     }
 
-    const speed = Math.min(stats.missileMaxSpeed, Math.hypot(proj.vel.x, proj.vel.y) + stats.missileAccel * dt);
+    const maxSpeed = tracking && p.band === 'high' ? stats.missileMaxSpeedHigh : stats.missileMaxSpeed;
+    const speed = Math.min(maxSpeed, Math.hypot(proj.vel.x, proj.vel.y) + stats.missileAccel * dt);
     const turnRate = degToRad(stats.turnRateDeg);
     const playerHeight = p.alt + AIRCRAFT_BASE_HEIGHT;
 
@@ -107,7 +135,7 @@ export class ProjectileSystem extends SimSystem {
       // Lead pursuit: aim at where the player will be in half the time-to-go.
       const tGo = distance(proj.pos, p.pos) / Math.max(speed, 1);
       const v = world.playerVelocity();
-      const aim = { x: p.pos.x + v.x * tGo * 0.5, y: p.pos.y + v.y * tGo * 0.5 };
+      const aim = { x: p.pos.x + v.x * tGo * stats.leadFactor, y: p.pos.y + v.y * tGo * stats.leadFactor };
       proj.heading = rotateToward(proj.heading, angleOf(sub(aim, proj.pos)), turnRate * dt);
       proj.alt = approach(proj.alt, playerHeight, stats.climbRate * dt);
     } else if (proj.aimPoint) {
@@ -134,6 +162,39 @@ export class ProjectileSystem extends SimSystem {
     return false;
   }
 
+  /**
+   * Helicopter rockets fly straight. Air-to-air ones (no aim point) burst within `splashRadius` of a
+   * Low/Medium aircraft, else fall away at the end of their range; ground salvos burst at the aim
+   * point and hurt friendlies only.
+   */
+  private updateHeliRocket(world: World, proj: Projectile, dt: number): boolean {
+    const p = world.player;
+    proj.pos.x += proj.vel.x * dt;
+    proj.pos.y += proj.vel.y * dt;
+    const t = clamp(proj.age / proj.life, 0, 1);
+    if (proj.aimPoint === null) {
+      // Holds height most of the way, then drops as the motor burns out.
+      proj.alt = proj.startAlt * (1 - t * t * t);
+      if (p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= proj.splashRadius) {
+        world.emit({ type: 'heliRocketExploded', pos: { ...proj.pos }, hitPlayer: true, ground: false });
+        damagePlayer(world, proj.damage, 'splash', proj.pos);
+        return true;
+      }
+      if (proj.age < proj.life) return false;
+      world.emit({ type: 'heliRocketExploded', pos: { ...proj.pos }, hitPlayer: false, ground: true });
+      return true;
+    }
+    proj.alt = proj.startAlt * (1 - t);
+    if (proj.age < proj.life) return false;
+    const at = proj.aimPoint;
+    for (const entity of world.entities) {
+      if (!entity.alive || entity.hidden || entity.team !== 'friendly') continue;
+      if (distance(entity.pos, at) <= proj.splashRadius + entity.radius * 0.6) damageEntity(world, entity, proj.damage, 'ground');
+    }
+    world.emit({ type: 'heliRocketExploded', pos: { ...at }, hitPlayer: false, ground: true });
+    return true;
+  }
+
   private updateAaRound(world: World, proj: Projectile, dt: number): boolean {
     const p = world.player;
     proj.pos.x += proj.vel.x * dt;
@@ -143,9 +204,8 @@ export class ProjectileSystem extends SimSystem {
     const frac = proj.age / Math.max(expected, 1e-3);
     proj.alt = (p.alt + AIRCRAFT_BASE_HEIGHT) * Math.min(1, frac);
 
-    const stats = proj.sourceId !== null ? ENTITY_STATS[world.findById(proj.sourceId)?.kind ?? 'aaGun'].aa : null;
-    const hitRadius = stats?.hitRadius ?? 22;
-    if (frac >= 0.6 && p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= hitRadius) {
+    // Legacy AA tracer (AA guns now fire lasers); kept for any scripted tracer fire.
+    if (frac >= 0.6 && p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= AA_ROUND_HIT_RADIUS) {
       damagePlayer(world, proj.damage, 'aa', proj.pos);
       return true;
     }

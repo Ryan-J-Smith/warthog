@@ -76,7 +76,7 @@ function samStats() {
  * - RTB grace long enough to finish an optional after the primaries.
  */
 export const PROPOSED_CONFIG: readonly Override[] = [
-  set(shilka(), { roundDamage: 2, spreadLow: 30, spreadMedium: 50, burstPause: 1.2, roundsPerBurst: 10 }),
+  set(shilka(), { dpsLow: 32, dpsMedium: 22, cooldown: 1.6 }),
   set(GUN, { dipRate: 0.7, hitSlop: 7 }),
   set(SCORING, { rtbGrace: 90 }),
 ];

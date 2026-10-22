@@ -19,6 +19,8 @@ export const MIX: Record<AudioKey, MixSpec> = {
   // Music (the MusicManager scales these by its own music volume)
   musicTitle: { volume: 1 },
   musicMission: { volume: 0.85 },
+  musicThreeRoads: { volume: 0.85 },
+  musicIronSleet: { volume: 0.85 },
   stingVictory: { volume: 1 },
   stingDefeat: { volume: 1 },
 
@@ -67,6 +69,34 @@ export const MIX: Record<AudioKey, MixSpec> = {
   uiConfirm: { volume: 0.85, cap: 1, policy: 'steal' },
   uiBack: { volume: 0.8, cap: 1, policy: 'steal' },
   scoreTick: { volume: 0.55, cap: 3, policy: 'steal' },
+  upgradeBuy: { volume: 0.85, cap: 1, policy: 'steal' },
+  uiError: { volume: 0.8, cap: 1, minIntervalMs: 150 },
+
+  // Movement tools
+  boostLoop: { volume: 0.55 },
+  boostStart: { volume: 0.8, cap: 1, policy: 'steal' },
+  boostEmpty: { volume: 0.75, cap: 1 },
+  airbrake: { volume: 0.6, vary: 0.04, cap: 1, policy: 'steal', minIntervalMs: 200 },
+
+  // AA laser & shield. Beams can overlap and recur often: kept moderate and spatial.
+  aaCharge: { volume: 0.55, cap: 4 },
+  aaBeamLoop: { volume: 0.45 },
+  shieldHit: { volume: 0.6, vary: 0.08, cap: 2, minIntervalMs: 90 },
+  shieldDown: { volume: 0.9, cap: 1, policy: 'steal' },
+  shieldRegen: { volume: 0.45, cap: 1, policy: 'steal' },
+  shieldFull: { volume: 0.5, cap: 1 },
+
+  // Rewards
+  samEvaded: { volume: 0.85, cap: 2 },
+  pickupCollect: { volume: 0.8, cap: 2, policy: 'steal' },
+  pickupSpawn: { volume: 0.45, vary: 0.05, cap: 2, minIntervalMs: 60 },
+  comboUp: { volume: 0.6, cap: 2, policy: 'steal' },
+  comboEnd: { volume: 0.5, cap: 1 },
+  zoneCleared: { volume: 0.9, cap: 1, policy: 'steal' },
+
+  // New enemies. heliLoop: one spatial loop per spotted helicopter (MLRS sim support pending)
+  heliLoop: { volume: 0.6 },
+  mlrsLaunch: { volume: 0.85, vary: 0.04, cap: 2 },
 };
 
 /** Maximum simultaneous one-shots across all keys. */

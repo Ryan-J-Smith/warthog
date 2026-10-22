@@ -29,6 +29,8 @@ const COLORS = {
   iffEnemy: 0xff3b30,
   iffThreat: 0xff8a1e,
   iffFriendly: 0x4aa8ff,
+  strike: 0xff2a1a,
+  strikeFlash: 0xffffff,
 } as const;
 
 /**
@@ -47,7 +49,12 @@ const ZONE_STYLE = {
 type ZoneState = keyof typeof ZONE_STYLE;
 
 /** Kinds that get IFF markers (vehicles, infantry and air defences; not big structures). */
-const IFF_KINDS = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'samSite', 'friendlyTank', 'friendlyInfantry']);
+const IFF_KINDS = new Set(['tank', 'truck', 'infantry', 'aaGun', 'mobileAa', 'samSite', 'helicopter', 'mlrs', 'friendlyTank', 'friendlyInfantry']);
+
+/** MLRS rings aimed at friendlies are drawn fainter than ones aimed at you (they still hurt you). */
+const STRIKE_GROUND_ALPHA = 0.6;
+/** The last this-many seconds of a ring's countdown strobe white: it is about to land. */
+const STRIKE_FLASH_TIME = 0.3;
 
 /**
  * World-space HUD: weapon reticle (Xevious-style light-up), bomb CCIP line, Maverick lock
@@ -74,6 +81,7 @@ export class WorldUiRenderer {
     const px = 1 / zoom;
     this.overlay.clear();
     this.drawRings(view, px);
+    this.drawStrikes(view, px);
     this.drawIff(view, px);
     this.drawObjectiveMarkers(view, px);
     this.drawReticle(view, px);
@@ -147,20 +155,62 @@ export class WorldUiRenderer {
       if (e.aa) {
         const state: ZoneState = e.aa.engaging ? 'active' : p.band !== 'high' ? 'threat' : 'idle';
         drawZone(g, e.pos, e.aa.range, COLORS.aa, state, px, t, distance(e.pos, p.pos) <= e.aa.range);
-        if (e.aa.engaging && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.aa, 0.9, px, t);
       }
     }
 
-    // Rearm zone around home base, with a progress arc.
-    const home = view.entities.find((e) => e.refId === view.level.homeBaseRefId);
-    if (home && distance(home.pos, p.pos) < 2200) {
+    // Rearm zones (home base + forward points earned), with a progress arc on the one in use.
+    for (const at of view.rearmPoints()) {
+      if (distance(at, p.pos) >= 2200) continue;
       const dashes = dashCount(PLAYER.rearmRadius, px);
-      keylined(g, px, 2.5, COLORS.rearm, 0.6, (ext) => dashedCircle(g, home.pos.x, home.pos.y, PLAYER.rearmRadius, dashes, 0, ext));
-      if (p.rearm > 0) {
+      keylined(g, px, 2.5, COLORS.rearm, 0.6, (ext) => dashedCircle(g, at.x, at.y, PLAYER.rearmRadius, dashes, 0, ext));
+      if (p.rearm > 0 && distance(at, p.pos) <= PLAYER.rearmRadius) {
         g.lineStyle(8 * px, COLORS.rearm, 0.9);
         g.beginPath();
-        g.arc(home.pos.x, home.pos.y, PLAYER.rearmRadius, -Math.PI / 2, -Math.PI / 2 + p.rearm * Math.PI * 2);
+        g.arc(at.x, at.y, PLAYER.rearmRadius, -Math.PI / 2, -Math.PI / 2 + p.rearm * Math.PI * 2);
         g.strokePath();
+      }
+    }
+  }
+
+  /**
+   * MLRS impact rings: exactly the blast radius, a red fill that grows from the centre to the edge as
+   * the countdown runs out (it lands when the fill reaches the ring), a pulsing keylined edge that
+   * quickens and strobes white just before impact, and a faint line back to the launcher.
+   */
+  private drawStrikes(view: WorldView, px: number): void {
+    const g = this.rings;
+    const now = view.time;
+    for (const e of view.entities) {
+      const strikes = e.mlrs?.strikes;
+      if (!strikes || strikes.length === 0) continue;
+      const first = strikes[0];
+      if (first && first.atPlayer && e.alive && now < first.launchAt) {
+        // Before the first rocket leaves: show who is about to fire.
+        const t = this.scene.time.now / 1000;
+        this.drawTether(e.pos, e.radius, centroid(strikes.map((s) => s.pos)), COLORS.strike, 0.7, px, t);
+      }
+      for (const s of strikes) {
+        if (now >= s.impactAt) continue;
+        const span = Math.max(1e-3, s.impactAt - s.shownAt);
+        const progress = clamp((now - s.shownAt) / span, 0, 1);
+        const left = s.impactAt - now;
+        const alpha = s.atPlayer ? 1 : STRIKE_GROUND_ALPHA;
+        // Danger area, then the countdown fill.
+        g.fillStyle(COLORS.strike, 0.12 * alpha);
+        g.fillCircle(s.pos.x, s.pos.y, s.radius);
+        g.fillStyle(COLORS.strike, (0.2 + 0.25 * progress) * alpha);
+        g.fillCircle(s.pos.x, s.pos.y, s.radius * progress);
+        const flash = left <= STRIKE_FLASH_TIME && Math.floor(left * 20) % 2 === 0;
+        const pulse = 0.5 + 0.5 * Math.sin(now * (8 + progress * 22));
+        const edge = flash ? COLORS.strikeFlash : COLORS.strike;
+        const width = 3 + progress * 2 + pulse * 1.5;
+        keylined(g, px, width, edge, (0.85 + 0.15 * pulse) * alpha, () => g.strokeCircle(s.pos.x, s.pos.y, s.radius));
+        // Bullseye tick.
+        const tick = 7 * px;
+        keylined(g, px, 2, edge, 0.8 * alpha, (ext) => {
+          segment(g, s.pos.x - tick, s.pos.y, s.pos.x + tick, s.pos.y, ext);
+          segment(g, s.pos.x, s.pos.y - tick, s.pos.x, s.pos.y + tick, ext);
+        });
       }
     }
   }
@@ -208,7 +258,7 @@ export class WorldUiRenderer {
         continue;
       }
       if (!e.spotted) continue;
-      const threat = e.aa !== null || e.sam !== null;
+      const threat = e.aa !== null || e.sam !== null || e.heli !== null || e.mlrs !== null;
       const half = Math.max(e.radius * unitScale * 1.25, 9 * px);
       const arm = Math.max(half * 0.45, 4 * px);
       const x = e.pos.x;
@@ -246,6 +296,17 @@ export class WorldUiRenderer {
       g.strokePath();
     }
   }
+}
+
+function centroid(points: readonly Vec2[]): Vec2 {
+  let x = 0;
+  let y = 0;
+  for (const p of points) {
+    x += p.x;
+    y += p.y;
+  }
+  const n = Math.max(1, points.length);
+  return { x: x / n, y: y / n };
 }
 
 /** Keep tethers this far (world units) from the aircraft centre so they don't draw over the sprite. */

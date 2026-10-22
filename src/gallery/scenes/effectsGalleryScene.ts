@@ -12,6 +12,7 @@ import type { Vec2 } from '../../sim/math';
 import type { EntityKind, ExplosionSize } from '../../sim/types';
 import { FakeBattle } from '../fakes';
 import { EFFECTS_HUD_KEY, EffectsHudScene, FX_FRAME } from './effectsHudScene';
+import { withGalleryBiome } from './galleryBiome';
 
 const CENTRE: Vec2 = { x: 3400, y: 2230 };
 const SAM_SITE: Vec2 = { x: 3700, y: 1900 };
@@ -95,7 +96,7 @@ export class EffectsGalleryScene extends Phaser.Scene {
     this.zoomIndex = Math.max(0, ZOOMS.indexOf(Number(params.get('zoom') ?? '1')));
     cam.setZoom(ZOOMS[this.zoomIndex] ?? 1);
 
-    new TerrainRenderer(this, riverCrossing).build();
+    new TerrainRenderer(this, withGalleryBiome(riverCrossing)).build();
     this.placeSprites();
 
     this.battle = new FakeBattle(CENTRE, 260, STAGED);

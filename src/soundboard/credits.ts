@@ -45,6 +45,32 @@ export const SOUND_CREDITS: Record<AudioKey, SoundCredit> = {
       }
     ]
   },
+  musicThreeRoads: {
+    method: "Cut to exactly 132 bars at 170 BPM (186.353 s) starting on the downbeat of bar 26 (36.706 s) so it loops on the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.",
+    recipe: "scripts/audio/recipes/music.mjs",
+    sources: [
+      {
+        title: "Clash Defiant",
+        author: "Kevin MacLeod (incompetech.com)",
+        page: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600003",
+        license: "CC BY 4.0",
+        use: "Three Roads in-mission theme"
+      }
+    ]
+  },
+  musicIronSleet: {
+    method: "Cut to exactly 112 bars at 170 BPM (158.118 s) starting on the downbeat of bar 6 (8.471 s) so it loops on the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.",
+    recipe: "scripts/audio/recipes/music.mjs",
+    sources: [
+      {
+        title: "Blown Away",
+        author: "Kevin MacLeod (incompetech.com)",
+        page: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1200100",
+        license: "CC BY 4.0",
+        use: "Iron Sleet in-mission theme"
+      }
+    ]
+  },
   stingVictory: {
     method: "Trimmed; natural decay kept.",
     recipe: "scripts/audio/recipes/music.mjs",
@@ -602,6 +628,168 @@ export const SOUND_CREDITS: Record<AudioKey, SoundCredit> = {
         page: "https://kenney.nl/assets/interface-sounds",
         license: "CC0 1.0",
         use: "Score count tick"
+      }
+    ]
+  },
+  upgradeBuy: {
+    method: "Purchase \"ka-ching\": a real mechanical click and a synthesized low thunk, then two bright inharmonic bell strikes (C7, then G7) with a short room.",
+    recipe: "scripts/audio/recipes/ui.mjs",
+    sources: [
+      {
+        title: "UI Audio — click3.ogg",
+        author: "Kenney (kenney.nl)",
+        page: "https://kenney.nl/assets/ui-audio",
+        license: "CC0 1.0",
+        use: "Register \"ka\" click"
+      }
+    ]
+  },
+  uiError: {
+    method: "Used as-is apart from trimming and level matching.",
+    recipe: "scripts/audio/recipes/ui.mjs",
+    sources: [
+      {
+        title: "Interface Sounds — error_002.ogg",
+        author: "Kenney (kenney.nl)",
+        page: "https://kenney.nl/assets/interface-sounds",
+        license: "CC0 1.0",
+        use: "Menu error / denied"
+      }
+    ]
+  },
+  boostLoop: {
+    method: "Afterburner roar: circularly filtered stereo pink-noise roar with a low-mid bump, brown-noise rumble, turbulence amplitude flutter and sparse combustion crackle, a faint low howl, and a real jet wind recording crossfaded into the 2 s loop; every modulation completes whole cycles, so it is seamless.",
+    recipe: "scripts/audio/recipes/movement.mjs",
+    sources: [
+      {
+        title: "Jet Plane Wind Noise Loop of a KC-135 Stratotanker 1.flac",
+        author: "qubodup (Freesound)",
+        page: "https://freesound.org/s/162417/",
+        license: "CC0 1.0",
+        use: "Real jet air/wind noise layer"
+      }
+    ]
+  },
+  boostStart: {
+    method: "Original: afterburner light-off \"whump\": a falling sub boom, an ignition pop, and a noise burst whose low-pass opens from 400 Hz to 3.5 kHz, settling into a roar that hands over to the boost loop.",
+    recipe: "scripts/audio/recipes/movement.mjs",
+    sources: []
+  },
+  boostEmpty: {
+    method: "Original: afterburner flame-out sputter: four fading low pops at uneven intervals over a falling whine.",
+    recipe: "scripts/audio/recipes/movement.mjs",
+    sources: []
+  },
+  airbrake: {
+    method: "Original: speed-brake deploy: a low actuator thunk, a pneumatic hiss, and an air-rush whoosh whose band-pass sweeps from 2.6 kHz down to 800 Hz.",
+    recipe: "scripts/audio/recipes/movement.mjs",
+    sources: []
+  },
+  aaCharge: {
+    method: "Original: laser charge-up for the AA telegraph: a sine+saw whine sweeping 260 Hz → 2.2 kHz with growing vibrato over the tracking phase, then a fast 22 Hz pulse at the top pitch for the final 0.35 s lock (the dodge window), with a sub-octave body and a noise shimmer.",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: []
+  },
+  aaBeamLoop: {
+    method: "Original: sizzling laser-beam hum: a 120 Hz saw drone with a fifth and octave, a 1.76 kHz whine with gentle vibrato, band-passed stereo noise sizzle chopped by three flutters, sparse crackle and an 8 Hz throb; every tone and modulation completes whole cycles and noise is filtered circularly (1 s loop).",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: []
+  },
+  shieldHit: {
+    method: "Original: energy-shield crackle: a cluster of band-passed noise sparks, a falling square-wave zap and a soft 180 Hz thump (short, so it can repeat rate-limited while a beam is on the shield).",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: []
+  },
+  shieldDown: {
+    method: "Two real glass impacts (one pitched down) as the shield shattering, over a synthesized power-down: a saw falling 900 → 55 Hz through a closing low-pass, a sub thump and an electric crackle; short room.",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: [
+      {
+        title: "Impact Sounds — impactGlass_heavy_000.ogg",
+        author: "Kenney (kenney.nl)",
+        page: "https://kenney.nl/assets/impact-sounds",
+        license: "CC0 1.0",
+        use: "Shatter"
+      },
+      {
+        title: "Impact Sounds — impactGlass_medium_002.ogg",
+        author: "Kenney (kenney.nl)",
+        page: "https://kenney.nl/assets/impact-sounds",
+        license: "CC0 1.0",
+        use: "Shatter tail"
+      }
+    ]
+  },
+  shieldRegen: {
+    method: "Original: soft rising hum as the shield starts recharging: a sine chord gliding up an octave with a quickening tremolo.",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: []
+  },
+  shieldFull: {
+    method: "Original: subtle shield-charged chime: a soft E6 + B6 bell dyad with a short shimmer and room.",
+    recipe: "scripts/audio/recipes/defense.mjs",
+    sources: []
+  },
+  samEvaded: {
+    method: "Original: a missile whooshing past (noise band falling 3.2 kHz → 700 Hz with a Doppler-falling motor tone, panned left → right) followed by a short positive C6 → G6 blip.",
+    recipe: "scripts/audio/recipes/rewards.mjs",
+    sources: []
+  },
+  pickupCollect: {
+    method: "A real mechanical latch click (magazine-seat feel) under an original fast G5–C6–E6–G6 pulse-wave arpeggio with a ringing top note and a short room.",
+    recipe: "scripts/audio/recipes/rewards.mjs",
+    sources: [
+      {
+        title: "UI Audio — switch3.ogg",
+        author: "Kenney (kenney.nl)",
+        page: "https://kenney.nl/assets/ui-audio",
+        license: "CC0 1.0",
+        use: "Mechanical latch click"
+      }
+    ]
+  },
+  pickupSpawn: {
+    method: "Original: tiny sparkle: three quick high sine pings (E7, A7, C8).",
+    recipe: "scripts/audio/recipes/rewards.mjs",
+    sources: []
+  },
+  comboUp: {
+    method: "Original: short rising pulse-wave blip (880 → 1320 Hz); the game raises its pitch with the chain.",
+    recipe: "scripts/audio/recipes/rewards.mjs",
+    sources: []
+  },
+  comboEnd: {
+    method: "Original: soft descending triangle blip (880 → 440 Hz) when the kill chain lapses.",
+    recipe: "scripts/audio/recipes/rewards.mjs",
+    sources: []
+  },
+  zoneCleared: {
+    method: "Original: punchy defence-zone-cleared sting (shorter than objectiveComplete): a timpani-like hit and noise snap under a quick brass-style G4 pickup into a C major chord, with reverb.",
+    recipe: "scripts/audio/recipes/tones.mjs",
+    sources: []
+  },
+  heliLoop: {
+    method: "Original: attack-helicopter rotor loop: 11 Hz main-rotor blade slaps (low noise thump + mid slap, slightly uneven per blade), a 58 Hz tail-rotor buzz and a quiet turbine whine; tones complete whole cycles and filtering/room run circularly, so the 2 s loop is seamless.",
+    recipe: "scripts/audio/recipes/threats.mjs",
+    sources: []
+  },
+  mlrsLaunch: {
+    method: "Rocket-artillery ripple: a real rocket launch re-sequenced as 8 rounds ~0.14 s apart with timing, gain and pitch variation, over a real missile-motor roar, then distance-processed (low-pass, room reverb).",
+    recipe: "scripts/audio/recipes/threats.mjs",
+    sources: [
+      {
+        title: "Launching/Shooting Propelled Grenade",
+        author: "qubodup (Freesound)",
+        page: "https://freesound.org/s/162361/",
+        license: "CC0 1.0",
+        use: "Rocket launch, re-sequenced into an 8-round ripple"
+      },
+      {
+        title: "AGM-114 Hellfire Rocket Missile Launch.flac",
+        author: "qubodup (Freesound)",
+        page: "https://freesound.org/s/162368/",
+        license: "CC0 1.0",
+        use: "Rocket motor roar under the ripple"
       }
     ]
   }

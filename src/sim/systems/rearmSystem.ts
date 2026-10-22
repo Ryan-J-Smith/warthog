@@ -1,4 +1,4 @@
-import { FLARES, PLAYER, WEAPON_AMMO } from '../../config';
+import { PLAYER } from '../../config';
 import { distance } from '../math';
 import { WEAPON_ORDER } from '../types';
 import { fullAmmo, type World } from '../world';
@@ -11,7 +11,7 @@ export class RearmSystem extends SimSystem {
 
   update({ world, dt }: StepContext): void {
     const p = world.player;
-    const inZone = p.alive && p.band === 'low' && distance(p.pos, world.homeBasePos()) <= PLAYER.rearmRadius;
+    const inZone = p.alive && p.band === 'low' && world.rearmPoints().some((at) => distance(p.pos, at) <= PLAYER.rearmRadius);
 
     if (!inZone) {
       this.satisfied = false;
@@ -26,9 +26,11 @@ export class RearmSystem extends SimSystem {
     if (p.rearm === 0) world.emit({ type: 'rearmStarted' });
     p.rearm = Math.min(1, p.rearm + dt / PLAYER.rearmTime);
     if (p.rearm >= 1) {
-      p.ammo = fullAmmo();
-      p.flares = FLARES.count;
+      p.ammo = fullAmmo(world.loadout);
+      p.flares = world.loadout.flares;
       p.hp = p.maxHp;
+      p.shield = p.maxShield;
+      p.boost = p.maxBoost;
       p.rearm = 0;
       this.satisfied = true;
       world.emit({ type: 'rearmCompleted' });
@@ -38,6 +40,6 @@ export class RearmSystem extends SimSystem {
 
 function needsService(world: World): boolean {
   const p = world.player;
-  if (p.hp < p.maxHp || p.flares < FLARES.count) return true;
-  return WEAPON_ORDER.some((w) => p.ammo[w] < WEAPON_AMMO[w]);
+  if (p.hp < p.maxHp || p.flares < world.loadout.flares) return true;
+  return WEAPON_ORDER.some((w) => p.ammo[w] < world.loadout.ammo[w]);
 }

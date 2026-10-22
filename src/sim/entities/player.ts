@@ -15,10 +15,27 @@ export interface PlayerState {
   speed: number;
   /** Energy multiplier from diving (>1) or climbing (<1); decays back to 1. */
   energy: number;
-  /** Current turn input in [-1, 1] (for banking visuals). */
+  /** Current turn as a fraction of the max turn rate, in [-1, 1] (for banking visuals). */
   turnInput: number;
+  /** Current angular velocity, radians / s (eases toward the stick). */
+  turnRate: number;
+  /** Hull points. Damage persists until rearm or a repair pickup. */
   hp: number;
   maxHp: number;
+  /** Regenerating shield; absorbs damage before the hull. */
+  shield: number;
+  maxShield: number;
+  /** Seconds until the shield starts regenerating (reset by any damage). */
+  shieldRegenIn: number;
+  /** Afterburner meter in seconds of boost. */
+  boost: number;
+  maxBoost: number;
+  boosting: boolean;
+  braking: boolean;
+  /** Seconds of free (meter-less) boost left from a boost pickup. */
+  boostFree: number;
+  /** Seconds of GAU-8 overdrive left from a pickup. */
+  overdrive: number;
   lives: number;
   alive: boolean;
   /** Seconds of post-respawn invulnerability remaining. */

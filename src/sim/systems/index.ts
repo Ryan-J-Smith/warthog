@@ -6,7 +6,9 @@ export { FlightSystem } from './flightSystem';
 export { RearmSystem } from './rearmSystem';
 export { WeaponSystem, blockReason, gunPipper, bombImpact, bombFallTime, rocketRange } from './weaponSystem';
 export { GroundUnitSystem } from './groundUnitSystem';
-export { AirDefenseSystem, leadPoint } from './airDefenseSystem';
+export { AirDefenseSystem, leadPoint, beamHits } from './airDefenseSystem';
+export { HelicopterSystem } from './helicopterSystem';
+export { MlrsSystem, barragePattern } from './mlrsSystem';
 export { ProjectileSystem } from './projectileSystem';
 export { PendingFireSystem } from './pendingFireSystem';
 export { SpottingSystem } from './spottingSystem';
@@ -14,3 +16,19 @@ export { ObjectiveSystem, initObjectives } from './objectiveSystem';
 export { RadioSystem } from './radioSystem';
 export { MissionSystem, endMission, computeResults } from './missionSystem';
 export { damagePlayer, destroyPlayer } from './playerDamage';
+export { RewardSystem, initZones } from './rewardSystem';
+export { WaveSystem, waveUnits, surgeLane, offsetPath } from './waveSystem';
+export { LaneSystem } from './laneSystem';
+export {
+  WAVE_TAG,
+  ENEMY_WAVE_TAG,
+  FRIENDLY_WAVE_TAG,
+  laneTag,
+  laneUnits,
+  laneLead,
+  laneControl,
+  laneBroken,
+  moverProgress,
+  pathLength,
+} from './laneFront';
+export { ConvoySystem, convoyUnits } from './convoySystem';

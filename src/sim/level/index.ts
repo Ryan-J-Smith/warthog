@@ -12,7 +12,17 @@ export type {
   StopColumnObjective,
   DefendObjective,
   DestroyObjective,
+  InterdictObjective,
+  ConvoyStreamDefinition,
   ObjectiveDefinition,
   RadioCue,
+  DefenceZoneDefinition,
   LevelDefinition,
 } from './levelDefinition';
+export type {
+  LaneDefinition,
+  WaveEscalation,
+  WaveDefinition,
+  SurgeDefinition,
+  LaneWarDefinition,
+} from './laneWarDefinition';

@@ -6,18 +6,27 @@ export interface AttackerStats {
   damage: number;
 }
 
+/** AA laser: telegraphed, then a beam you escape by flying across it (or boosting). */
 export interface AaStats {
   range: number;
-  roundsPerBurst: number;
-  roundInterval: number;
-  burstPause: number;
-  roundSpeed: number;
-  roundDamage: number;
-  /** Aim error radius at Low / Medium. */
-  spreadLow: number;
-  spreadMedium: number;
-  /** A round hits the player within this 2D distance. */
-  hitRadius: number;
+  /** Telegraph: seconds the aim line paints the aircraft before the beam fires. */
+  aimTime: number;
+  /** Last part of the telegraph where the line stops tracking and flashes (dodge window). */
+  lockTime: number;
+  /** How fast the aim line follows the aircraft while tracking, degrees / s. */
+  aimTrackDeg: number;
+  /** Beam duration, seconds. */
+  beamTime: number;
+  /** Seconds between beams (divided by the global AA fire-rate multiplier). */
+  cooldown: number;
+  /** How fast the beam slews toward the aircraft, degrees / s, at Low / Medium. */
+  slewDegLow: number;
+  slewDegMedium: number;
+  /** Damage per second while the beam is on the aircraft, at Low / Medium. */
+  dpsLow: number;
+  dpsMedium: number;
+  /** The beam hits when the aircraft is within this distance of the beam line. */
+  hitHalfWidth: number;
 }
 
 export interface SamStats {
@@ -34,6 +43,121 @@ export interface SamStats {
   proximity: number;
   /** Altitude climb rate of the missile, band units / s. */
   climbRate: number;
+  /**
+   * Seeker gimbal limit, degrees off the nose. If the aircraft gets further off-boresight than this
+   * (you out-turned it), the missile loses you: the skill answer to a SAM.
+   */
+  gimbalDeg: number;
+  /** Seconds after launch before the gimbal limit applies (the launch heading is approximate). */
+  gimbalArmTime: number;
+  /** Style bonus for making one miss. */
+  evadeBonus: number;
+  /** Lead pursuit: aims at the aircraft's position this fraction of the time-to-go ahead. */
+  leadFactor: number;
+  /** Top speed while chasing an aircraft at High (thin air: High is SAM country, not a safe haven). */
+  missileMaxSpeedHigh: number;
+}
+
+/**
+ * Attack helicopter: flies its own height, closes to a stand-off and strafes, and fires telegraphed
+ * rocket salvos. Its nose turns at a finite rate (out-turn it with the brake), and the salvo goes
+ * exactly where the aim line showed: turn or boost off the line to dodge.
+ */
+export interface HeliStats {
+  /** Flying height above ground, band units (the player at Low is at 0.35, Medium 1.35). */
+  height: number;
+  /** Patrol / loiter speed, world units / s. */
+  cruiseSpeed: number;
+  /** Top speed while engaging (slower than the A-10 at Low, so you can always run it down). */
+  maxSpeed: number;
+  /** Velocity change rate, units / s² (helicopter inertia). */
+  accel: number;
+  /** Nose (yaw) turn rate, degrees / s. Rockets only fly where the nose points. */
+  yawRateDeg: number;
+  /** Starts attacking a target within this range… */
+  detectRange: number;
+  /** …and breaks off once it is further than this. */
+  leashRange: number;
+  /** Preferred distance from its target. */
+  standoff: number;
+  /** Sideways strafing speed around the target. */
+  strafeSpeed: number;
+  /** Seconds between strafing direction changes. */
+  strafeFlip: number;
+  /** Seconds from the start of one salvo telegraph to the next. */
+  salvoInterval: number;
+  /** Delay before the first salvo after it starts an attack. */
+  firstSalvoDelay: number;
+  /** Telegraph: seconds of nose glow + aim line before the rockets fly. */
+  aimTime: number;
+  /** Last part of the telegraph where the aim stops tracking and flashes (the dodge window). */
+  lockTime: number;
+  /** Only starts a telegraph when its nose is within this angle of the aim point, degrees. */
+  fireConeDeg: number;
+  rockets: number;
+  /** Seconds between rockets in a salvo (ripple fire). */
+  rippleInterval: number;
+  /** Fixed angular spacing between the rockets of a salvo, degrees (no random scatter). */
+  spreadDeg: number;
+  rocketSpeed: number;
+  /** Rockets aimed at the aircraft fly this far, then fall away. */
+  rocketRange: number;
+  rocketDamage: number;
+  /** A rocket hits the aircraft when it passes within this distance. */
+  hitRadius: number;
+  /** Blast radius against ground targets. */
+  groundSplash: number;
+  /** Fraction of the full intercept lead applied when aiming at the aircraft ("light lead"). */
+  leadFactor: number;
+  /** Orbit radius when loitering. */
+  loiterRadius: number;
+}
+
+/** One impact ring of a barrage pattern: offset from the aim point, in the pattern's frame. */
+export interface MlrsRingOffset {
+  /** Along the pattern heading (the aircraft's course, or launcher → target), world units. */
+  forward: number;
+  /** To the right of the pattern heading, world units. */
+  side: number;
+}
+
+/**
+ * MLRS rocket artillery: parks, then every `barrageInterval` s shows a pattern of impact rings on the
+ * ground and ripples rockets onto them. Rockets land exactly on the rings, `telegraphTime` (plus the
+ * ripple) after the rings appear; anything inside a ring when it lands is hit. Against the aircraft
+ * the pattern sits on a fixed, partial lead of its course: turn, boost or climb out of it.
+ */
+export interface MlrsStats {
+  /** Shells a Low/Medium aircraft within this range (but not inside `minRange`)… */
+  playerRange: number;
+  /** …it can't depress onto an aircraft this close (get in under the barrage). */
+  minRange: number;
+  /** …otherwise the nearest friendly ground unit or structure within this range. */
+  groundRange: number;
+  /** Seconds from the start of one barrage to the next. */
+  barrageInterval: number;
+  /** Delay before the first barrage after it finds a target (and parks). */
+  firstBarrageDelay: number;
+  /** Seconds the first ring is shown before its rocket lands. */
+  telegraphTime: number;
+  /** Extra delay per ring in pattern order (ripple fire). */
+  rippleInterval: number;
+  /** Seconds each rocket is in the air (it launches this long before its ring's impact). */
+  flightTime: number;
+  /** Peak height of the rocket arc, band units. */
+  arcHeight: number;
+  /** Ring radius: exactly the drawn ring. */
+  ringRadius: number;
+  /** Fixed impact pattern (last entry lands last). */
+  pattern: readonly MlrsRingOffset[];
+  /** Against friendlies the pattern is tightened by this factor (rockets carpet the target). */
+  groundPatternScale: number;
+  /** Fraction of the aircraft's course to the last impact used as lead (partial lead). */
+  leadFactor: number;
+  /** Damage to the aircraft per ring it is inside when that ring lands. */
+  playerDamage: number;
+  /** Damage to friendly units / structures per ring. */
+  groundDamage: number;
 }
 
 export interface EntityStats {
@@ -57,19 +181,30 @@ export interface EntityStats {
   attacker: AttackerStats | null;
   aa: AaStats | null;
   sam: SamStats | null;
+  /** Flies: immune to bombs, Maverick splash, secondaries and ground fire (the GAU-8 and rockets still hit). */
+  airborne: boolean;
+  heli: HeliStats | null;
+  mlrs: MlrsStats | null;
 }
 
-const SHILKA: AaStats = {
+const AA_LASER: AaStats = {
   range: 520,
-  roundsPerBurst: 10,
-  roundInterval: 0.05,
-  burstPause: 1.2,
-  roundSpeed: 900,
-  roundDamage: 2,
-  spreadLow: 30,
-  spreadMedium: 50,
-  hitRadius: 22,
+  aimTime: 1.0,
+  lockTime: 0.35,
+  aimTrackDeg: 140,
+  beamTime: 1.4,
+  cooldown: 1.6,
+  slewDegLow: 22,
+  slewDegMedium: 15,
+  dpsLow: 32,
+  dpsMedium: 22,
+  hitHalfWidth: 34,
 };
+
+/** Five rings on a 150 u circle at ±36°, ±108° and 180° off the pattern heading, then the centre. */
+const MLRS_FLOWER: readonly MlrsRingOffset[] = [180, -108, 108, -36, 36]
+  .map((deg) => ({ forward: Math.round(150 * Math.cos((deg * Math.PI) / 180)), side: Math.round(150 * Math.sin((deg * Math.PI) / 180)) }))
+  .concat([{ forward: 0, side: 0 }]);
 
 const base = {
   lockable: false,
@@ -80,6 +215,9 @@ const base = {
   attacker: null,
   aa: null,
   sam: null,
+  airborne: false,
+  heli: null,
+  mlrs: null,
 } as const;
 
 export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
@@ -129,7 +267,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     score: 400,
     lockable: true,
     groundTarget: true,
-    aa: SHILKA,
+    aa: AA_LASER,
   },
   mobileAa: {
     ...base,
@@ -142,7 +280,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     lockable: true,
     groundTarget: true,
     speed: 30,
-    aa: SHILKA,
+    aa: AA_LASER,
   },
   samSite: {
     ...base,
@@ -159,13 +297,87 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
       reload: 4,
       maxInFlight: 2,
       missileStartSpeed: 300,
-      missileMaxSpeed: 700,
+      missileMaxSpeed: 520,
       missileAccel: 600,
-      turnRateDeg: 110,
+      turnRateDeg: 80,
       life: 6,
-      damage: 55,
+      damage: 75,
       proximity: 30,
       climbRate: 1.6,
+      gimbalDeg: 50,
+      gimbalArmTime: 0.8,
+      evadeBonus: 300,
+      leadFactor: 0.3,
+      missileMaxSpeedHigh: 640,
+    },
+  },
+  helicopter: {
+    ...base,
+    team: 'enemy',
+    armor: 'soft',
+    hp: 45,
+    radius: 36,
+    explosion: 'medium',
+    score: 600,
+    airborne: true,
+    speed: 90,
+    heli: {
+      height: 0.6,
+      cruiseSpeed: 90,
+      maxSpeed: 125,
+      accel: 150,
+      yawRateDeg: 55,
+      detectRange: 900,
+      leashRange: 1150,
+      standoff: 380,
+      strafeSpeed: 75,
+      strafeFlip: 4.5,
+      salvoInterval: 3.5,
+      firstSalvoDelay: 1.2,
+      aimTime: 0.6,
+      lockTime: 0.25,
+      fireConeDeg: 25,
+      rockets: 3,
+      rippleInterval: 0.09,
+      spreadDeg: 3,
+      rocketSpeed: 480,
+      rocketRange: 600,
+      rocketDamage: 10,
+      hitRadius: 30,
+      groundSplash: 36,
+      leadFactor: 0.8,
+      loiterRadius: 200,
+    },
+  },
+  mlrs: {
+    ...base,
+    team: 'enemy',
+    armor: 'soft',
+    hp: 40,
+    radius: 32,
+    explosion: 'large',
+    score: 800,
+    lockable: true,
+    groundTarget: true,
+    speed: 30,
+    mlrs: {
+      playerRange: 1400,
+      minRange: 320,
+      groundRange: 1600,
+      barrageInterval: 9,
+      firstBarrageDelay: 2.5,
+      telegraphTime: 1.6,
+      rippleInterval: 0.07,
+      flightTime: 1.15,
+      arcHeight: 3.2,
+      ringRadius: 60,
+      // A flower: five rings around the aim point (a gap dead ahead and to either side of the nose),
+      // then the bullseye on it.
+      pattern: MLRS_FLOWER,
+      groundPatternScale: 0.6,
+      leadFactor: 0.95,
+      playerDamage: 12,
+      groundDamage: 4,
     },
   },
   bridge: {
@@ -194,6 +406,17 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     radius: 22,
     explosion: 'medium',
     score: 750,
+  },
+  /** Lane-war enemy HQ: bombs (and friendly armour that reaches it) only. */
+  enemyHq: {
+    ...base,
+    team: 'enemy',
+    armor: 'hardened',
+    hp: 2400,
+    radius: 140,
+    explosion: 'huge',
+    score: 5000,
+    groundTarget: true,
   },
   outpost: {
     ...base,
@@ -236,6 +459,17 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     score: 0,
     groundTarget: true,
     attacker: { range: 220, cooldown: 4, damage: 2 },
+  },
+  /** Lane-war friendly HQ: the mission is lost when it falls. */
+  friendlyHq: {
+    ...base,
+    team: 'friendly',
+    armor: 'hardened',
+    hp: 2400,
+    radius: 140,
+    explosion: 'huge',
+    score: 0,
+    groundTarget: true,
   },
 };
 

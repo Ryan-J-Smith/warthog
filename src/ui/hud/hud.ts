@@ -7,6 +7,7 @@ import { ensureUiTextures } from '../widgets';
 import { AltitudeLadder } from './altitudeLadder';
 import { ArmorPanel } from './armorPanel';
 import { BannerDisplay } from './bannerDisplay';
+import { ComboMeter } from './comboMeter';
 import type { HudWidget } from './hudWidget';
 import { Minimap } from './minimap';
 import { MissionStrip } from './missionStrip';
@@ -35,11 +36,12 @@ export class Hud {
       new OffscreenArrows(scene, level),
       new Minimap(scene, level),
       objectives,
-      new MissionStrip(scene, level.parTime),
+      new MissionStrip(scene, level.parTime, missionCountdown(level)),
       new AltitudeLadder(scene, objectives.bottom + 14),
       new ArmorPanel(scene),
       new WeaponBar(scene),
       new RadioTicker(scene),
+      new ComboMeter(scene),
       new StatusMessages(scene),
       new ThreatWarnings(scene),
     ];
@@ -50,6 +52,10 @@ export class Hud {
     const frame = { view, events, dt, now, camera };
     for (const widget of this.widgets) widget.update(frame);
     for (const e of events) {
+      if (e.type === 'zoneCleared') {
+        this.banners.show({ headline: `${e.name.toUpperCase()} CLEARED`, sub: `+${e.bonus} · SUPPLY DROP ON THE SITE`, tone: 'good' });
+        continue;
+      }
       if (e.type !== 'objectiveUpdated') continue;
       const o = view.objectives.find((ob) => ob.id === e.objectiveId);
       if (o) this.banners.show(objectiveBanner(o, e.status, defendedKind(this.level, o.id)));
@@ -81,4 +87,10 @@ export class Hud {
     for (const widget of this.widgets) widget.destroy();
     this.banners.destroy();
   }
+}
+
+/** A score-attack mission's time limit (the clock counts down), else null. */
+function missionCountdown(level: LevelDefinition): number | null {
+  for (const def of level.objectives) if (def.kind === 'interdict' && def.primary) return def.timeLimit;
+  return null;
 }

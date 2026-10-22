@@ -1,4 +1,5 @@
-import type { MissionOutcome, ObjectiveStatus } from '../types';
+import type { DifficultyId } from '../difficulty';
+import type { EntityKind, MissionOutcome, ObjectiveStatus } from '../types';
 
 export interface ObjectiveResult {
   id: string;
@@ -8,14 +9,31 @@ export interface ObjectiveResult {
   points: number;
 }
 
+/** Skill feats for the debrief. */
+export interface MissionFeats {
+  bestChain: number;
+  missilesDefeated: number;
+  zonesCleared: number;
+  pickupsCollected: number;
+  killsByKind: Partial<Record<EntityKind, number>>;
+  hullDamage: number;
+  deaths: number;
+  /** Convoy vehicles that got away (score-attack missions). */
+  escapes: number;
+}
+
 export interface MissionResults {
   outcome: MissionOutcome;
   /** Mission time in seconds. */
   time: number;
   killPoints: number;
   kills: number;
-  /** Set-piece bonuses (e.g. BRIDGE DROP ×N). */
+  /** Set-piece and skill bonuses (bridge drop, nests cleared, missiles defeated). */
   bonusPoints: number;
+  /** Optional so results saved by older builds still parse. */
+  feats?: MissionFeats;
+  /** Difficulty flown (absent on results from before difficulty existed: regular). */
+  difficulty?: DifficultyId;
   objectives: ObjectiveResult[];
   objectivePoints: number;
   timeBonus: number;

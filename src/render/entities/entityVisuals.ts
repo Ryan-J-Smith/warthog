@@ -12,6 +12,8 @@ export interface EntityVisualSpec {
   wreck: SpriteKey | null;
   /** Structures draw under vehicles. */
   structure: boolean;
+  /** Flies: drawn by `HelicopterRenderer` (at height, with a drop shadow) instead of as a ground sprite. */
+  airborne?: boolean;
 }
 
 const vehicle = (base: SpriteKey, top: SpriteKey | null, wreck: SpriteKey | null, topOrigin = { x: 0.5, y: 0.5 }): EntityVisualSpec => ({
@@ -39,11 +41,15 @@ export const ENTITY_VISUALS: Record<EntityKind, EntityVisualSpec> = {
   aaGun: vehicle('aaSite', 'aaTurret', 'aaSiteWreck'),
   mobileAa: vehicle('aaHull', 'aaTurret', 'aaWreck'),
   samSite: { ...structure('samBase', 'samWreck'), top: 'samLauncher' },
+  helicopter: { ...vehicle('heliBody', 'heliRotor', 'heliWreck'), airborne: true },
+  mlrs: vehicle('mlrs', null, 'mlrsWreck'),
   bridge: structure('bridge', 'bridgeDestroyed'),
   ammoDump: structure('ammoDump', 'ammoDumpWreck'),
   cache: structure('cache', null),
+  enemyHq: structure('enemyHq', 'enemyHqDestroyed'),
   outpost: structure('outpost', 'outpostDestroyed'),
   homeBase: structure('homeBase', null),
   friendlyTank: vehicle('friendlyTankHull', 'friendlyTankTurret', 'tankWreck', TANK_TURRET_PIVOT),
   friendlyInfantry: vehicle('friendlyInfantry', null, null),
+  friendlyHq: structure('friendlyHq', 'friendlyHqDestroyed'),
 };

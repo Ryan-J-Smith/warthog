@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PLAYER, WEAPON_AMMO } from '../../src/config';
+import { PLAYER } from '../../src/config';
+import { DEFAULT_LOADOUT } from '../../src/sim/loadout';
 import { Simulation } from '../../src/sim/simulation';
 import { damagePlayer } from '../../src/sim/systems';
 import { input, makeLevel, run } from './helpers';
@@ -34,7 +35,7 @@ describe('player lives and rearm', () => {
     // Circle tightly over the base.
     const events = run(sim, PLAYER.rearmTime + 0.5, { turn: 1 });
     expect(events.some((e) => e.type === 'rearmCompleted')).toBe(true);
-    expect(sim.world.player.ammo.bombs).toBe(WEAPON_AMMO.bombs);
+    expect(sim.world.player.ammo.bombs).toBe(DEFAULT_LOADOUT.ammo.bombs);
     expect(sim.world.player.hp).toBe(sim.world.player.maxHp);
   });
 

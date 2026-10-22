@@ -8,7 +8,7 @@ import { drawPanel, pulse } from '../widgets';
 import { HudWidget, type HudFrame } from './hudWidget';
 import { LAYOUT } from './layout';
 
-const STRUCTURES = new Set(['bridge', 'samSite', 'ammoDump', 'cache']);
+const STRUCTURES = new Set(['bridge', 'samSite', 'ammoDump', 'cache', 'enemyHq']);
 
 /**
  * Minimap: the level's terrain prerendered once to a texture, with the game camera's view,
@@ -143,7 +143,7 @@ export class Minimap extends HudWidget {
     const y = e.pos.y * this.sy;
     if (e.team === 'friendly') {
       g.fillStyle(COLOR.blue, 1);
-      if (e.kind === 'outpost') {
+      if (e.kind === 'outpost' || e.kind === 'friendlyHq') {
         g.fillRect(x - 5, y - 5, 10, 10);
         g.lineStyle(1, COLOR.white, 0.8);
         g.strokeRect(x - 5, y - 5, 10, 10);
@@ -155,6 +155,24 @@ export class Minimap extends HudWidget {
       g.fillRect(x - 4, y - 4, 8, 8);
       g.lineStyle(1, COLOR.black, 0.8);
       g.strokeRect(x - 4, y - 4, 8, 8);
+    } else if (e.heli) {
+      // Helicopters: a red disc with a black keyline (they move fast; easy to pick out).
+      g.fillStyle(COLOR.black, 0.8);
+      g.fillCircle(x, y, 4.6);
+      g.fillStyle(COLOR.red, 1);
+      g.fillCircle(x, y, 3.4);
+    } else if (e.mlrs) {
+      // Rocket artillery: a bigger keylined red diamond (a priority target).
+      const d = [
+        { x, y: y - 5.5 },
+        { x: x + 5.5, y },
+        { x, y: y + 5.5 },
+        { x: x - 5.5, y },
+      ];
+      g.fillStyle(COLOR.red, 1);
+      g.lineStyle(1.5, COLOR.black, 0.9);
+      g.fillPoints(d, true);
+      g.strokePoints(d, true);
     } else if (e.aa) {
       g.fillStyle(COLOR.red, 1);
       g.fillTriangle(x, y - 4.5, x + 4.5, y + 3.5, x - 4.5, y + 3.5);

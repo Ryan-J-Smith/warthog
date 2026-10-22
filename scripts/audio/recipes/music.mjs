@@ -25,6 +25,41 @@ export const musicMission = {
   },
 };
 
+/**
+ * Cut a `bars`-bar loop (4/4 at `bpm`) that starts on the downbeat of bar `startBar` (0-based, bar 0
+ * at the start of the file), crossfading the first 20 ms from the natural continuation after the
+ * loop end, as musicMission does. Loop points were picked where the bar after the seam best matches
+ * the bar after the loop start (24-band spectral distance), so the seam sounds like the next bar.
+ */
+function barLoop(source, bpm, startBar, bars) {
+  const chs = load(source, { channels: 2 });
+  const barLen = ((4 * 60) / bpm) * SR;
+  const start = Math.round(startBar * barLen);
+  const loopLen = Math.round(bars * barLen);
+  const xfade = d.secs(0.02);
+  return d.loopCrossfade(chs.map((c) => c.subarray(start, start + loopLen + xfade)), loopLen, xfade);
+}
+
+export const musicThreeRoads = {
+  credits: [{ source: 'clashDefiant', use: 'Three Roads in-mission theme' }],
+  method:
+    'Cut to exactly 132 bars at 170 BPM (186.353 s) starting on the downbeat of bar 26 (36.706 s) so it loops on ' +
+    'the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.',
+  build() {
+    return barLoop('clashDefiant', 170, 26, 132);
+  },
+};
+
+export const musicIronSleet = {
+  credits: [{ source: 'blownAway', use: 'Iron Sleet in-mission theme' }],
+  method:
+    'Cut to exactly 112 bars at 170 BPM (158.118 s) starting on the downbeat of bar 6 (8.471 s) so it loops on ' +
+    'the downbeat; the first 20 ms crossfade from the natural continuation into the loop start so the seam is click-free.',
+  build() {
+    return barLoop('blownAway', 170, 6, 112);
+  },
+};
+
 export const stingVictory = {
   credits: [{ source: 'discoveryHit', use: 'Victory sting' }],
   method: 'Trimmed; natural decay kept.',

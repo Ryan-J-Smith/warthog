@@ -20,10 +20,10 @@ export const BAND_PROFILES: Record<AltitudeBand, BandProfile> = {
 export const BAND_ALTITUDE: Record<AltitudeBand, number> = { low: 0, medium: 1, high: 2 };
 
 /** How fast altitude moves toward a higher target band, bands per second. */
-export const CLIMB_RATE = 1.0;
+export const CLIMB_RATE = 1.4;
 
 /** Diving is faster than climbing, so a dive on the SAM lock tone works even from High. */
-export const DIVE_RATE = 1.6;
+export const DIVE_RATE = 2.0;
 
 /** Effective-band thresholds on the continuous altitude. */
 export const BAND_THRESHOLDS = { lowToMedium: 0.5, mediumToHigh: 1.5 } as const;

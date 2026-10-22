@@ -36,16 +36,35 @@ export function createEntity(world: World, kind: EntityKind, pos: Vec2, options:
     hidden: options.hidden ?? false,
     tags: [...(options.tags ?? [])],
     diedAt: null,
-    mover: path
+    // Helicopters fly their route with their own brain instead of driving it.
+    mover: path && !stats.heli
       ? { path, waypoint: 0, speed: options.speed ?? stats.speed, halted: false, stopAtWaypoint: null }
       : null,
     aa: stats.aa
-      ? { range: stats.aa.range, burstRemaining: 0, cooldown: world.rng.range(0, stats.aa.burstPause), engaging: false }
+      ? { range: stats.aa.range, phase: 'idle', phaseTime: 0, beamAngle: heading, beamOnTarget: false, engaging: false }
       : null,
     sam: stats.sam
       ? { range: stats.sam.range, lock: 0, locking: false, reload: 0, missilesInFlight: 0, launcherHeading: heading }
       : null,
     attacker: stats.attacker ? { targetId: null, range: stats.attacker.range, cooldown: world.rng.range(0, stats.attacker.cooldown) } : null,
+    heli: stats.heli
+      ? {
+          path,
+          waypoint: 0,
+          loiter: clone(pos),
+          vel: { x: Math.cos(heading) * stats.heli.cruiseSpeed, y: Math.sin(heading) * stats.heli.cruiseSpeed },
+          targetId: null,
+          phase: 'idle',
+          phaseTime: 0,
+          cooldown: 0,
+          aimPoint: clone(pos),
+          rocketsLeft: 0,
+          orbit: 1,
+          orbitFlipIn: stats.heli.strafeFlip,
+          height: stats.heli.height,
+        }
+      : null,
+    mlrs: stats.mlrs ? { targetId: null, cooldown: 0, strikes: [], barrages: 0 } : null,
   };
 }
 

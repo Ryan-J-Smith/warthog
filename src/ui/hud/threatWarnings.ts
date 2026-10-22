@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PLAYER } from '../../config';
+import { ENTITY_STATS, PLAYER } from '../../config';
 import { COLOR, textStyle } from '../theme';
 import { UI_TEX, blink, pulse } from '../widgets';
 import { HudWidget, type HudFrame } from './hudWidget';
@@ -83,12 +83,21 @@ export class ThreatWarnings extends HudWidget {
     }
     this.launchBox = scene.add.container(0, 0, [launchG, launchText]);
     const launchHint = scene.add
-      .text(0, 80, 'FLARES [Q]   ·   DIVE TO LOW [S]', textStyle({ size: 24, color: COLOR.red, glow: false }))
+      .text(0, 80, 'PUT IT ON YOUR WING + BOOST [SHIFT]  ·  FLARES [Q]  ·  DIVE [S]', textStyle({ size: 24, color: COLOR.red, glow: false }))
       .setOrigin(0.5)
       .setPadding(14, 5, 14, 5)
       .setBackgroundColor(HINT_BG);
     this.launch = scene.add.container(cx, cy + 10, [this.launchBox, launchHint]).setVisible(false);
+
+    this.laser = scene.add
+      .text(cx, cy + 150, 'LASER LOCK — TURN ACROSS THE BEAM / BOOST', textStyle({ size: 24, color: COLOR.red, glow: false }))
+      .setOrigin(0.5)
+      .setPadding(14, 5, 14, 5)
+      .setBackgroundColor(HINT_BG)
+      .setVisible(false);
   }
+
+  private readonly laser: Phaser.GameObjects.Text;
 
   update({ view, now }: HudFrame): void {
     const p = view.player;
@@ -98,10 +107,20 @@ export class ThreatWarnings extends HudWidget {
     if (launching) this.launchBox.setAlpha(blink(now, 4) ? 1 : 0.55);
     this.lock.setVisible(locking);
     if (locking) this.lockBox.setAlpha(blink(now, 2.5) ? 1 : 0.4);
+    // An AA laser has stopped tracking and is about to fire along its line at you.
+    const laserLocked =
+      p.alive &&
+      view.entities.some((e) => {
+        const stats = e.aa ? ENTITY_STATS[e.kind].aa : null;
+        return e.alive && e.aa !== null && stats !== null && e.aa.phase === 'aiming' && e.aa.phaseTime <= stats.lockTime;
+      });
+    this.laser.setVisible(laserLocked && !launching);
+    if (laserLocked) this.laser.setAlpha(blink(now, 6) ? 1 : 0.6);
   }
 
   destroy(): void {
     this.lock.destroy();
     this.launch.destroy();
+    this.laser.destroy();
   }
 }

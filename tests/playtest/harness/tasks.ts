@@ -3,10 +3,8 @@ import {
   BAND_ALTITUDE,
   BAND_PROFILES,
   BOMBS,
-  FLARES,
   GUN,
   ROCKETS,
-  WEAPON_AMMO,
   bandProfileAt,
 } from '../../../src/config';
 import type { Entity } from '../../../src/sim/entities';
@@ -93,8 +91,8 @@ export function homeBase(view: WorldView): Vec2 {
 
 export function needsService(view: WorldView): boolean {
   const p = view.player;
-  if (p.hp < p.maxHp || p.flares < FLARES.count) return true;
-  return WEAPON_ORDER.some((w) => p.ammo[w] < WEAPON_AMMO[w]);
+  if (p.hp < p.maxHp || p.flares < view.loadout.flares) return true;
+  return WEAPON_ORDER.some((w) => p.ammo[w] < view.loadout.ammo[w]);
 }
 
 function turnRadius(band: AltitudeBand): number {

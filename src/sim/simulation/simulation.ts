@@ -1,23 +1,32 @@
 import type { SimEvent } from '../events';
 import type { ControlInput } from '../input';
+import type { Difficulty } from '../difficulty';
 import type { LevelDefinition } from '../level';
+import type { PlayerLoadout } from '../loadout';
 import { spawnFromDefinition } from '../spawning';
 import {
   AirDefenseSystem,
+  ConvoySystem,
   FlightSystem,
   GroundUnitSystem,
+  HelicopterSystem,
+  LaneSystem,
   MissionSystem,
+  MlrsSystem,
   ObjectiveSystem,
   PendingFireSystem,
   PlayerLifeSystem,
   ProjectileSystem,
   RadioSystem,
   RearmSystem,
+  RewardSystem,
   SimSystem,
   SpawnSystem,
   SpottingSystem,
+  WaveSystem,
   WeaponSystem,
   initObjectives,
+  initZones,
 } from '../systems';
 import { World, type WorldView } from '../world';
 
@@ -35,28 +44,41 @@ export class Simulation {
   private readonly systems: SimSystem[];
   private accumulator = 0;
   /** Edge-triggered inputs buffered until a fixed step consumes them. */
-  private pendingEdges: Omit<ControlInput, 'turn' | 'fire'> = { climb: false, dive: false, flare: false, select: null };
+  private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null };
 
-  constructor(level: LevelDefinition, seed?: number, systems?: SimSystem[]) {
-    this.world = new World(level, seed);
+  constructor(
+    level: LevelDefinition,
+    seed?: number,
+    systems?: SimSystem[],
+    loadout?: Readonly<PlayerLoadout>,
+    difficulty?: Readonly<Difficulty>,
+  ) {
+    this.world = new World(level, seed, loadout, difficulty);
     for (const spawn of level.entities) spawnFromDefinition(this.world, spawn);
     initObjectives(this.world);
+    initZones(this.world);
     this.systems = systems ?? Simulation.defaultSystems();
   }
 
   static defaultSystems(): SimSystem[] {
     return [
       new SpawnSystem(),
+      new ConvoySystem(),
+      new WaveSystem(),
       new PlayerLifeSystem(),
       new FlightSystem(),
       new RearmSystem(),
       new WeaponSystem(),
       new GroundUnitSystem(),
       new AirDefenseSystem(),
+      new HelicopterSystem(),
+      new MlrsSystem(),
       new ProjectileSystem(),
       new PendingFireSystem(),
+      new RewardSystem(),
       new SpottingSystem(),
       new ObjectiveSystem(),
+      new LaneSystem(),
       new RadioSystem(),
       new MissionSystem(),
     ];
@@ -100,7 +122,7 @@ export class Simulation {
 
   private stepOnce(input: ControlInput): void {
     if (this.world.ended) return;
-    const stepInput: ControlInput = { turn: input.turn, fire: input.fire, ...this.pendingEdges };
+    const stepInput: ControlInput = { turn: input.turn, fire: input.fire, boost: input.boost, brake: input.brake, ...this.pendingEdges };
     this.pendingEdges = { climb: false, dive: false, flare: false, select: null };
     this.world.time += SIM_STEP;
     const ctx = { world: this.world, dt: SIM_STEP, input: stepInput };

@@ -1,14 +1,15 @@
 import {
-  ARMOR_MULTIPLIER,
   BOMBS,
   ENTITY_STATS,
   FLARES,
   GUN,
   MAVERICK,
+  PICKUPS,
   PLAYER,
   ROCKETS,
   WEAPON_BANDS,
 } from '../../config';
+import { canDamage } from '../combat';
 import type { Entity, Projectile } from '../entities';
 import {
   angleDelta,
@@ -21,7 +22,7 @@ import {
   sub,
   type Vec2,
 } from '../math';
-import { ALTITUDE_BANDS, type ProjectileKind, type WeaponId } from '../types';
+import { ALTITUDE_BANDS, type AltitudeBand, type ProjectileKind, type WeaponId } from '../types';
 import type { World } from '../world';
 import { SimSystem, type StepContext } from './simSystem';
 
@@ -45,9 +46,20 @@ const DAMAGE_TYPE: Record<WeaponId, 'gun' | 'rocket' | 'maverick' | 'bomb'> = {
   bombs: 'bomb',
 };
 
+/**
+ * When an altitude change makes the selected weapon unusable, switch to the first usable weapon
+ * in this order for the new band (so climbing/diving never leaves you holding a dead trigger).
+ */
+const BAND_WEAPON_PREFERENCE: Record<AltitudeBand, readonly WeaponId[]> = {
+  low: ['gun', 'rockets'],
+  medium: ['maverick', 'gun', 'rockets', 'bombs'],
+  high: ['bombs'],
+};
+
 /** Player weapons: selection, firing, Maverick lock, flares, and the reticle. */
 export class WeaponSystem extends SimSystem {
   private wasFiring = false;
+  private lastBand: AltitudeBand | null = null;
   private gunAccumulator = 0;
   private cooldowns: Record<WeaponId, number> = { gun: 0, rockets: 0, maverick: 0, bombs: 0 };
   private flareCooldown = 0;
@@ -56,11 +68,15 @@ export class WeaponSystem extends SimSystem {
     const p = world.player;
 
     if (input.select && input.select !== p.selectedWeapon) {
-      p.selectedWeapon = input.select;
-      p.lockTargetId = null;
-      p.lockProgress = 0;
-      world.emit({ type: 'weaponSelected', weapon: input.select });
+      this.select(world, input.select);
+    } else if (p.alive && this.lastBand !== null && p.band !== this.lastBand) {
+      const reason = blockReason(world, p.selectedWeapon);
+      if (reason === 'tooLow' || reason === 'tooHigh') {
+        const next = BAND_WEAPON_PREFERENCE[p.band].find((w) => blockReason(world, w) === null);
+        if (next) this.select(world, next);
+      }
     }
+    this.lastBand = p.band;
 
     for (const w of Object.keys(this.cooldowns) as WeaponId[]) {
       this.cooldowns[w] = Math.max(0, this.cooldowns[w] - dt);
@@ -120,6 +136,14 @@ export class WeaponSystem extends SimSystem {
     this.updateReticle(world);
   }
 
+  private select(world: World, weapon: WeaponId): void {
+    const p = world.player;
+    p.selectedWeapon = weapon;
+    p.lockTargetId = null;
+    p.lockProgress = 0;
+    world.emit({ type: 'weaponSelected', weapon });
+  }
+
   // --- Gun -----------------------------------------------------------------
 
   private updateGun(world: World, dt: number, triggerDown: boolean): void {
@@ -134,9 +158,11 @@ export class WeaponSystem extends SimSystem {
     const t = clamp(p.alt, 0, 1);
     const pipper = gunPipper(world);
     const spread = lerp(GUN.spreadLow, GUN.spreadMedium, t);
-    const damage = lerp(GUN.damageLow, GUN.damageMedium, t);
+    const overdrive = p.overdrive > 0;
+    const damage =
+      lerp(GUN.damageLow, GUN.damageMedium, t) * world.loadout.gunDamageMultiplier * (overdrive ? PICKUPS.overdriveDamage : 1);
 
-    this.gunAccumulator += GUN.roundsPerSecond * dt;
+    this.gunAccumulator += GUN.roundsPerSecond * (overdrive ? PICKUPS.overdriveFireRate : 1) * dt;
     while (this.gunAccumulator >= 1 && p.ammo.gun > 0) {
       this.gunAccumulator -= 1;
       p.ammo.gun -= 1;
@@ -364,14 +390,10 @@ function offsetFrom(pos: Vec2, heading: number, forward: number, side: number): 
 
 /** Is there a hostile entity this weapon can damage within `radius` of `point`? */
 function hostileNear(world: World, point: Vec2, radius: number, weapon: WeaponId): boolean {
-  const table = ARMOR_MULTIPLIER[DAMAGE_TYPE[weapon]];
+  // Only light the reticle over something this weapon can hurt (bombs pass under helicopters).
+  const source = DAMAGE_TYPE[weapon];
   return world.entities.some(
-    (e) =>
-      e.alive &&
-      !e.hidden &&
-      e.team === 'enemy' &&
-      table[e.armor] > 0 &&
-      distance(e.pos, point) <= radius + e.radius,
+    (e) => e.alive && !e.hidden && e.team === 'enemy' && canDamage(e, source) && distance(e.pos, point) <= radius + e.radius,
   );
 }
 

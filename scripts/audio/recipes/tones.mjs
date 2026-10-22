@@ -1,4 +1,4 @@
-// Avionics tones, radio squelch and objective stings (all original, synthesized).
+// Avionics tones, radio squelch and objective / zone stings (all original, synthesized).
 import * as d from '../lib/dsp.mjs';
 
 const { SR } = d;
@@ -175,6 +175,31 @@ export const objectiveFailed = {
       [brass(1.6, 130.81, opts), 0.36, 0.3],
     ]);
     const [l] = d.reverb(dry, { room: 0.75, damp: 0.5, wet: 0.3, dry: 1, tailSec: 0.9 });
+    return [l];
+  },
+};
+
+export const zoneCleared = {
+  credits: [],
+  method:
+    'Original: punchy defence-zone-cleared sting (shorter than objectiveComplete): a timpani-like hit and ' +
+    'noise snap under a quick brass-style G4 pickup into a C major chord, with reverb.',
+  build() {
+    const rng = new d.Rng(505);
+    const len = 1.1;
+    const timp = d.applyEnv(d.osc(len, (t) => 110 * (1 + 0.18 * Math.exp(-t / 0.025))), d.adEnv(len, 0.002, 0.22));
+    const snap = d.applyEnv(d.bandpass(d.whiteNoise(0.12, rng), 2200, 0.7), d.adEnv(0.12, 0.001, 0.03));
+    const opts = { rng, attack: 0.015, bright: 3600 };
+    const dry = d.mix(len, [
+      [timp, 0.08, 0.7],
+      [snap, 0.08, 0.35],
+      [brass(0.1, 392, opts), 0, 0.35],
+      [brass(0.75, 659.25, opts), 0.08, 0.3],
+      [brass(0.75, 523.25, opts), 0.08, 0.3],
+      [brass(0.75, 392, opts), 0.08, 0.3],
+      [brass(0.75, 261.63, { ...opts, bright: 2200 }), 0.08, 0.3],
+    ]);
+    const [l] = d.reverb(dry, { room: 0.6, damp: 0.4, wet: 0.24, dry: 1, tailSec: 0.5 });
     return [l];
   },
 };

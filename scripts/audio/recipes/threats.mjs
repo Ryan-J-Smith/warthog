@@ -1,4 +1,4 @@
-// Enemy fire and the distant ground war: AA bursts, SAM launch, tank guns, small arms, ambience.
+// Enemy fire and the distant ground war: AA bursts, SAM launch, tank guns, small arms, ambience, MLRS ripple, helicopter rotor.
 import * as d from '../lib/dsp.mjs';
 import { loadMono } from '../sources.mjs';
 
@@ -147,5 +147,66 @@ export const battleAmbience = {
     const bedR = d.lowpass4(d.brownNoise(bedLen, rng), 180);
     const [bl, br] = d.loopCrossfade([bedL, bedR], n, d.secs(2));
     return [d.add(wet[0], d.scale(bl, 0.35)), d.add(wet[1], d.scale(br, 0.35))];
+  },
+};
+
+export const mlrsLaunch = {
+  credits: [
+    { source: 'rpgLaunch', use: 'Rocket launch, re-sequenced into an 8-round ripple' },
+    { source: 'hellfire', use: 'Rocket motor roar under the ripple' },
+  ],
+  method:
+    'Rocket-artillery ripple: a real rocket launch re-sequenced as 8 rounds ~0.14 s apart with timing, gain ' +
+    'and pitch variation, over a real missile-motor roar, then distance-processed (low-pass, room reverb).',
+  build() {
+    const rng = new d.Rng(304);
+    const len = 2.6;
+    const shot = d.fadeOut(d.fit(hit('rpgLaunch'), d.secs(0.7)), 0.35);
+    const roar = d.fadeOut(d.fit(hit('hellfire', -30), d.secs(1.6)), 0.8);
+    const out = d.zeros(d.secs(len));
+    d.mixInto(out, d.resample(roar, 0.85), d.secs(0.05), 0.45);
+    for (let k = 0; k < 8; k++) {
+      const at = k * 0.14 + rng.range(-0.015, 0.015);
+      d.mixInto(out, d.resample(shot, rng.range(0.82, 0.98)), d.secs(at), rng.range(0.6, 0.85));
+    }
+    const s = distant(out, { lp: 2800, hp: 50, wet: 0.3, tailSec: 0.9 });
+    return [d.fadeOut(d.fit(d.lowShelf(s, 120, 3), d.secs(len)), 0.6)];
+  },
+};
+
+export const heliLoop = {
+  credits: [],
+  method:
+    'Original: attack-helicopter rotor loop: 11 Hz main-rotor blade slaps (low noise thump + mid slap, ' +
+    'slightly uneven per blade), a 58 Hz tail-rotor buzz and a quiet turbine whine; tones complete whole ' +
+    'cycles and filtering/room run circularly, so the 2 s loop is seamless.',
+  build() {
+    const rng = new d.Rng(305);
+    const loopSec = 2;
+    const n = d.secs(loopSec);
+    // Round a frequency to whole cycles per loop (seamless tones).
+    const loopHz = (hz) => Math.round(hz * loopSec) / loopSec;
+    const out = d.zeros(n);
+    const bladeHz = 11;
+    const slaps = Math.round(bladeHz * loopSec);
+    const bladeGain = [1, 0.86, 0.94, 0.8];
+    for (let k = 0; k < slaps; k++) {
+      const thump = d.applyEnv(d.lowpass(d.whiteNoise(0.09, rng), 380), d.adEnv(0.09, 0.004, 0.022));
+      const slap = d.applyEnv(d.bandpass(d.whiteNoise(0.04, rng), 1100, 0.9), d.adEnv(0.04, 0.001, 0.008));
+      const g = bladeGain[k % bladeGain.length];
+      const at = d.secs(k / bladeHz);
+      d.mixIntoWrap(out, thump, at, g);
+      d.mixIntoWrap(out, slap, at, g * 0.35);
+    }
+    const tail = d.osc(loopSec, loopHz(58), 'saw');
+    const tailAm = loopHz(bladeHz);
+    for (let i = 0; i < n; i++) tail[i] *= 0.7 + 0.3 * Math.sin((2 * Math.PI * tailAm * i) / SR);
+    d.mixInto(out, tail, 0, 0.06);
+    for (const [hz, amp] of [[1650, 0.015], [3300, 0.006]]) d.mixInto(out, d.osc(loopSec, loopHz(hz), 'sine'), 0, amp);
+    const [l] = d.processPeriodic([out], ([x]) => {
+      const [rl] = d.reverb(d.highpass(d.lowpass(x, 2400), 35), { room: 0.35, damp: 0.6, wet: 0.15, dry: 1, tailSec: 0 });
+      return [rl];
+    });
+    return [l];
   },
 };

@@ -1,4 +1,4 @@
-// Menu and cockpit UI sounds, from Kenney's CC0 interface packs (lightly processed).
+// Menu and cockpit UI sounds, from Kenney's CC0 interface packs (lightly processed, some with synthesized layers).
 import * as d from '../lib/dsp.mjs';
 import { loadMono } from '../sources.mjs';
 
@@ -40,5 +40,43 @@ export const dryFire = {
       [kenney('kenneyUi', 'click3.ogg'), 0, 0.8],
       [d.resample(kenney('kenneyInterface', 'error_004.ogg'), 0.9), 0.04, 0.6],
     ])];
+  },
+};
+
+export const uiError = {
+  credits: [{ source: 'kenneyInterface:error_002.ogg', use: 'Menu error / denied' }],
+  method: 'Used as-is apart from trimming and level matching.',
+  build() {
+    return [kenney('kenneyInterface', 'error_002.ogg')];
+  },
+};
+
+export const upgradeBuy = {
+  credits: [{ source: 'kenneyUi:click3.ogg', use: 'Register "ka" click' }],
+  method:
+    'Purchase "ka-ching": a real mechanical click and a synthesized low thunk, then two bright inharmonic ' +
+    'bell strikes (C7, then G7) with a short room.',
+  build() {
+    const rng = new d.Rng(602);
+    const len = 0.75;
+    const thunk = d.applyEnv(d.lowpass(d.whiteNoise(0.06, rng), 500), d.adEnv(0.06, 0.001, 0.012));
+    const ching = (hz, tau) =>
+      d.applyEnv(
+        d.additive(len, hz, [
+          [1, 0.55, tau],
+          [2.76, 0.25, tau * 0.6],
+          [5.4, 0.12, tau * 0.35],
+          [8.93, 0.05, tau * 0.2],
+        ]),
+        d.adEnv(len, 0.001, tau * 1.5),
+      );
+    const dry = d.mix(len, [
+      [kenney('kenneyUi', 'click3.ogg'), 0, 0.8],
+      [thunk, 0, 0.5],
+      [ching(2093, 0.18), 0.07, 0.45],
+      [ching(3136, 0.24), 0.14, 0.4],
+    ]);
+    const [l, r] = d.reverb(dry, { room: 0.45, damp: 0.45, wet: 0.15, dry: 1, tailSec: 0.25 });
+    return [l, r];
   },
 };
