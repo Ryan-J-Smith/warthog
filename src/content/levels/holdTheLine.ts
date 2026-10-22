@@ -114,6 +114,12 @@ export const holdTheLine: LevelDefinition = {
     respawnDelay: 8,
     waveSpeed: 34,
     shuffleLanes: true,
+    // Tuned against the balance bots (tests/playtest/holdTheLine.playtest.ts): without it, any
+    // structure plan cruised through the back half.
+    escalation: [
+      { fromWave: 3, add: ['infantry', 'infantry'] },
+      { fromWave: 5, add: ['tank'] },
+    ],
     lanes: [
       { id: 'west', name: 'WEST', pathId: 'westRoad' },
       { id: 'north', name: 'NORTH', pathId: 'northRoad' },

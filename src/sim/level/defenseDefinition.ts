@@ -48,4 +48,6 @@ export interface DefenseDefinition {
    * memorised.
    */
   shuffleLanes?: boolean;
+  /** Units added to every road group of every wave from `fromWave` (0-based) on. */
+  escalation?: Array<{ fromWave: number; add: EntityKind[] }>;
 }

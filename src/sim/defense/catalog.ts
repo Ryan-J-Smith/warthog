@@ -58,8 +58,8 @@ export const STRUCTURES: Record<StructureId, StructureDefinition> = {
     mode: 'garrison',
     unit: 'friendlyTank',
     count: [3, 5],
-    hpMultiplier: [2, 2.5],
-    damageMultiplier: [2, 2.5],
+    hpMultiplier: [1.6, 2],
+    damageMultiplier: [1.5, 2],
   },
   flak: {
     id: 'flak',

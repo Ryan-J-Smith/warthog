@@ -66,7 +66,10 @@ export function initDefense(level: LevelDefinition): DefenseState | null {
     perks: [],
     mods: baseModifiers(),
     respawnDelay: def.respawnDelay,
-    waves: def.waves.map((w) => ({ lanes: w.lanes.map((l) => ({ laneId: l.laneId, units: [...l.units] })) })),
+    waves: def.waves.map((w, i) => {
+      const extra = (def.escalation ?? []).filter((e) => i >= e.fromWave).flatMap((e) => e.add);
+      return { lanes: w.lanes.map((l) => ({ laneId: l.laneId, units: l.units.length > 0 ? [...l.units, ...extra] : [] })) };
+    }),
   };
 }
 

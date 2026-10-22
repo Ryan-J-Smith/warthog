@@ -255,12 +255,13 @@ describe('base defence: run variety', () => {
     expect(roads(7)).toBe(roads(7));
     const seen = new Set([1, 2, 3, 4, 5].map(roads));
     expect(seen.size).toBeGreaterThan(1);
-    const s = new Simulation(holdTheLine, 3);
-    run(s, 1 / 60);
-    defense(s).waves.forEach((w, i) => {
-      const count = (lanes: readonly { units: readonly unknown[] }[]) => lanes.reduce((n, l) => n + l.units.length, 0);
-      expect(count(w.lanes)).toBe(count(holdTheLine.defense?.waves[i]?.lanes ?? []));
-    });
+    // Shuffling moves road groups between roads; it never changes what a wave brings.
+    const totals = (seed: number) => {
+      const s = new Simulation(holdTheLine, seed);
+      run(s, 1 / 60);
+      return defense(s).waves.map((w) => w.lanes.reduce((n, l) => n + l.units.length, 0));
+    };
+    expect(totals(3)).toEqual(totals(4));
   });
 });
 
