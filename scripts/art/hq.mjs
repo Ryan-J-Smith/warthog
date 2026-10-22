@@ -1,7 +1,7 @@
 // Lane-mission headquarters (art direction v1): enemy command bunker/depot and friendly
 // fortified base, 300 × 260 each, plus destroyed variants drawn from the same layout.
 //
-// Muted ground detail (packed earth, concrete, sandbags) like the v0 structures, but every
+// Muted ground detail (gravel, concrete, sandbags) like the v0 structures, but every
 // building, wall and mast gets the units' thick ink outline + cel shading so the HQs read as
 // objectives from High zoom. Enemy: crimson roofs, red flags, radar mast, gate on the WEST side.
 // Friendly: steel-blue roofs with white ID stripes, blue flags, comms dish, gate on the EAST side.
@@ -23,12 +23,15 @@ export const CONC_L = '#bdbab0';
 /** An outlined, cel-shaded block. */
 export const block = (id, d, base, shade, s = 2.4, ow = SW) => outline([d], ow) + cel(id, d, base, shade, { s });
 
-/** Soft ground apron + soot / crater gradients shared by both HQs. */
+/**
+ * Soft ground apron + soot / crater gradients shared by both HQs. The apron is a neutral dark
+ * shadow (no tan desert tint) so the HQs sit on both the steppe and the winter biome.
+ */
 function groundDefs(burnt) {
   return (
-    rad('apron', 0.5, 0.5, 0.5, burnt ? [[0, '#3d3529', 0.75], [0.7, '#4a4032', 0.6], [1, '#4a4032', 0]] : [[0, '#9c8a62', 0.65], [0.72, '#9c8a62', 0.5], [1, '#9c8a62', 0]]) +
+    rad('apron', 0.5, 0.5, 0.5, burnt ? [[0, '#2a2724', 0.7], [0.7, '#35322d', 0.55], [1, '#35322d', 0]] : [[0, '#000', 0.18], [0.72, '#000', 0.13], [1, '#000', 0]]) +
     rad('soot', 0.5, 0.5, 0.5, [[0, T.soot, 0.8], [0.55, T.soot, 0.45], [1, T.soot, 0]]) +
-    rad('crater', 0.5, 0.5, 0.5, [[0, '#0f0d0a'], [0.5, '#2c261d'], [0.78, '#6d5d42'], [1, '#6d5d42', 0]])
+    rad('crater', 0.5, 0.5, 0.5, [[0, '#0f0d0a'], [0.5, '#2c261d'], [0.78, '#4a443d'], [1, '#4a443d', 0]])
   );
 }
 
@@ -215,7 +218,7 @@ function ruin(rand, craters, soots) {
 }
 
 // ---------------------------------------------------------------------------
-// Enemy HQ — command bunker in an earth berm, radar mast, fuel farm, vehicle sheds, helipad.
+// Enemy HQ — command bunker in a concrete revetment, radar mast, fuel farm, vehicle sheds, helipad.
 // Gate (and the dirt road in) on the west wall at y ≈ 130.
 // ---------------------------------------------------------------------------
 function enemyHqLayout(burnt) {
@@ -230,10 +233,10 @@ function enemyHqLayout(burnt) {
   const p = [];
   p.push(`<ellipse cx="150" cy="130" rx="150" ry="130" fill="url(#apron)"/>`);
   // Road in from the west.
-  p.push(fill('M0,121 C30,120 60,122 104,124 L104,136 C60,138 30,140 0,139Z', burnt ? '#4a4032' : '#8f7c55', { opacity: 0.7 }));
-  // Compound floor: packed earth inside the perimeter.
+  p.push(fill('M0,121 C30,120 60,122 104,124 L104,136 C60,138 30,140 0,139Z', burnt ? '#3d3833' : '#8f8c83', { opacity: 0.75 }));
+  // Compound floor: grey gravel inside the perimeter.
   const floorPts = [[a + ch, top], [b - ch, top], [b, top + ch], [b, bot - ch], [b - ch, bot], [a + ch, bot], [a, bot - ch], [a, top + ch]];
-  p.push(fill(dRound(floorPts, 2), burnt ? '#55493a' : '#ad9a70'));
+  p.push(fill(dRound(floorPts, 2), burnt ? '#4a453e' : '#9a968c'));
   // Perimeter T-walls, gate gap on the west wall; breaches when destroyed.
   const gateY = [112, 148];
   const wallPts = [[a, gateY[0]], [a, top + ch], [a + ch, top], [b - ch, top], [b, top + ch], [b, bot - ch], [b - ch, bot], [a + ch, bot], [a, bot - ch], [a, gateY[1]]];
@@ -255,11 +258,11 @@ function enemyHqLayout(burnt) {
     for (const y of [114, 120, 126, 132]) p.push(fill(dRect(23, y, 3.4, 3, 0), team.flag));
   }
   // Fuel farm in a berm (north-west).
-  p.push(fill(dRound([[44, 36], [118, 36], [124, 42], [124, 72], [118, 78], [44, 78], [38, 72], [38, 42]], 6), burnt ? '#3d3529' : '#9c8a62', { stroke: burnt ? '#2a241c' : '#7d6c4a', 'stroke-width': 2.4 }));
+  p.push(fill(dRound([[44, 36], [118, 36], [124, 42], [124, 72], [118, 78], [44, 78], [38, 72], [38, 42]], 6), burnt ? '#3a3631' : '#8f8c83', { stroke: burnt ? '#26231f' : '#6f6c64', 'stroke-width': 2.4 }));
   p.push(fuelTank(id, 62, 57, 13, team.roof, burnt), fuelTank(id, 98, 57, 13, team.roof, burnt));
-  // Command bunker: earth berm, concrete block, crimson armoured roof, vents, emblem.
-  p.push(fill(dRound([[108, 72], [214, 72], [226, 84], [226, 168], [214, 180], [108, 180], [96, 168], [96, 84]], 12), burnt ? '#4a4032' : '#b8a57a', { stroke: burnt ? '#2a241c' : '#8f7d57', 'stroke-width': 2 }));
-  p.push(fill('M96,118 L112,118 L112,142 L96,142Z', burnt ? '#2a241c' : '#7d6c4a'));
+  // Command bunker: concrete revetment, concrete block, crimson armoured roof, vents, emblem.
+  p.push(fill(dRound([[108, 72], [214, 72], [226, 84], [226, 168], [214, 180], [108, 180], [96, 168], [96, 84]], 12), burnt ? '#46423b' : '#b0ada4', { stroke: burnt ? '#26231f' : '#8a877e', 'stroke-width': 2 }));
+  p.push(fill('M96,118 L112,118 L112,142 L96,142Z', burnt ? '#26231f' : '#6f6c64'));
   const bunker = dRound([[118, 84], [204, 84], [214, 94], [214, 158], [204, 168], [118, 168], [110, 160], [110, 92]], 3);
   if (burnt) {
     p.push(block(id, bunker, '#4a4640', '#34302b', 2.6, 2));
@@ -346,10 +349,10 @@ function friendlyHqLayout(burnt) {
   const p = [];
   p.push(`<ellipse cx="150" cy="130" rx="150" ry="130" fill="url(#apron)"/>`);
   // Road out to the east.
-  p.push(fill('M300,121 C270,120 240,122 214,124 L214,136 C240,138 270,140 300,139Z', burnt ? '#4a4032' : '#8f7c55', { opacity: 0.7 }));
-  // Concrete hardstand inside the walls (paler than the enemy's packed earth).
-  p.push(fill(dRect(a, top, b - a, bot - top, 4), burnt ? '#4f4a42' : '#b4ab92'));
-  for (const x of [80, 140, 200]) p.push(strokeD(`M${x},${top + 2}V${bot - 2}`, burnt ? '#3d3833' : '#a29a82', 0.8, { opacity: 0.7 }));
+  p.push(fill('M300,121 C270,120 240,122 214,124 L214,136 C240,138 270,140 300,139Z', burnt ? '#3d3833' : '#8f8c83', { opacity: 0.75 }));
+  // Concrete hardstand inside the walls (paler than the enemy's gravel).
+  p.push(fill(dRect(a, top, b - a, bot - top, 4), burnt ? '#4f4a42' : '#b0ada4'));
+  for (const x of [80, 140, 200]) p.push(strokeD(`M${x},${top + 2}V${bot - 2}`, burnt ? '#3d3833' : '#97948b', 0.8, { opacity: 0.7 }));
   // Perimeter walls (pale concrete, blue caps), gate gap on the east wall.
   const gateY = [112, 148];
   const wallPts = [[b, gateY[0]], [b, top], [a, top], [a, bot], [b, bot], [b, gateY[1]]];
