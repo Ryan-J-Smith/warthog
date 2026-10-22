@@ -43,6 +43,13 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
     sam: 'SAM site Tango and its laser AA nest cover the bridge. Clear the whole nest for a supply drop.',
     dump: 'Enemy ammo dump, far north-west. Blow it and every AA gun on the map fires at half rate.',
   },
+  'three-roads': {
+    hq: 'Their HQ is hardened: bombs only. A SAM on the Center road covers it. Push a road to its gate and our armor will shell it with you.',
+    home: 'Waves come down all three roads every half minute and keep getting heavier. If our HQ falls, it is over.',
+    westDepot: 'Feeds the West road. Blow it: their waves there lose a tank and ours gain one.',
+    centerDepot: 'Feeds the Center road and hosts the SAM that guards their HQ. Blow it: their waves lose a tank, ours gain one.',
+    eastDepot: 'Feeds the East road. Blow it: their waves there lose a tank and ours gain one.',
+  },
 };
 
 function fallbackNote(def: ObjectiveDefinition): string {
@@ -62,6 +69,8 @@ const LANDMARK_NAME: Partial<Record<EntityKind, string>> = {
   ammoDump: 'the ammo dump',
   homeBase: 'home base',
   samSite: 'the SAM site',
+  enemyHq: 'the enemy HQ',
+  friendlyHq: 'our HQ',
 };
 
 interface Landmark {

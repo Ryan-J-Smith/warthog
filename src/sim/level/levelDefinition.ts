@@ -193,4 +193,6 @@ export interface LevelDefinition {
   laneWar?: LaneWarDefinition;
   /** Target mission time for the time bonus, seconds. */
   parTime: number;
+  /** Multiplies the grade thresholds (big lane wars score far more than River Crossing). Default 1. */
+  gradeScale?: number;
 }

@@ -372,7 +372,7 @@ export class BriefingScene extends Phaser.Scene {
       const num = this.add.text(x + 15, y + 14, String(o.number), textStyle({ size: 18, color, glow: false })).setOrigin(0.5);
       const title = this.add.text(x + 42, y + 1, o.title.toUpperCase(), textStyle({ size: 22, color: COLOR.white, glow: false }));
       const tag = this.add
-        .text(x + w, y + 4, o.primary ? 'PRIMARY · TIMED' : 'OPTIONAL', textStyle({ size: 15, color: o.primary ? COLOR.green : COLOR.greenDim, glow: false }))
+        .text(x + w, y + 4, o.primary ? 'PRIMARY' : 'OPTIONAL', textStyle({ size: 15, color: o.primary ? COLOR.green : COLOR.greenDim, glow: false }))
         .setOrigin(1, 0);
       const body = this.add.text(x + 42, y + 34, '', textStyle({ size: size.body, color: COLOR.green, glow: 3, wrap: w - 42, lineSpacing: 3 }));
       const height = measure(body, o.text);

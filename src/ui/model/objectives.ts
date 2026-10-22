@@ -86,6 +86,8 @@ const KIND_LABEL: Partial<Record<EntityKind, string>> = {
   cache: 'CACHE',
   tank: 'ARMOR',
   truck: 'CONVOY',
+  enemyHq: 'ENEMY HQ',
+  friendlyHq: 'HQ',
 };
 
 function entityKindByRef(level: LevelDefinition, refId: string): EntityKind | null {

@@ -49,7 +49,8 @@ export function computeResults(world: World, outcome: MissionOutcome): MissionRe
   const timeBonus = won ? Math.max(0, Math.round((world.level.parTime - world.time) * SCORING.timeBonusPerSecondUnderPar)) : 0;
   const livesBonus = won ? Math.max(0, world.player.lives) * SCORING.lifeBonus : 0;
   const total = Math.round(world.score + timeBonus + livesBonus);
-  const grade = SCORING.grades.find((g) => total >= g.min)?.grade ?? 'D';
+  const scale = world.level.gradeScale ?? 1;
+  const grade = SCORING.grades.find((g) => total >= g.min * scale)?.grade ?? 'D';
   return {
     outcome,
     time: world.time,

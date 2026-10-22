@@ -46,6 +46,7 @@ export const threeRoads: LevelDefinition = {
   width: 7200,
   height: 5400,
   seed: 2027,
+  gradeScale: 2.2,
   parTime: 480,
   player: { spawn: { x: 1450, y: 4560 }, headingDeg: -70 },
   homeBaseRefId: 'homeBase',
