@@ -2,34 +2,25 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { SCORING } from '../config';
 import { getLevel } from '../content/levels';
+import type { MissionAward } from '../meta/save';
+import { saveStoreFor } from '../meta/session';
 import type { MissionResults } from '../sim/world';
+import { GRADE_TITLE } from '../ui/copy';
 import { formatClock, formatScore, formatSigned, shareLine } from '../ui/format';
 import { countUpValue } from '../ui/model';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
 import { TACMAP_BRIEFING, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, css, textStyle } from '../ui/theme';
-import { MenuList, bindMenuKeys, createBackdrop, drawPanel, drawRule } from '../ui/widgets';
-import { SCENES, type GameSceneData, type ResultsSceneData } from './sceneKeys';
+import { MenuList, bindMenuKeys, createBackdrop, drawPanel, drawRule, gradeColor } from '../ui/widgets';
+import { SCENES, type GameSceneData, type HangarSceneData, type ResultsSceneData } from './sceneKeys';
 
 const LEDGER = { x: 150, y: 262, w: 1060, row: 54 } as const;
+/** The ledger panel's bottom edge stays above the share line; long ledgers get tighter rows. */
+const LEDGER_MAX_H = 772;
+/** Panel height besides the rows: header, rules, TOTAL, CREDITS EARNED, padding. */
+const LEDGER_CHROME_H = 260;
 const STAMP = { x: 1530, y: 440 } as const;
 const TICK_MS = 55;
-
-const GRADE_COLOR: Record<string, number> = {
-  S: 0xffd24a,
-  A: COLOR.green,
-  B: COLOR.blue,
-  C: COLOR.amber,
-  D: COLOR.red,
-};
-
-const GRADE_TITLE: Record<string, string> = {
-  S: 'LEGENDARY HOG',
-  A: 'OUTSTANDING',
-  B: 'SOLID WORK',
-  C: 'SCRAPED BY',
-  D: 'BACK TO FLIGHT SCHOOL',
-};
 
 interface LedgerLine {
   container: Phaser.GameObjects.Container;
@@ -37,12 +28,16 @@ interface LedgerLine {
   target: number;
   /** Signed display (+1,000 / −1,000) rather than a plain total. */
   signed: boolean;
+  /** Appended to the value (" CR"). */
+  suffix?: string;
   duration: number;
 }
 
 /**
- * Debrief: MISSION COMPLETE / FAILED, a ledger that counts up line by line, the total, a grade
- * stamp slamming in, then RETRY / TITLE / COPY RESULT. ENTER skips the count.
+ * Debrief: MISSION COMPLETE / FAILED, a ledger that counts up line by line, the total and the
+ * credits earned, a grade stamp slamming in, then RETRY / HANGAR / TITLE / COPY RESULT. ENTER
+ * skips the count. The mission is paid (and its best recorded) once, on first entry; coming back
+ * from the hangar shows the finished ledger without paying again.
  */
 export class ResultsScene extends Phaser.Scene {
   private sceneData!: ResultsSceneData;
@@ -57,6 +52,7 @@ export class ResultsScene extends Phaser.Scene {
   private stamp!: Phaser.GameObjects.Container;
   private feedback!: Phaser.GameObjects.Text;
   private leaving = false;
+  private row: number = LEDGER.row;
 
   constructor() {
     super(SCENES.results);
@@ -74,6 +70,9 @@ export class ResultsScene extends Phaser.Scene {
 
     const r = data.results;
     const level = getLevel(data.levelId);
+    const save = saveStoreFor(this.game);
+    const revisit = save.awardFor(r) !== null;
+    const award = save.recordMission(level.id, r);
     const won = r.outcome === 'victory';
     const { width } = this.scale;
 
@@ -100,7 +99,8 @@ export class ResultsScene extends Phaser.Scene {
     // Ledger.
     const panel = this.add.graphics();
     const rows = r.objectives.length + 4 + (r.bonusPoints > 0 ? 1 : 0);
-    const panelH = rows * LEDGER.row + 196;
+    this.row = Math.min(LEDGER.row, Math.floor((LEDGER_MAX_H - LEDGER_CHROME_H) / rows));
+    const panelH = rows * this.row + LEDGER_CHROME_H;
     drawPanel(panel, LEDGER.x - 30, LEDGER.y - 24, LEDGER.w + 60, panelH, { fillAlpha: 0.82 });
     this.add.text(LEDGER.x, LEDGER.y - 6, 'DEBRIEF', textStyle({ size: 20, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
     drawRule(panel, LEDGER.x, LEDGER.y + 26, LEDGER.w);
@@ -109,26 +109,28 @@ export class ResultsScene extends Phaser.Scene {
       const icon = o.status === 'completed' ? '✔' : o.status === 'failed' ? '✖' : '–';
       const iconColor = o.status === 'completed' ? COLOR.green : o.status === 'failed' ? COLOR.red : COLOR.grey;
       this.addLine(y, icon, iconColor, o.title.toUpperCase(), o.primary ? 'PRIMARY' : 'OPTIONAL', o.points, false);
-      y += LEDGER.row;
+      y += this.row;
     }
     drawRule(panel, LEDGER.x, y + 4, LEDGER.w, COLOR.green, 0.2);
     y += 16;
     this.addLine(y, '✕', COLOR.green, `ENEMY KILLS × ${r.kills}`, '', r.killPoints, true);
-    y += LEDGER.row;
+    y += this.row;
     if (r.bonusPoints > 0) {
       this.addLine(y, '★', COLOR.green, 'BRIDGE DROP BONUS', '', r.bonusPoints, true);
-      y += LEDGER.row;
+      y += this.row;
     }
     this.addLine(y, '◷', COLOR.green, 'TIME BONUS', `${formatClock(r.time)} / PAR ${formatClock(level.parTime)}`, r.timeBonus, true);
-    y += LEDGER.row;
+    y += this.row;
     const lives = Math.round(r.livesBonus / SCORING.lifeBonus);
     this.addLine(y, '✈', COLOR.green, 'LIVES BONUS', `${lives} × ${formatScore(SCORING.lifeBonus)}`, r.livesBonus, true);
-    y += LEDGER.row;
+    y += this.row;
     this.addLine(y, '⚠', COLOR.red, 'FRIENDLY FIRE', '', -r.friendlyFirePenalty, true);
-    y += LEDGER.row;
+    y += this.row;
     drawRule(panel, LEDGER.x, y + 6, LEDGER.w, COLOR.green, 0.5);
     y += 22;
-    this.addTotal(y, r);
+    this.addTotal(y, r, award);
+    y += 82;
+    this.addCredits(y, award, r.grade);
 
     this.stamp = this.buildStamp(r);
     this.buildMenu(level.name, r);
@@ -140,6 +142,7 @@ export class ResultsScene extends Phaser.Scene {
       confirm: () => (this.done ? this.menu.confirm() : this.skip()),
       actions: { mute: () => audioSettingsFor(this.game).toggleAll() },
     });
+    if (revisit) this.skip();
   }
 
   override update(time: number, delta: number): void {
@@ -182,11 +185,31 @@ export class ResultsScene extends Phaser.Scene {
     this.lines.push(line);
   }
 
-  private addTotal(y: number, r: MissionResults): void {
+  private addTotal(y: number, r: MissionResults, award: MissionAward): void {
     const label = this.add.text(-12, 2, 'TOTAL', textStyle({ size: 40, font: 'display', color: COLOR.greenBright, glow: 12 }));
     const value = this.add.text(LEDGER.w + 28, -14, '0', textStyle({ size: 56, color: COLOR.greenBright, glow: 16 })).setOrigin(1, 0);
-    const container = this.add.container(LEDGER.x, y, [label, value]).setAlpha(0);
+    const parts: Phaser.GameObjects.GameObject[] = [label, value];
+    // Beat a previous best on this level (the first run is trivially a best; say nothing).
+    if (award.newBestScore && award.previous) {
+      parts.push(this.add.text(170, 12, `NEW BEST  ·  WAS ${formatScore(award.previous.bestScore)}`, textStyle({ size: 20, color: COLOR.amber, glow: 6 })));
+    }
+    const container = this.add.container(LEDGER.x, y, parts).setAlpha(0);
     this.lines.push({ container, value, target: r.total, signed: false, duration: 1.1 });
+  }
+
+  /** "CREDITS EARNED  SORTIE 150 · SCORE 2,200 · GRADE A 400   +2,750 CR". */
+  private addCredits(y: number, award: MissionAward, grade: string): void {
+    const c = award.credits;
+    const icon = this.add.text(0, 0, '◆', textStyle({ size: 24, color: COLOR.amber, glow: 6 })).setOrigin(0.5, 0);
+    const label = this.add.text(34, 0, 'CREDITS EARNED', textStyle({ size: 25, color: COLOR.amber, glow: false }));
+    const parts = [`SORTIE ${formatScore(c.sortie)}`, `SCORE ${formatScore(c.score)}`];
+    if (c.grade > 0) parts.push(`GRADE ${grade} ${formatScore(c.grade)}`);
+    const note = this.add.text(LEDGER.w - 250, 3, parts.join('  ·  '), textStyle({ size: 19, color: COLOR.amberDim, glow: false })).setOrigin(1, 0);
+    const value = this.add.text(LEDGER.w, 0, '', textStyle({ size: 30, color: COLOR.amber, glow: 10 })).setOrigin(1, 0);
+    const container = this.add.container(LEDGER.x + 12, y, [icon, label, note, value]).setAlpha(0);
+    const line: LedgerLine = { container, value, target: c.total, signed: true, suffix: ' CR', duration: 0.6 };
+    this.setValue(line, 0);
+    this.lines.push(line);
   }
 
   private showLine(line: LedgerLine): void {
@@ -196,7 +219,7 @@ export class ResultsScene extends Phaser.Scene {
   }
 
   private setValue(line: LedgerLine, value: number): void {
-    const text = line.signed ? formatSigned(value) : formatScore(value);
+    const text = (line.signed ? formatSigned(value) : formatScore(value)) + (line.suffix ?? '');
     if (line.value.text === text) return;
     line.value.setText(text);
     if (line.signed && line.target < 0) line.value.setColor(css(COLOR.red)).setShadowColor(css(COLOR.red));
@@ -227,7 +250,7 @@ export class ResultsScene extends Phaser.Scene {
   // --- Grade stamp -----------------------------------------------------------
 
   private buildStamp(r: MissionResults): Phaser.GameObjects.Container {
-    const color = GRADE_COLOR[r.grade] ?? COLOR.green;
+    const color = gradeColor(r.grade);
     const g = this.add.graphics();
     const size = 300;
     g.fillStyle(color, 0.1);
@@ -274,7 +297,7 @@ export class ResultsScene extends Phaser.Scene {
 
   private buildMenu(levelName: string, r: MissionResults): void {
     const line = shareLine(levelName, r);
-    this.menu = new MenuList(this, ['RETRY', 'TITLE', 'COPY RESULT'], {
+    this.menu = new MenuList(this, ['RETRY', 'HANGAR', 'TITLE', 'COPY RESULT'], {
       x: 1320,
       y: 770,
       width: 440,
@@ -283,13 +306,14 @@ export class ResultsScene extends Phaser.Scene {
       sound: this.uiSound,
       onConfirm: (i) => {
         if (i === 0) this.retry();
-        else if (i === 1) this.toTitle();
+        else if (i === 1) this.toHangar();
+        else if (i === 2) this.toTitle();
         else void this.copy(line);
       },
     });
     this.menu.enabled = false;
     this.menu.container.setAlpha(0);
-    this.feedback = this.add.text(1320 + 28, 770 + 2 * 60 + 46, '', textStyle({ size: 20, color: COLOR.green })).setOrigin(0, 0.5);
+    this.feedback = this.add.text(1320 + 28, 770 + 3 * 60 + 46, '', textStyle({ size: 20, color: COLOR.green })).setOrigin(0, 0.5);
     const { width, height } = this.scale;
     this.add.text(width / 2, height - 44, line, textStyle({ size: 20, color: COLOR.greenDim, glow: false })).setOrigin(0.5);
   }
@@ -317,6 +341,14 @@ export class ResultsScene extends Phaser.Scene {
     const next: GameSceneData = { levelId: this.sceneData.levelId };
     this.cameras.main.fadeOut(350, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SCENES.game, next));
+  }
+
+  private toHangar(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    const next: HangarSceneData = { returnTo: this.sceneData };
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SCENES.hangar, next));
   }
 
   private toTitle(): void {

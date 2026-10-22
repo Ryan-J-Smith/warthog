@@ -3,10 +3,13 @@ import { SimEventListener } from '../../sim/events';
 import type { SimEvent, SimEventOf } from '../../sim/events';
 import type { WorldView } from '../../sim/world';
 import { DEPTH } from '../layers';
+import { AircraftFx } from './aircraftFx';
+import { BeamRenderer } from './beamRenderer';
 import { RAMPS } from './colorRamp';
 import { FloatingTexts } from './floatingText';
 import { FxKit, rand } from './fxKit';
 import { ensureFxTextures } from './fxTextures';
+import { PickupRenderer } from './pickupRenderer';
 import { ProjectileRenderer } from './projectileRenderer';
 import { WreckFires } from './wreckFires';
 
@@ -39,6 +42,11 @@ export class EffectsDirector extends SimEventListener {
   private readonly wrecks: WreckFires;
   private readonly projectiles: ProjectileRenderer;
   private readonly texts: FloatingTexts;
+  private readonly beams: BeamRenderer;
+  private readonly pickups: PickupRenderer;
+  private readonly aircraft: AircraftFx;
+  private lastView: WorldView | null = null;
+  private beamHitCooldown = 0;
   private gunTick = 0;
   private destroyed = false;
 
@@ -49,6 +57,9 @@ export class EffectsDirector extends SimEventListener {
     this.wrecks = new WreckFires(this.kit);
     this.projectiles = new ProjectileRenderer(scene, this.kit);
     this.texts = new FloatingTexts(scene, DEPTH.worldUi);
+    this.beams = new BeamRenderer(scene, this.kit);
+    this.pickups = new PickupRenderer(scene, this.kit, this.texts);
+    this.aircraft = new AircraftFx(scene, this.kit);
   }
 
   get stats(): EffectsStats {
@@ -61,15 +72,25 @@ export class EffectsDirector extends SimEventListener {
     this.kit.windY = y;
   }
 
-  handleEvents(events: readonly SimEvent[]): void {
+  handleEvents(events: readonly SimEvent[], view?: WorldView): void {
     if (this.destroyed) return;
-    for (const e of events) this.handle(e);
+    const v = view ?? this.lastView;
+    for (const e of events) {
+      this.handle(e);
+      this.pickups.handleEvent(e);
+      if (v) this.aircraft.handleEvent(e, v);
+    }
   }
 
   update(dtMs: number, world: WorldView): void {
     if (this.destroyed) return;
     const dt = Math.min(Math.max(dtMs, 0), 50) / 1000;
+    this.lastView = world;
+    this.beamHitCooldown = Math.max(0, this.beamHitCooldown - dt);
     this.projectiles.update(dt, world.projectiles);
+    if (world.pickups) this.pickups.update(world);
+    if (world.entities) this.beams.update(dt, world);
+    if (world.player.shield !== undefined) this.aircraft.update(dt, world);
     this.wrecks.update(dt);
     this.kit.update(dt);
     this.texts.update(dt);
@@ -79,6 +100,9 @@ export class EffectsDirector extends SimEventListener {
     if (this.destroyed) return;
     this.destroyed = true;
     this.projectiles.destroy();
+    this.beams.destroy();
+    this.pickups.destroy();
+    this.aircraft.destroy();
     this.wrecks.clear();
     this.kit.destroy();
     this.texts.destroy();
@@ -142,6 +166,14 @@ export class EffectsDirector extends SimEventListener {
         kit.sparks('air', e.pos.x, e.pos.y, 6, 40, 130, 0.45, 8);
         break;
       case 'playerHit':
+        if (e.source === 'beam') {
+          // Continuous beam damage: a light, rate-limited sizzle instead of a hit per frame.
+          if (this.beamHitCooldown > 0) break;
+          this.beamHitCooldown = 0.12;
+          kit.sparks('air', e.pos.x, e.pos.y, 4, 80, 220, 0.3, 10);
+          kit.shaker.shake(0.002, 90);
+          break;
+        }
         kit.sparks('air', e.pos.x, e.pos.y, e.source === 'sam' ? 18 : 9, 80, 260, 0.35, 11);
         kit.flash('air', e.pos.x, e.pos.y, e.source === 'sam' ? 40 : 18, 0.1, 0xfff0c8, 0.9);
         kit.smoke('air', e.pos.x, e.pos.y, e.source === 'sam' ? 4 : 1, { spread: 4, speed: 20, size0: 6, size1: 22, life: 1, alpha: 0.5, ramp: RAMPS.smokeDark });
@@ -153,6 +185,21 @@ export class EffectsDirector extends SimEventListener {
         kit.debris('air', e.pos.x, e.pos.y, 12, 260, 0x6a6e70, 3.2);
         this.wrecks.streamers(e.pos.x, e.pos.y, 8, 320, 'air');
         kit.shaker.shake(0.022, 850);
+        break;
+      case 'shieldHit':
+        if (e.source === 'sam') {
+          kit.flash('air', e.pos.x, e.pos.y, 90, 0.16, 0x9fe8ff, 0.9);
+          kit.shaker.shake(0.01, 300);
+        }
+        break;
+      case 'samEvaded':
+        kit.flash('air', e.pos.x, e.pos.y, 40, 0.15, 0xfff0c0, 0.8);
+        this.texts.spawn(e.pos.x, e.pos.y - 40, 'MISSED!', true);
+        break;
+      case 'zoneCleared':
+        kit.ring('ground', e.pos.x, e.pos.y, 60, 520, 0.9, 0xffd24a, 0.8, true);
+        kit.ring('ground', e.pos.x, e.pos.y, 40, 380, 0.7, 0xffffff, 0.5, true, 0.15);
+        this.texts.spawn(e.pos.x, e.pos.y - 70, `${e.name.toUpperCase()} CLEARED`, true);
         break;
       case 'entityRevealed':
         kit.revealPing(e.pos.x, e.pos.y);

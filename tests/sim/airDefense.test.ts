@@ -41,7 +41,7 @@ describe('air defence', () => {
   it('AA guns engage Low but not High', () => {
     const level = makeLevel({ entities: [{ kind: 'aaGun', pos: { x: 1300, y: 1000 } }] });
     const low = new Simulation(level);
-    expect(run(low, 1).some((e) => e.type === 'aaBurst')).toBe(true);
+    expect(run(low, 1).some((e) => e.type === 'aaAiming')).toBe(true);
 
     const high = new Simulation(makeLevel({
       player: { spawn: { x: 400, y: 1000 }, headingDeg: 0 },
@@ -51,7 +51,7 @@ describe('air defence', () => {
     high.step(input({ climb: true }));
     run(high, 2.1);
     expect(high.world.player.band).toBe('high');
-    expect(run(high, 2).some((e) => e.type === 'aaBurst')).toBe(false);
+    expect(run(high, 2).some((e) => e.type === 'aaAiming')).toBe(false);
   });
 
   it('flares always decoy a tracking SAM', () => {

@@ -1,11 +1,13 @@
 import type { SimEvent } from '../events';
 import type { ControlInput } from '../input';
 import type { LevelDefinition } from '../level';
+import type { PlayerLoadout } from '../loadout';
 import { spawnFromDefinition } from '../spawning';
 import {
   AirDefenseSystem,
   FlightSystem,
   GroundUnitSystem,
+  LaneSystem,
   MissionSystem,
   ObjectiveSystem,
   PendingFireSystem,
@@ -13,11 +15,14 @@ import {
   ProjectileSystem,
   RadioSystem,
   RearmSystem,
+  RewardSystem,
   SimSystem,
   SpawnSystem,
   SpottingSystem,
+  WaveSystem,
   WeaponSystem,
   initObjectives,
+  initZones,
 } from '../systems';
 import { World, type WorldView } from '../world';
 
@@ -37,16 +42,18 @@ export class Simulation {
   /** Edge-triggered inputs buffered until a fixed step consumes them. */
   private pendingEdges: Omit<ControlInput, 'turn' | 'fire' | 'boost' | 'brake'> = { climb: false, dive: false, flare: false, select: null };
 
-  constructor(level: LevelDefinition, seed?: number, systems?: SimSystem[]) {
-    this.world = new World(level, seed);
+  constructor(level: LevelDefinition, seed?: number, systems?: SimSystem[], loadout?: Readonly<PlayerLoadout>) {
+    this.world = new World(level, seed, loadout);
     for (const spawn of level.entities) spawnFromDefinition(this.world, spawn);
     initObjectives(this.world);
+    initZones(this.world);
     this.systems = systems ?? Simulation.defaultSystems();
   }
 
   static defaultSystems(): SimSystem[] {
     return [
       new SpawnSystem(),
+      new WaveSystem(),
       new PlayerLifeSystem(),
       new FlightSystem(),
       new RearmSystem(),
@@ -55,8 +62,10 @@ export class Simulation {
       new AirDefenseSystem(),
       new ProjectileSystem(),
       new PendingFireSystem(),
+      new RewardSystem(),
       new SpottingSystem(),
       new ObjectiveSystem(),
+      new LaneSystem(),
       new RadioSystem(),
       new MissionSystem(),
     ];

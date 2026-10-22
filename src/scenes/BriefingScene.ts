@@ -159,7 +159,7 @@ export class BriefingScene extends Phaser.Scene {
     if (this.leaving) return;
     this.leaving = true;
     this.uiSound.back();
-    this.scene.start(SCENES.title);
+    this.scene.start(SCENES.levelSelect);
   }
 
   private fadeIn(o: Showable): void {

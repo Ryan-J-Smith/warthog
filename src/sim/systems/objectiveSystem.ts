@@ -142,12 +142,17 @@ function defend(world: World, def: DefendObjective, state: ObjectiveState): Obje
   if (state.status !== 'active') return state.status;
   state.detail = `${Math.ceil(state.meter * 100)}% · ${attackers.length} hostile${attackers.length === 1 ? '' : 's'}`;
   if (!target.alive) {
-    state.detail = target.kind === 'outpost' ? 'Overrun' : 'Destroyed';
+    state.detail = target.kind === 'outpost' || target.kind === 'friendlyHq' ? 'Overrun' : 'Destroyed';
     return 'failed';
   }
   if (def.failsWith && world.objectives.find((o) => o.id === def.failsWith)?.status === 'failed') {
     state.detail = 'Lost';
     return 'failed';
+  }
+  if (def.until !== undefined) {
+    if (world.objectives.find((o) => o.id === def.until)?.status !== 'completed') return 'active';
+    state.detail = 'Held';
+    return 'completed';
   }
   if (!pending && attackers.length === 0) {
     state.detail = 'Attack broken';

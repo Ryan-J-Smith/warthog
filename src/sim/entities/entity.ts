@@ -13,14 +13,23 @@ export interface MoverState {
   stopAtWaypoint: number | null;
 }
 
-/** Anti-aircraft gun state (aaGun, mobileAa). */
+/**
+ * AA laser cycle: `aiming` paints the aircraft with a tracking line (it stops tracking and flashes
+ * for the last `lockTime` s), `firing` is the beam, slewing toward the aircraft at a limited rate.
+ */
+export type AaPhase = 'idle' | 'aiming' | 'firing' | 'cooldown';
+
+/** Anti-aircraft laser state (aaGun, mobileAa). */
 export interface AaState {
   range: number;
-  /** Rounds remaining in the current burst. */
-  burstRemaining: number;
-  /** Seconds until the next round (inside a burst) or next burst. */
-  cooldown: number;
-  /** Is the gun currently engaging the player? */
+  phase: AaPhase;
+  /** Seconds left in the current phase. */
+  phaseTime: number;
+  /** Direction of the aim line / beam, radians. */
+  beamAngle: number;
+  /** Is the beam on the aircraft right now? */
+  beamOnTarget: boolean;
+  /** Is the gun aiming at or firing on the player? */
   engaging: boolean;
 }
 

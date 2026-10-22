@@ -23,6 +23,16 @@ export class PhaserUiSound extends UiSoundPort {
   tick(): void {
     playUiSound(this.scene, 'scoreTick');
   }
+
+  /** Hangar purchase ("ka-ching"). Not on `UiSoundPort` yet: see the port's owner. */
+  purchase(): void {
+    playUiSound(this.scene, 'upgradeBuy');
+  }
+
+  /** Denied / error (e.g. not enough credits). Not on `UiSoundPort` yet: see the port's owner. */
+  error(): void {
+    playUiSound(this.scene, 'uiError');
+  }
 }
 
 /**

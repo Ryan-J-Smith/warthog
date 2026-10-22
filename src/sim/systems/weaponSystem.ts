@@ -5,6 +5,7 @@ import {
   FLARES,
   GUN,
   MAVERICK,
+  PICKUPS,
   PLAYER,
   ROCKETS,
   WEAPON_BANDS,
@@ -134,9 +135,11 @@ export class WeaponSystem extends SimSystem {
     const t = clamp(p.alt, 0, 1);
     const pipper = gunPipper(world);
     const spread = lerp(GUN.spreadLow, GUN.spreadMedium, t);
-    const damage = lerp(GUN.damageLow, GUN.damageMedium, t);
+    const overdrive = p.overdrive > 0;
+    const damage =
+      lerp(GUN.damageLow, GUN.damageMedium, t) * world.loadout.gunDamageMultiplier * (overdrive ? PICKUPS.overdriveDamage : 1);
 
-    this.gunAccumulator += GUN.roundsPerSecond * dt;
+    this.gunAccumulator += GUN.roundsPerSecond * (overdrive ? PICKUPS.overdriveFireRate : 1) * dt;
     while (this.gunAccumulator >= 1 && p.ammo.gun > 0) {
       this.gunAccumulator -= 1;
       p.ammo.gun -= 1;

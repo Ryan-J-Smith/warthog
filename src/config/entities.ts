@@ -6,18 +6,27 @@ export interface AttackerStats {
   damage: number;
 }
 
+/** AA laser: telegraphed, then a beam you escape by flying across it (or boosting). */
 export interface AaStats {
   range: number;
-  roundsPerBurst: number;
-  roundInterval: number;
-  burstPause: number;
-  roundSpeed: number;
-  roundDamage: number;
-  /** Aim error radius at Low / Medium. */
-  spreadLow: number;
-  spreadMedium: number;
-  /** A round hits the player within this 2D distance. */
-  hitRadius: number;
+  /** Telegraph: seconds the aim line paints the aircraft before the beam fires. */
+  aimTime: number;
+  /** Last part of the telegraph where the line stops tracking and flashes (dodge window). */
+  lockTime: number;
+  /** How fast the aim line follows the aircraft while tracking, degrees / s. */
+  aimTrackDeg: number;
+  /** Beam duration, seconds. */
+  beamTime: number;
+  /** Seconds between beams (divided by the global AA fire-rate multiplier). */
+  cooldown: number;
+  /** How fast the beam slews toward the aircraft, degrees / s, at Low / Medium. */
+  slewDegLow: number;
+  slewDegMedium: number;
+  /** Damage per second while the beam is on the aircraft, at Low / Medium. */
+  dpsLow: number;
+  dpsMedium: number;
+  /** The beam hits when the aircraft is within this distance of the beam line. */
+  hitHalfWidth: number;
 }
 
 export interface SamStats {
@@ -34,6 +43,17 @@ export interface SamStats {
   proximity: number;
   /** Altitude climb rate of the missile, band units / s. */
   climbRate: number;
+  /**
+   * Seeker gimbal limit, degrees off the nose. If the aircraft gets further off-boresight than this
+   * (you out-turned it), the missile loses you: the skill answer to a SAM.
+   */
+  gimbalDeg: number;
+  /** Seconds after launch before the gimbal limit applies (the launch heading is approximate). */
+  gimbalArmTime: number;
+  /** Style bonus for making one miss. */
+  evadeBonus: number;
+  /** Lead pursuit: aims at the aircraft's position this fraction of the time-to-go ahead. */
+  leadFactor: number;
 }
 
 export interface EntityStats {
@@ -59,16 +79,18 @@ export interface EntityStats {
   sam: SamStats | null;
 }
 
-const SHILKA: AaStats = {
+const AA_LASER: AaStats = {
   range: 520,
-  roundsPerBurst: 10,
-  roundInterval: 0.05,
-  burstPause: 1.2,
-  roundSpeed: 900,
-  roundDamage: 2,
-  spreadLow: 30,
-  spreadMedium: 50,
-  hitRadius: 22,
+  aimTime: 1.0,
+  lockTime: 0.35,
+  aimTrackDeg: 140,
+  beamTime: 1.4,
+  cooldown: 1.6,
+  slewDegLow: 22,
+  slewDegMedium: 15,
+  dpsLow: 32,
+  dpsMedium: 22,
+  hitHalfWidth: 34,
 };
 
 const base = {
@@ -129,7 +151,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     score: 400,
     lockable: true,
     groundTarget: true,
-    aa: SHILKA,
+    aa: AA_LASER,
   },
   mobileAa: {
     ...base,
@@ -142,7 +164,7 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     lockable: true,
     groundTarget: true,
     speed: 30,
-    aa: SHILKA,
+    aa: AA_LASER,
   },
   samSite: {
     ...base,
@@ -159,13 +181,17 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
       reload: 4,
       maxInFlight: 2,
       missileStartSpeed: 300,
-      missileMaxSpeed: 700,
+      missileMaxSpeed: 520,
       missileAccel: 600,
-      turnRateDeg: 110,
+      turnRateDeg: 80,
       life: 6,
-      damage: 55,
+      damage: 75,
       proximity: 30,
       climbRate: 1.6,
+      gimbalDeg: 50,
+      gimbalArmTime: 0.8,
+      evadeBonus: 300,
+      leadFactor: 0.3,
     },
   },
   bridge: {
@@ -194,6 +220,17 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     radius: 22,
     explosion: 'medium',
     score: 750,
+  },
+  /** Lane-war enemy HQ: bombs (and friendly armour that reaches it) only. */
+  enemyHq: {
+    ...base,
+    team: 'enemy',
+    armor: 'hardened',
+    hp: 1500,
+    radius: 140,
+    explosion: 'huge',
+    score: 5000,
+    groundTarget: true,
   },
   outpost: {
     ...base,
@@ -236,6 +273,17 @@ export const ENTITY_STATS: Record<EntityKind, EntityStats> = {
     score: 0,
     groundTarget: true,
     attacker: { range: 220, cooldown: 4, damage: 2 },
+  },
+  /** Lane-war friendly HQ: the mission is lost when it falls. */
+  friendlyHq: {
+    ...base,
+    team: 'friendly',
+    armor: 'hardened',
+    hp: 2400,
+    radius: 140,
+    explosion: 'huge',
+    score: 0,
+    groundTarget: true,
   },
 };
 

@@ -274,6 +274,12 @@ export const riverCrossing: LevelDefinition = {
     },
   ],
 
+  zones: [
+    { id: 'tangoNest', name: 'Tango Nest', center: { x: 3700, y: 1900 }, radius: 420 },
+    { id: 'dumpGuard', name: 'Dump Guard', center: { x: 1000, y: 760 }, radius: 320 },
+    { id: 'bridgeGun', name: 'Bridge Battery', center: { x: 3230, y: 2360 }, radius: 120 },
+  ],
+
   radio: [
     {
       trigger: { kind: 'start' },

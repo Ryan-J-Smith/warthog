@@ -1,5 +1,6 @@
 import type { Vec2 } from '../math';
 import type { EntityKind, RadioTone } from '../types';
+import type { LaneWarDefinition } from './laneWarDefinition';
 
 // ---------------------------------------------------------------------------
 // Terrain (purely visual in v1; baked to textures by the render layer)
@@ -133,6 +134,11 @@ export interface DefendObjective extends ObjectiveBase {
   attackerTags: string[];
   /** Also fails if this other objective fails (e.g. "take the bridge intact" fails if the column crosses). */
   failsWith?: string;
+  /**
+   * Open-ended defence (endless lane waves): completed when this other objective completes,
+   * instead of when the attackers are all dead.
+   */
+  until?: string;
 }
 
 /** Destroy specific entities. Optional global effect on completion. */
@@ -143,6 +149,17 @@ export interface DestroyObjective extends ObjectiveBase {
 }
 
 export type ObjectiveDefinition = StopColumnObjective | DefendObjective | DestroyObjective;
+
+/**
+ * A defence zone: every enemy AA gun / SAM site within `radius` of `center` at mission start.
+ * Destroying all of them clears the zone: bonus points, a supply drop and a radio call.
+ */
+export interface DefenceZoneDefinition {
+  id: string;
+  name: string;
+  center: Vec2;
+  radius: number;
+}
 
 export interface RadioCue {
   trigger: Trigger;
@@ -168,6 +185,10 @@ export interface LevelDefinition {
   groups: GroupSpawn[];
   objectives: ObjectiveDefinition[];
   radio: RadioCue[];
+  /** Air-defence clusters that pay out when cleared. */
+  zones?: DefenceZoneDefinition[];
+  /** Repeating waves pushing down roads between two HQs (lane missions). */
+  laneWar?: LaneWarDefinition;
   /** Target mission time for the time bonus, seconds. */
   parTime: number;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WEAPON_AMMO } from '../../src/config';
+import { DEFAULT_LOADOUT } from '../../src/sim/loadout';
 import { Simulation } from '../../src/sim/simulation';
 import { gunPipper } from '../../src/sim/systems';
 import { input, makeLevel, run } from './helpers';
@@ -10,7 +10,7 @@ describe('weapons', () => {
     sim.step(input({ select: 'bombs' }));
     const events = run(sim, 0.2, { fire: true });
     expect(events.some((e) => e.type === 'weaponUnavailable' && e.reason === 'tooLow')).toBe(true);
-    expect(sim.world.player.ammo.bombs).toBe(WEAPON_AMMO.bombs);
+    expect(sim.world.player.ammo.bombs).toBe(DEFAULT_LOADOUT.ammo.bombs);
     expect(sim.world.reticle.blockedReason).toBe('TOO LOW');
   });
 
@@ -20,7 +20,7 @@ describe('weapons', () => {
     sim.step(input({ climb: true }));
     run(sim, 3);
     run(sim, 0.5, { fire: true });
-    expect(sim.world.player.ammo.gun).toBe(WEAPON_AMMO.gun);
+    expect(sim.world.player.ammo.gun).toBe(DEFAULT_LOADOUT.ammo.gun);
     expect(sim.world.reticle.blockedReason).toBe('OUT OF RANGE');
   });
 

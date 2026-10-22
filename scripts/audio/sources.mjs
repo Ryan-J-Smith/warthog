@@ -105,9 +105,9 @@ export async function fetchSource(id) {
   return path;
 }
 
-/** Download every source up front so recipes can load synchronously. */
-export async function fetchAll() {
-  for (const id of Object.keys(SOURCES)) await fetchSource(id);
+/** Download every source (or just `ids`) up front so recipes can load synchronously. */
+export async function fetchAll(ids = Object.keys(SOURCES)) {
+  for (const id of ids) await fetchSource(id);
 }
 
 const decodedCache = new Map();

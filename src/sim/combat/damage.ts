@@ -2,6 +2,7 @@ import { ARMOR_MULTIPLIER, ENTITY_STATS, SCORING, SECONDARIES } from '../../conf
 import type { Entity } from '../entities';
 import { distance, type Vec2 } from '../math';
 import type { World } from '../world';
+import { registerKill } from './rewards';
 
 /** What dealt the damage: drives armor multipliers, scoring and friendly-fire accounting. */
 export type DamageSource = 'gun' | 'rocket' | 'maverick' | 'bomb' | 'ground' | 'secondary';
@@ -55,10 +56,11 @@ export function killEntity(world: World, entity: Entity, byPlayer: boolean): voi
 
   if (byPlayer) {
     if (entity.team === 'enemy' && stats.score > 0) {
+      const points = Math.round(stats.score * registerKill(world, entity));
       world.stats.kills += 1;
-      world.stats.killPoints += stats.score;
-      world.score += stats.score;
-      world.emit({ type: 'scoreAwarded', points: stats.score, reason: entity.kind, pos: entity.pos });
+      world.stats.killPoints += points;
+      world.score += points;
+      world.emit({ type: 'scoreAwarded', points, reason: entity.kind, pos: entity.pos });
     } else if (entity.team === 'friendly') {
       world.stats.friendlyFirePenalty += SCORING.friendlyKillPenalty;
       world.score -= SCORING.friendlyKillPenalty;

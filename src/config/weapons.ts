@@ -15,13 +15,7 @@ export const WEAPON_NAMES: Record<WeaponId, string> = {
   bombs: 'MK-82',
 };
 
-/** Starting / maximum ammo. Rockets are counted in salvos. */
-export const WEAPON_AMMO: Record<WeaponId, number> = {
-  gun: 1150,
-  rockets: 8,
-  maverick: 4,
-  bombs: 6,
-};
+// Starting / maximum ammo and flare counts live in the player loadout (`DEFAULT_LOADOUT`), so upgrades can change them.
 
 export const GUN = {
   roundsPerSecond: 70,
@@ -84,7 +78,6 @@ export const BOMBS = {
 
 /** Popping flares always decoys every SAM missile tracking you (no hidden roll). */
 export const FLARES = {
-  count: 8,
   cooldown: 0.8,
   life: 2.5,
 } as const;

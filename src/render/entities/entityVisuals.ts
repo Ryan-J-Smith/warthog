@@ -42,8 +42,10 @@ export const ENTITY_VISUALS: Record<EntityKind, EntityVisualSpec> = {
   bridge: structure('bridge', 'bridgeDestroyed'),
   ammoDump: structure('ammoDump', 'ammoDumpWreck'),
   cache: structure('cache', null),
+  enemyHq: structure('enemyHq', 'enemyHqDestroyed'),
   outpost: structure('outpost', 'outpostDestroyed'),
   homeBase: structure('homeBase', null),
   friendlyTank: vehicle('friendlyTankHull', 'friendlyTankTurret', 'tankWreck', TANK_TURRET_PIVOT),
   friendlyInfantry: vehicle('friendlyInfantry', null, null),
+  friendlyHq: structure('friendlyHq', 'friendlyHqDestroyed'),
 };

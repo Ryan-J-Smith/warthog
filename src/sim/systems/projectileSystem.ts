@@ -1,10 +1,12 @@
 import { AIRCRAFT_BASE_HEIGHT, ENTITY_STATS, MAVERICK } from '../../config';
 import { applySplash, damageEntity } from '../combat';
 import type { Projectile } from '../entities';
-import { angleOf, approach, clamp, degToRad, distance, fromAngle, rotateToward, sub } from '../math';
+import { angleDelta, angleOf, approach, clamp, degToRad, distance, fromAngle, rotateToward, sub } from '../math';
 import type { World } from '../world';
 import { damagePlayer } from './playerDamage';
 import { SimSystem, type StepContext } from './simSystem';
+
+const AA_ROUND_HIT_RADIUS = 22;
 
 /** Moves every projectile and resolves detonations and hits. */
 export class ProjectileSystem extends SimSystem {
@@ -97,6 +99,17 @@ export class ProjectileSystem extends SimSystem {
       proj.lostLock = true;
       proj.targetId = null;
       world.emit({ type: 'samLostLock', missileId: proj.id, pos: { ...proj.pos } });
+    } else if (tracking && proj.age >= stats.gimbalArmTime) {
+      // Out-turned: the aircraft left the seeker's field of view.
+      const offBore = Math.abs(angleDelta(proj.heading, angleOf(sub(p.pos, proj.pos))));
+      if (offBore > degToRad(stats.gimbalDeg)) {
+        proj.lostLock = true;
+        proj.targetId = null;
+        world.score += stats.evadeBonus;
+        world.stats.bonusPoints += stats.evadeBonus;
+        world.emit({ type: 'samEvaded', missileId: proj.id, pos: { ...proj.pos }, bonus: stats.evadeBonus });
+        world.emit({ type: 'scoreAwarded', points: stats.evadeBonus, reason: 'MISSILE DEFEATED', pos: { ...p.pos } });
+      }
     }
 
     const speed = Math.min(stats.missileMaxSpeed, Math.hypot(proj.vel.x, proj.vel.y) + stats.missileAccel * dt);
@@ -107,7 +120,7 @@ export class ProjectileSystem extends SimSystem {
       // Lead pursuit: aim at where the player will be in half the time-to-go.
       const tGo = distance(proj.pos, p.pos) / Math.max(speed, 1);
       const v = world.playerVelocity();
-      const aim = { x: p.pos.x + v.x * tGo * 0.5, y: p.pos.y + v.y * tGo * 0.5 };
+      const aim = { x: p.pos.x + v.x * tGo * stats.leadFactor, y: p.pos.y + v.y * tGo * stats.leadFactor };
       proj.heading = rotateToward(proj.heading, angleOf(sub(aim, proj.pos)), turnRate * dt);
       proj.alt = approach(proj.alt, playerHeight, stats.climbRate * dt);
     } else if (proj.aimPoint) {
@@ -143,9 +156,8 @@ export class ProjectileSystem extends SimSystem {
     const frac = proj.age / Math.max(expected, 1e-3);
     proj.alt = (p.alt + AIRCRAFT_BASE_HEIGHT) * Math.min(1, frac);
 
-    const stats = proj.sourceId !== null ? ENTITY_STATS[world.findById(proj.sourceId)?.kind ?? 'aaGun'].aa : null;
-    const hitRadius = stats?.hitRadius ?? 22;
-    if (frac >= 0.6 && p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= hitRadius) {
+    // Legacy AA tracer (AA guns now fire lasers); kept for any scripted tracer fire.
+    if (frac >= 0.6 && p.alive && p.band !== 'high' && distance(proj.pos, p.pos) <= AA_ROUND_HIT_RADIUS) {
       damagePlayer(world, proj.damage, 'aa', proj.pos);
       return true;
     }

@@ -2,8 +2,10 @@ import Phaser from 'phaser';
 import { MusicManager, audioSettingsFor } from '../audio';
 import { CREDITS_TEXT } from '../content/credits';
 import { LEVELS } from '../content/levels';
+import { saveStoreFor } from '../meta/session';
 import { BAND_NAME, PLAY_TIPS, bandPrimer } from '../ui/copy';
 import { UI_SOUND_REGISTRY_KEY, resolveUiSound, type UiSoundPort } from '../ui/sound';
+import { formatScore } from '../ui/format';
 import { TACMAP_TERRAIN, bakeTacticalMap } from '../ui/tacmap';
 import { COLOR, css, textStyle } from '../ui/theme';
 import {
@@ -19,7 +21,7 @@ import {
   drawRule,
   ensureUiTextures,
 } from '../ui/widgets';
-import { SCENES, type BriefingSceneData } from './sceneKeys';
+import { SCENES } from './sceneKeys';
 
 /** Title backdrop map resolution (px) and on-screen scale. */
 const MAP_W = 2304;
@@ -47,7 +49,7 @@ const FLY_BYS: ReadonlyArray<readonly [number, number, number, number, number, n
 
 /**
  * Title screen: slowly drifting recon view of River Crossing, an A-10 banking across with its
- * shadow, the WARTHOG logo, and START MISSION / HOW TO PLAY / CREDITS.
+ * shadow, the WARTHOG logo, and SELECT MISSION / HANGAR / HOW TO PLAY / CREDITS.
  */
 export class TitleScene extends Phaser.Scene {
   private uiSound!: UiSoundPort;
@@ -150,19 +152,27 @@ export class TitleScene extends Phaser.Scene {
     const tagline = this.add.text(logoX + 6, 470, 'THREE ALTITUDES  ·  TWO CLOCKS  ·  ONE WARTHOG', textStyle({ size: 22, color: COLOR.greenDim, glow: false, letterSpacing: 3 }));
     const shine = this.addShine(logo);
 
-    this.menu = new MenuList(this, ['START MISSION', 'HOW TO PLAY', 'CREDITS'], {
+    const menuY = 604;
+    const menuSpacing = 66;
+    this.menu = new MenuList(this, ['SELECT MISSION', 'HANGAR', 'HOW TO PLAY', 'CREDITS'], {
       x: logoX,
-      y: 620,
+      y: menuY,
       width: 520,
-      spacing: 76,
-      fontSize: 38,
+      spacing: menuSpacing,
+      fontSize: 36,
       sound: this.uiSound,
       onConfirm: (i) => this.choose(i),
       onMove: () => this.focus.menuFocused(),
     });
+    // The hangar entry shows the credit balance.
+    this.menu.container.add(
+      this.add
+        .text(520 - 52, menuSpacing, `${formatScore(saveStoreFor(this.game).credits)} CR`, textStyle({ size: 22, color: COLOR.amber, glow: 6 }))
+        .setOrigin(1, 0.5),
+    );
     const soundPanel = new SoundSettingsPanel(this, audioSettingsFor(this.game), {
       x: logoX,
-      y: 866,
+      y: 884,
       width: 520,
       rowHeight: 52,
       fontSize: 24,
@@ -233,21 +243,17 @@ export class TitleScene extends Phaser.Scene {
 
   private choose(index: number): void {
     if (this.leaving) return;
-    if (index === 0) this.startMission();
-    else if (index === 1) this.openOverlay('howto');
+    if (index === 0) this.leaveTo(SCENES.levelSelect);
+    else if (index === 1) this.leaveTo(SCENES.hangar);
+    else if (index === 2) this.openOverlay('howto');
     else this.openOverlay('credits');
   }
 
-  private startMission(): void {
-    const level = LEVELS[0];
-    if (!level) return;
+  private leaveTo(scene: typeof SCENES.levelSelect | typeof SCENES.hangar): void {
     this.leaving = true;
     this.menu.enabled = false;
-    this.cameras.main.fadeOut(450, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      const data: BriefingSceneData = { levelId: level.id };
-      this.scene.start(SCENES.briefing, data);
-    });
+    this.cameras.main.fadeOut(350, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(scene));
   }
 
   // --- Overlays --------------------------------------------------------------

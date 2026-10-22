@@ -18,11 +18,13 @@ export type EntityKind =
   | 'bridge'
   | 'ammoDump'
   | 'cache'
+  | 'enemyHq'
   // friendly
   | 'outpost'
   | 'homeBase'
   | 'friendlyTank'
-  | 'friendlyInfantry';
+  | 'friendlyInfantry'
+  | 'friendlyHq';
 
 export type ArmorClass = 'soft' | 'armored' | 'hardened';
 

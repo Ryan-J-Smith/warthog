@@ -1,7 +1,8 @@
 import type { AudioKey } from '../assets';
+import type { Entity } from '../sim/entities';
 import type { SimEvent } from '../sim/events';
 import type { Vec2 } from '../sim/math';
-import type { ExplosionSize, MissionOutcome } from '../sim/types';
+import type { ExplosionSize, MissionOutcome, PlayerDamageSource } from '../sim/types';
 import type { WorldView } from '../sim/world';
 import { ImpactAggregator } from './impactAggregator';
 import { GLOBAL_VOICE_CAP, MIX } from './mixTable';
@@ -21,6 +22,16 @@ const RWR_LOCK_BUILD_MS = 2000;
 /** Armour fractions for the low-armour warning: one alert on going critical, one more when nearly dead. */
 const LOW_ARMOR_CRITICAL = 0.3;
 const LOW_ARMOR_SEVERE = 0.15;
+/** While an AA beam sits on the aircraft, its hit sounds repeat at most this often. */
+const BEAM_SHIELD_HIT_INTERVAL_MS = 150;
+const BEAM_HULL_HIT_INTERVAL_MS = 200;
+/** Kill-chain blip: up this many semitones per chain step, capped at an octave. */
+const COMBO_SEMITONES_PER_STEP = 2;
+const COMBO_MAX_SEMITONES = 12;
+/** A beam is a little louder while it is on the aircraft. */
+const BEAM_ON_TARGET_GAIN = 1.25;
+/** Boost roar fade-out after release (ms time constant). */
+const BOOST_RELEASE_MS = 90;
 
 const EXPLOSION_BY_SIZE: Record<ExplosionSize, AudioKey> = {
   small: 'explosionSmall',
@@ -47,15 +58,28 @@ interface PlayOptions {
 }
 
 /** Continuous sounds owned by the director. */
-type LoopSlot = 'gun' | 'engine' | 'rwrLaunch' | 'rearm' | 'ambience';
+type LoopSlot = 'gun' | 'engine' | 'rwrLaunch' | 'rearm' | 'ambience' | 'boost';
 
 const LOOP_KEYS: Record<LoopSlot, AudioKey> = {
+  boost: 'boostLoop',
   gun: 'gunLoop',
   engine: 'engineLoop',
   rwrLaunch: 'rwrLaunch',
   rearm: 'rearmLoop',
   ambience: 'battleAmbience',
 };
+
+/** One AA gun's beam hum: a spatialised loop at the (static) gun position. */
+interface BeamVoice {
+  voice: SoundVoice;
+  pos: Vec2;
+}
+
+/** Playback rate of the kill-chain blip for a chain (the sim reports chains from 2 up). */
+function comboRate(chain: number): number {
+  const semitones = Math.min(COMBO_MAX_SEMITONES, Math.max(0, chain - 2) * COMBO_SEMITONES_PER_STEP);
+  return Math.pow(2, semitones / 12);
+}
 
 /**
  * Engine-independent audio direction: turns simulation events and world state into sounds.
@@ -71,11 +95,18 @@ export class AudioDirectorCore {
   private readonly loops: Partial<Record<LoopSlot, SoundVoice>> = {};
   private readonly lastPlayedMs = new Map<AudioKey, number>();
   private whistles: SoundVoice[] = [];
+  /** AA telegraph charge sounds and beam loops, by gun entity id. */
+  private readonly charges = new Map<number, SoundVoice>();
+  private readonly beams = new Map<number, BeamVoice>();
+  /** Director-level throttles (tag → last time played). */
+  private readonly lastThrottleMs = new Map<string, number>();
 
   private nowMs = 0;
   private listener: Vec2 | null = null;
   private listenerAlt = 0;
   private gunFiring = false;
+  private boosting = false;
+  private boostVolume = 0;
   private engineVolume = 0;
   private engineRate = 1;
   private rwrHeldMs = 0;
@@ -116,6 +147,10 @@ export class AudioDirectorCore {
 
     // Gun safety net: never leave the BRRRT running if a stop event was missed.
     if (this.gunFiring && (!p.firing || !p.alive)) this.stopGun(p.alive);
+    // Same for the afterburner, which also fades out after release.
+    if (this.boosting && (!p.boosting || !p.alive)) this.boosting = false;
+    this.updateBoost(dtMs);
+    this.updateAirDefence(world);
 
     // Missile launch warning outranks the lock beeps.
     const launch = p.alive && p.missilesTracking > 0;
@@ -154,6 +189,8 @@ export class AudioDirectorCore {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.boosting = false;
+    this.stopAirDefence();
     for (const slot of Object.keys(this.loops) as LoopSlot[]) this.stopLoop(slot);
     for (const v of this.limiter.all()) v.stop();
     this.limiter.clear();
@@ -201,6 +238,8 @@ export class AudioDirectorCore {
         this.playUi('lockTone');
         break;
       case 'entityDestroyed':
+        this.stopCharge(ev.entityId);
+        this.stopBeam(ev.entityId);
         this.explode(ev.size, ev.pos);
         break;
       case 'secondaryExplosion':
@@ -211,7 +250,18 @@ export class AudioDirectorCore {
         else this.playAt('smallArms', ev.from);
         break;
       case 'aaBurst':
+        // Legacy bullet bursts (AA guns now fire lasers); harmless if still emitted.
         this.playAt('aaFire', ev.pos);
+        break;
+      case 'aaAiming':
+        this.startCharge(ev.entityId, ev.pos);
+        break;
+      case 'aaBeamStarted':
+        this.stopCharge(ev.entityId);
+        this.startBeam(ev.entityId, ev.pos);
+        break;
+      case 'aaBeamStopped':
+        this.stopBeam(ev.entityId);
         break;
       case 'samLockStarted':
         this.rwrNextBeepMs = this.nowMs; // first beep on the next update
@@ -222,10 +272,56 @@ export class AudioDirectorCore {
       case 'samDetonated':
         this.playAt('explosionMedium', ev.pos, { volume: 0.9 });
         break;
+      case 'samEvaded':
+        this.playAt('samEvaded', ev.pos, { minGain: 0.6 });
+        break;
       case 'playerHit':
-        this.playUi('playerHit', { volume: Math.min(1, 0.65 + ev.damage / 40) });
+        this.onPlayerHit(ev.damage, ev.source);
+        break;
+      case 'shieldHit':
+        this.onShieldHit(ev.source);
+        break;
+      case 'shieldDown':
+        this.playUi('shieldDown');
+        break;
+      case 'shieldRegenStarted':
+        this.playUi('shieldRegen');
+        break;
+      case 'shieldFull':
+        this.playUi('shieldFull');
+        break;
+      case 'boostStarted':
+        this.startBoost();
+        break;
+      case 'boostStopped':
+        this.boosting = false;
+        break;
+      case 'boostEmpty':
+        this.boosting = false;
+        this.playUi('boostEmpty');
+        break;
+      case 'brakeStarted':
+        this.playUi('airbrake');
+        break;
+      case 'pickupSpawned':
+        this.playAt('pickupSpawn', ev.pos);
+        break;
+      case 'pickupCollected':
+        this.playUi('pickupCollect');
+        break;
+      case 'comboChanged':
+        this.playUi('comboUp', { rate: comboRate(ev.chain) });
+        break;
+      case 'comboEnded':
+        this.playUi('comboEnd');
+        break;
+      case 'zoneCleared':
+        this.playUi('zoneCleared');
+        this.music?.duck(0.55, 1200);
         break;
       case 'playerDestroyed':
+        this.stopBoost();
+        this.stopAirDefence();
         this.stopGun(false);
         this.stopLoop('rwrLaunch');
         this.stopLoop('rearm');
@@ -256,7 +352,7 @@ export class AudioDirectorCore {
         break;
       default:
         // gunFiring, entityDamaged, spotting, band changes, rearmStarted (loop follows world state),
-        // SAM decoy/lost-lock and score events are visual/HUD-only.
+        // SAM decoy/lost-lock, brakeStopped, pickupExpired and score events are visual/HUD-only.
         break;
     }
   }
@@ -266,6 +362,8 @@ export class AudioDirectorCore {
     if (!this.ended) {
       this.ended = true;
       this.stopGun(false);
+      this.boosting = false;
+      this.stopAirDefence();
       for (const slot of Object.keys(this.loops) as LoopSlot[]) this.stopLoop(slot);
     }
     if (outcome) this.music?.playSting(outcome);
@@ -307,6 +405,120 @@ export class AudioDirectorCore {
     this.gunFiring = false;
     this.stopLoop('gun');
     if (withTail) this.playUi('gunTail');
+  }
+
+  private onPlayerHit(damage: number, source: PlayerDamageSource): void {
+    // A beam deals damage every step: a quieter, rate-limited clank instead of a metallic hail.
+    if (source === 'beam') {
+      if (this.throttle('beamHull', BEAM_HULL_HIT_INTERVAL_MS)) this.playUi('playerHit', { volume: 0.5 });
+      return;
+    }
+    this.playUi('playerHit', { volume: Math.min(1, 0.65 + damage / 40) });
+  }
+
+  private onShieldHit(source: PlayerDamageSource): void {
+    if (source === 'beam') {
+      if (this.throttle('beamShield', BEAM_SHIELD_HIT_INTERVAL_MS)) this.playUi('shieldHit', { volume: 0.75 });
+      return;
+    }
+    this.playUi('shieldHit');
+  }
+
+  private startBoost(): void {
+    this.boosting = true;
+    this.boostVolume = MIX.boostLoop.volume;
+    this.ensureLoop('boost', this.boostVolume).setVolume(this.boostVolume);
+    this.playUi('boostStart');
+  }
+
+  /** Cut the afterburner at once (death, mission end). */
+  private stopBoost(): void {
+    this.boosting = false;
+    this.boostVolume = 0;
+    this.stopLoop('boost');
+  }
+
+  /** Fade the afterburner roar out after release. */
+  private updateBoost(dtMs: number): void {
+    const voice = this.loops.boost;
+    if (!voice) return;
+    const target = this.boosting ? MIX.boostLoop.volume : 0;
+    this.boostVolume += (target - this.boostVolume) * (1 - Math.exp(-dtMs / BOOST_RELEASE_MS));
+    if (!this.boosting && this.boostVolume < 0.01) {
+      this.stopBoost();
+      return;
+    }
+    voice.setVolume(this.boostVolume);
+  }
+
+  private startCharge(entityId: number, pos: Vec2): void {
+    this.stopCharge(entityId);
+    const voice = this.playAt('aaCharge', pos);
+    if (voice) this.charges.set(entityId, voice);
+  }
+
+  private stopCharge(entityId: number): void {
+    this.charges.get(entityId)?.stop();
+    this.charges.delete(entityId);
+  }
+
+  private startBeam(entityId: number, pos: Vec2): void {
+    this.stopBeam(entityId);
+    const voice = this.backend.create('aaBeamLoop', { volume: 0, loop: true });
+    voice.play();
+    this.beams.set(entityId, { voice, pos: { x: pos.x, y: pos.y } });
+    this.mixBeams(null);
+  }
+
+  private stopBeam(entityId: number): void {
+    const beam = this.beams.get(entityId);
+    if (!beam) return;
+    beam.voice.stop();
+    beam.voice.destroy();
+    this.beams.delete(entityId);
+  }
+
+  private stopAirDefence(): void {
+    for (const id of [...this.charges.keys()]) this.stopCharge(id);
+    for (const id of [...this.beams.keys()]) this.stopBeam(id);
+  }
+
+  /**
+   * Safety net + mix for AA sounds: drop charges/beams whose gun died or left that phase (an aim can
+   * be abandoned without an event), and re-spatialise the beams as the aircraft moves.
+   */
+  private updateAirDefence(world: WorldView): void {
+    if (this.charges.size === 0 && this.beams.size === 0) return;
+    const byId = new Map(world.entities.map((e) => [e.id, e]));
+    for (const [id, voice] of this.charges) {
+      const gun = byId.get(id);
+      if (!voice.playing) this.charges.delete(id);
+      else if (gun && (!gun.alive || gun.aa?.phase !== 'aiming')) this.stopCharge(id);
+    }
+    for (const id of [...this.beams.keys()]) {
+      const gun = byId.get(id);
+      if (gun && (!gun.alive || gun.aa?.phase !== 'firing')) this.stopBeam(id);
+    }
+    this.mixBeams(byId);
+  }
+
+  /** Spatial level per beam; several at once share the level so overlapping beams don't pile up. */
+  private mixBeams(byId: ReadonlyMap<number, Entity> | null): void {
+    const share = 1 / Math.sqrt(Math.max(1, this.beams.size));
+    for (const [id, beam] of this.beams) {
+      const s = this.listener ? spatialize(this.listener, this.listenerAlt, beam.pos, this.spatial) : { gain: 1, pan: 0 };
+      const onTarget = byId?.get(id)?.aa?.beamOnTarget ? BEAM_ON_TARGET_GAIN : 1;
+      beam.voice.setVolume(Math.min(1, MIX.aaBeamLoop.volume * s.gain * onTarget * share));
+      beam.voice.setPan(s.pan);
+    }
+  }
+
+  /** True (and restarts the timer) if `tag` was last allowed at least `intervalMs` ago. */
+  private throttle(tag: string, intervalMs: number): boolean {
+    const last = this.lastThrottleMs.get(tag);
+    if (last !== undefined && this.nowMs - last < intervalMs) return false;
+    this.lastThrottleMs.set(tag, this.nowMs);
+    return true;
   }
 
   private updateEngine(dtMs: number, alive: boolean, speed: number, energy: number): void {

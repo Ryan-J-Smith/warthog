@@ -17,12 +17,10 @@ function shilka() {
 }
 
 const AA_VARIANTS: Array<{ name: string; overrides: Override[] }> = [
-  { name: 'current (3 dmg, spread 18/42, pause 1.0)', overrides: [] },
-  { name: 'A: 2 dmg, spread 28/48, pause 1.3', overrides: [set(shilka(), { roundDamage: 2, spreadLow: 28, spreadMedium: 48, burstPause: 1.3 })] },
-  { name: 'B: 2 dmg, spread 24/46, pause 1.2', overrides: [set(shilka(), { roundDamage: 2, spreadLow: 24, spreadMedium: 46, burstPause: 1.2 })] },
-  { name: 'C: 3 dmg, spread 30/50, pause 1.3', overrides: [set(shilka(), { roundDamage: 3, spreadLow: 30, spreadMedium: 50, burstPause: 1.3 })] },
-  { name: 'D: 2 dmg, spread 30/50, pause 1.2, burst 10', overrides: [set(shilka(), { roundDamage: 2, spreadLow: 30, spreadMedium: 50, burstPause: 1.2, roundsPerBurst: 10 })] },
-  { name: 'E: 2 dmg, spread 32/52, pause 1.4, burst 10', overrides: [set(shilka(), { roundDamage: 2, spreadLow: 32, spreadMedium: 52, burstPause: 1.4, roundsPerBurst: 10 })] },
+  { name: 'current laser (32/22 dps, slew 22/15)', overrides: [] },
+  { name: 'A: 26/18 dps', overrides: [set(shilka(), { dpsLow: 26, dpsMedium: 18 })] },
+  { name: 'B: slew 30/20', overrides: [set(shilka(), { slewDegLow: 30, slewDegMedium: 20 })] },
+  { name: 'C: beam 1.8 s', overrides: [set(shilka(), { beamTime: 1.8 })] },
 ];
 
 const GUN_VARIANTS: Array<{ name: string; overrides: Override[] }> = [

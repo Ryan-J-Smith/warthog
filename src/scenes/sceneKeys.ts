@@ -11,6 +11,8 @@ export const SCENES = {
   hud: 'Hud',
   pause: 'Pause',
   results: 'Results',
+  levelSelect: 'LevelSelect',
+  hangar: 'Hangar',
 } as const;
 
 /** Events emitted on the Game scene's event emitter (`scene.get(SCENES.game).events`). */
@@ -43,4 +45,9 @@ export interface PauseSceneData {
 export interface ResultsSceneData {
   levelId: string;
   results: MissionResults;
+}
+
+export interface HangarSceneData {
+  /** Opened from a results screen: ESC goes back to it (the mission is not paid again). */
+  returnTo?: ResultsSceneData;
 }

@@ -1,10 +1,11 @@
-import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, FLARES, PLAYER, WEAPON_AMMO } from '../../config';
-import type { Entity, PlayerState, Projectile } from '../entities';
+import { AIRCRAFT_BASE_HEIGHT, BAND_PROFILES, PLAYER } from '../../config';
+import type { Entity, Pickup, PlayerState, Projectile } from '../entities';
 import type { SimEvent } from '../events';
 import type { LevelDefinition } from '../level';
+import { DEFAULT_LOADOUT, type PlayerLoadout } from '../loadout';
 import { Rng, degToRad, type Vec2 } from '../math';
 import type { MissionResults } from './missionResults';
-import type { ObjectiveState, ReticleState, WorldView } from './worldView';
+import type { ComboState, ObjectiveState, ReticleState, WorldView, ZoneState } from './worldView';
 
 /** A GAU-8 round in flight (not rendered as a projectile; lands after the travel time). */
 export interface PendingRound {
@@ -36,11 +37,17 @@ export class World implements WorldView {
   readonly width: number;
   readonly height: number;
   readonly rng: Rng;
+  /** The aircraft as upgraded in the hangar. */
+  readonly loadout: Readonly<PlayerLoadout>;
 
   time = 0;
   player: PlayerState;
   entities: Entity[] = [];
   projectiles: Projectile[] = [];
+  pickups: Pickup[] = [];
+  combo: ComboState = { chain: 0, multiplier: 1, expiresAt: 0 };
+  /** Defence zones and their member entity ids (filled at mission start). */
+  zones: ZoneState[] = [];
   objectives: ObjectiveState[] = [];
   reticle: ReticleState;
   score = 0;
@@ -62,12 +69,13 @@ export class World implements WorldView {
   private events: SimEvent[] = [];
   private nextEntityId = 1;
 
-  constructor(level: LevelDefinition, seed: number = level.seed) {
+  constructor(level: LevelDefinition, seed: number = level.seed, loadout: Readonly<PlayerLoadout> = DEFAULT_LOADOUT) {
     this.level = level;
+    this.loadout = loadout;
     this.width = level.width;
     this.height = level.height;
     this.rng = new Rng(seed);
-    this.player = createPlayer(level);
+    this.player = createPlayer(level, loadout);
     this.reticle = { weapon: 'gun', impact: null, ready: true, onTarget: false, blockedReason: null };
   }
 
@@ -116,11 +124,11 @@ export class World implements WorldView {
   }
 }
 
-export function fullAmmo(): PlayerState['ammo'] {
-  return { ...WEAPON_AMMO };
+export function fullAmmo(loadout: Readonly<PlayerLoadout>): PlayerState['ammo'] {
+  return { ...loadout.ammo };
 }
 
-function createPlayer(level: LevelDefinition): PlayerState {
+function createPlayer(level: LevelDefinition, loadout: Readonly<PlayerLoadout>): PlayerState {
   return {
     pos: { ...level.player.spawn },
     heading: degToRad(level.player.headingDeg),
@@ -130,15 +138,25 @@ function createPlayer(level: LevelDefinition): PlayerState {
     speed: BAND_PROFILES.low.speed,
     energy: 1,
     turnInput: 0,
-    hp: PLAYER.maxHp,
-    maxHp: PLAYER.maxHp,
+    turnRate: 0,
+    hp: loadout.maxHull,
+    maxHp: loadout.maxHull,
+    shield: loadout.maxShield,
+    maxShield: loadout.maxShield,
+    shieldRegenIn: 0,
+    boost: loadout.boostCapacity,
+    maxBoost: loadout.boostCapacity,
+    boosting: false,
+    braking: false,
+    boostFree: 0,
+    overdrive: 0,
     lives: PLAYER.lives,
     alive: true,
     invulnerable: 0,
     respawnIn: 0,
     selectedWeapon: 'gun',
-    ammo: fullAmmo(),
-    flares: FLARES.count,
+    ammo: fullAmmo(loadout),
+    flares: loadout.flares,
     firing: false,
     gunDip: 0,
     rearm: 0,

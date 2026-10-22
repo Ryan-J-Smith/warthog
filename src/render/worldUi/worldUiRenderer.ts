@@ -147,7 +147,6 @@ export class WorldUiRenderer {
       if (e.aa) {
         const state: ZoneState = e.aa.engaging ? 'active' : p.band !== 'high' ? 'threat' : 'idle';
         drawZone(g, e.pos, e.aa.range, COLORS.aa, state, px, t, distance(e.pos, p.pos) <= e.aa.range);
-        if (e.aa.engaging && p.alive) this.drawTether(e.pos, e.radius, p.pos, COLORS.aa, 0.9, px, t);
       }
     }
 

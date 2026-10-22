@@ -4,3 +4,4 @@ export { BAND_LABEL, BAND_NAME, BAND_THREATS, BAND_HINTS, bandPrimer, PLAY_TIPS 
 export type { BandPrimerRow } from './bands';
 export { briefingFor, deriveIntel } from './briefing';
 export type { Briefing, BriefingObjective, IntelItem, IntelKind } from './briefing';
+export { GRADE_TITLE } from './grades';

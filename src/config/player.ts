@@ -20,6 +20,26 @@ export const PLAYER = {
   respawnOffset: 380,
 } as const;
 
+/** Afterburner (hold Shift): faster, a little less agile, drains the meter. */
+export const BOOST = {
+  speedMultiplier: 1.65,
+  turnMultiplier: 0.75,
+  /** Seconds off the key before the meter refills. */
+  regenDelay: 0.5,
+  /** Speed change rate while boosting / braking, units / s². */
+  acceleration: 700,
+} as const;
+
+/** Air brake (hold E or C): slow and very agile, for tight gun runs and SAM breaks. */
+export const BRAKE = {
+  speedFactor: 0.55,
+  turnMultiplier: 1.8,
+  deceleration: 520,
+} as const;
+
+/** Turn easing: seconds to reach the full turn rate from straight flight, and to straighten out. */
+export const TURN_EASE = { rampIn: 0.15, rampOut: 0.1 } as const;
+
 /** Spotting view: half-extents of the 1920×1080 viewport divided by zoom. */
 export const VIEW = {
   width: 1920,

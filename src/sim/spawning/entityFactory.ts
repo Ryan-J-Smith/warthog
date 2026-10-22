@@ -40,7 +40,7 @@ export function createEntity(world: World, kind: EntityKind, pos: Vec2, options:
       ? { path, waypoint: 0, speed: options.speed ?? stats.speed, halted: false, stopAtWaypoint: null }
       : null,
     aa: stats.aa
-      ? { range: stats.aa.range, burstRemaining: 0, cooldown: world.rng.range(0, stats.aa.burstPause), engaging: false }
+      ? { range: stats.aa.range, phase: 'idle', phaseTime: 0, beamAngle: heading, beamOnTarget: false, engaging: false }
       : null,
     sam: stats.sam
       ? { range: stats.sam.range, lock: 0, locking: false, reload: 0, missilesInFlight: 0, launcherHeading: heading }

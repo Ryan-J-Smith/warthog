@@ -47,8 +47,8 @@ const SPECS: Record<ProjectileKind, KindSpec> = {
   samMissile: {
     sprite: 'samMissile',
     shadow: true,
-    glow: { tint: 0xfff0c8, size: 20, alpha: 1 },
-    trail: { spacing: 7, size0: 5, size1: 24, life: 2.1, alpha: 0.6, ramp: RAMPS.smokeWhite },
+    glow: { tint: 0xff5a3a, size: 44, alpha: 1 },
+    trail: { spacing: 6, size0: 8, size1: 40, life: 3.2, alpha: 0.75, ramp: RAMPS.smokeWhite },
   },
   bomb: { sprite: 'bomb', shadow: true, glow: null, trail: null },
   aaRound: { sprite: null, shadow: false, glow: { tint: 0xff6a24, size: 11, alpha: 0.5 }, trail: null },
@@ -210,6 +210,8 @@ export class ProjectileRenderer {
     } else if (v.sprite) {
       let scale = hs / SPRITE_RESOLUTION;
       if (p.kind === 'bomb') scale *= 1 + alt * 0.45;
+      // SAMs are the deadliest thing in the sky: big and pulsing so you always see them coming.
+      if (p.kind === 'samMissile') scale *= p.lostLock ? 1.6 : 1.9 + 0.15 * Math.sin(v.age * 18);
       if (p.kind === 'flare') scale *= 1.2 + 0.25 * Math.sin(v.age * 40);
       v.sprite.setPosition(x, y).setRotation(p.kind === 'flare' ? 0 : p.heading).setScale(scale);
     }

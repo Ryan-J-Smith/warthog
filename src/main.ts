@@ -3,7 +3,9 @@ import {
   BootScene,
   BriefingScene,
   GameScene,
+  HangarScene,
   HudScene,
+  LevelSelectScene,
   PauseScene,
   PreloadScene,
   ResultsScene,
@@ -24,7 +26,7 @@ const game = new Phaser.Game({
     antialias: true,
     roundPixels: false,
   },
-  scene: [BootScene, PreloadScene, TitleScene, BriefingScene, GameScene, HudScene, PauseScene, ResultsScene],
+  scene: [BootScene, PreloadScene, TitleScene, LevelSelectScene, HangarScene, BriefingScene, GameScene, HudScene, PauseScene, ResultsScene],
 });
 
 declare global {

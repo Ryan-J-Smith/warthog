@@ -11,6 +11,9 @@ import * as pl from './player.mjs';
 import * as tn from './tones.mjs';
 import * as ui from './ui.mjs';
 import * as mu from './music.mjs';
+import * as mv from './movement.mjs';
+import * as df from './defense.mjs';
+import * as rw from './rewards.mjs';
 
 // Loops ship as WAV only: Chromium's Vorbis decoder pads short files by a few ms (it ignores the
 // end-trim granule), which puts a gap in every loop cycle. PCM WAV is sample-exact everywhere.
@@ -87,4 +90,32 @@ export const RECIPES = {
   uiConfirm: oneShot('ui.mjs', ui.uiConfirm, -19),
   uiBack: oneShot('ui.mjs', ui.uiBack, -20),
   scoreTick: oneShot('ui.mjs', ui.scoreTick, -23),
+
+  // Fun pass: movement tools (the boost roar sits on top of the engine loop)
+  boostLoop: loop('movement.mjs', mv.boostLoop, -19),
+  boostStart: oneShot('movement.mjs', mv.boostStart, -14),
+  boostEmpty: oneShot('movement.mjs', mv.boostEmpty, -18),
+  airbrake: oneShot('movement.mjs', mv.airbrake, -18),
+
+  // Fun pass: AA laser and the player's shield (the beam hum may play often: kept moderate)
+  aaCharge: oneShot('defense.mjs', df.aaCharge, -18),
+  aaBeamLoop: loop('defense.mjs', df.aaBeamLoop, -20),
+  shieldHit: oneShot('defense.mjs', df.shieldHit, -18),
+  shieldDown: oneShot('defense.mjs', df.shieldDown, -13.5),
+  shieldRegen: oneShot('defense.mjs', df.shieldRegen, -22),
+  shieldFull: oneShot('defense.mjs', df.shieldFull, -21),
+
+  // Fun pass: rewards
+  samEvaded: oneShot('rewards.mjs', rw.samEvaded, -15),
+  pickupCollect: oneShot('rewards.mjs', rw.pickupCollect, -16),
+  pickupSpawn: oneShot('rewards.mjs', rw.pickupSpawn, -24),
+  comboUp: oneShot('rewards.mjs', rw.comboUp, -19),
+  comboEnd: oneShot('rewards.mjs', rw.comboEnd, -21),
+  zoneCleared: oneShot('tones.mjs', tn.zoneCleared, -13.5),
+
+  // Fun pass: new enemies and the hangar
+  heliLoop: loop('threats.mjs', th.heliLoop, -19),
+  mlrsLaunch: oneShot('threats.mjs', th.mlrsLaunch, -12),
+  upgradeBuy: oneShot('ui.mjs', ui.upgradeBuy, -18),
+  uiError: oneShot('ui.mjs', ui.uiError, -19),
 };
