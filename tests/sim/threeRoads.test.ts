@@ -138,6 +138,8 @@ describe('lane war waves', () => {
     expect(enemy.attacker?.targetId).toBe(friend.id);
     expect(events.some((e) => e.type === 'groundFire' && e.shooterKind === 'tank')).toBe(true);
     expect(events.some((e) => e.type === 'groundFire' && e.shooterKind === 'friendlyTank')).toBe(true);
+    // Rounds fly, then land on their targets.
+    expect(events.some((e) => e.type === 'groundRoundImpact' && e.shooterKind === 'tank' && e.hit)).toBe(true);
     // Engaged movers hold position: they met short of the middle of the road, not at either end.
     const held = { ...enemy.pos };
     run(sim, 1);

@@ -1,3 +1,4 @@
+import type { GroundRoundKind } from '../../config';
 import type { Vec2 } from '../math';
 import type {
   AltitudeBand,
@@ -41,8 +42,13 @@ export type SimEvent =
   | { type: 'secondaryExplosion'; pos: Vec2; size: ExplosionSize }
   | { type: 'entitySpotted'; entityId: number; kind: EntityKind }
   | { type: 'entityRevealed'; entityId: number; kind: EntityKind; pos: Vec2 }
-  /** Ambient ground battle: a unit fired at another ground unit/structure. */
-  | { type: 'groundFire'; shooterKind: EntityKind; from: Vec2; to: Vec2 }
+  /**
+   * Ground battle: a unit fired a round at another ground unit/structure. It lands at `to` after
+   * `flightTime` seconds (see `groundRoundImpact`); damage is dealt on arrival, not here.
+   */
+  | { type: 'groundFire'; shooterKind: EntityKind; round: GroundRoundKind; from: Vec2; to: Vec2; flightTime: number }
+  /** A ground round landed. `hit` = it damaged something; `armored` = it struck armor (sparks). */
+  | { type: 'groundRoundImpact'; shooterKind: EntityKind; round: GroundRoundKind; pos: Vec2; hit: boolean; armored: boolean }
   // --- Air defence ----------------------------------------------------------
   | { type: 'aaBurst'; entityId: number; pos: Vec2 }
   /** AA laser telegraph: the gun is painting the player (aim line), beam follows. */
