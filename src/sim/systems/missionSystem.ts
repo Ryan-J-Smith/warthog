@@ -56,6 +56,12 @@ export function computeResults(world: World, outcome: MissionOutcome): MissionRe
     killPoints: world.stats.killPoints,
     kills: world.stats.kills,
     bonusPoints: world.stats.bonusPoints,
+    feats: {
+      bestChain: world.stats.bestChain,
+      missilesDefeated: world.stats.missilesDefeated,
+      zonesCleared: world.stats.zonesCleared,
+      pickupsCollected: world.stats.pickupsCollected,
+    },
     objectives,
     objectivePoints: objectives.reduce((sum, o) => sum + o.points, 0),
     timeBonus,

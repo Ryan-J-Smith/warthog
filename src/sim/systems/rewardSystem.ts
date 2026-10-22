@@ -35,6 +35,7 @@ export class RewardSystem extends SimSystem {
     world.pickups = world.pickups.filter((pickup) => {
       if (canCollect && distance(pickup.pos, p.pos) <= PICKUPS.collectRadius) {
         applyPickup(world, pickup);
+        world.stats.pickupsCollected += 1;
         world.emit({ type: 'pickupCollected', pickupId: pickup.id, kind: pickup.kind, pos: { ...pickup.pos } });
         return false;
       }
@@ -52,6 +53,7 @@ export class RewardSystem extends SimSystem {
       const anyAlive = zone.memberIds.some((id) => world.findById(id)?.alive === true);
       if (anyAlive) continue;
       zone.cleared = true;
+      world.stats.zonesCleared += 1;
       world.score += ZONES.bonus;
       world.stats.bonusPoints += ZONES.bonus;
       world.emit({ type: 'zoneCleared', zoneId: zone.id, name: zone.name, pos: { ...zone.center }, bonus: ZONES.bonus });

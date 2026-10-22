@@ -14,6 +14,7 @@ export function registerKill(world: World, entity: Entity): number {
   combo.chain = combo.chain > 0 && world.time <= combo.expiresAt ? combo.chain + 1 : 1;
   combo.multiplier = Math.min(COMBO.maxMultiplier, 1 + COMBO.step * combo.chain);
   combo.expiresAt = world.time + COMBO.window;
+  world.stats.bestChain = Math.max(world.stats.bestChain, combo.chain);
   if (combo.chain > 1) world.emit({ type: 'comboChanged', chain: combo.chain, multiplier });
 
   const drops: PickupKind[] = [...(PICKUPS.dropsByKind[entity.kind] ?? [])];

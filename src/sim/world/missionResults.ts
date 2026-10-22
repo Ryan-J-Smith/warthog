@@ -8,14 +8,24 @@ export interface ObjectiveResult {
   points: number;
 }
 
+/** Skill feats for the debrief. */
+export interface MissionFeats {
+  bestChain: number;
+  missilesDefeated: number;
+  zonesCleared: number;
+  pickupsCollected: number;
+}
+
 export interface MissionResults {
   outcome: MissionOutcome;
   /** Mission time in seconds. */
   time: number;
   killPoints: number;
   kills: number;
-  /** Set-piece bonuses (e.g. BRIDGE DROP ×N). */
+  /** Set-piece and skill bonuses (bridge drop, nests cleared, missiles defeated). */
   bonusPoints: number;
+  /** Optional so results saved by older builds still parse. */
+  feats?: MissionFeats;
   objectives: ObjectiveResult[];
   objectivePoints: number;
   timeBonus: number;

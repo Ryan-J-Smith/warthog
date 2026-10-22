@@ -113,10 +113,11 @@ export class ResultsScene extends Phaser.Scene {
     }
     drawRule(panel, LEDGER.x, y + 4, LEDGER.w, COLOR.green, 0.2);
     y += 16;
-    this.addLine(y, '✕', COLOR.green, `ENEMY KILLS × ${r.kills}`, '', r.killPoints, true);
+    const chain = r.feats && r.feats.bestChain > 1 ? `BEST CHAIN ×${r.feats.bestChain}` : '';
+    this.addLine(y, '✕', COLOR.green, `ENEMY KILLS × ${r.kills}`, chain, r.killPoints, true);
     y += this.row;
     if (r.bonusPoints > 0) {
-      this.addLine(y, '★', COLOR.green, 'BRIDGE DROP BONUS', '', r.bonusPoints, true);
+      this.addLine(y, '★', COLOR.green, 'BONUSES', featsNote(r), r.bonusPoints, true);
       y += this.row;
     }
     this.addLine(y, '◷', COLOR.green, 'TIME BONUS', `${formatClock(r.time)} / PAR ${formatClock(level.parTime)}`, r.timeBonus, true);
@@ -376,4 +377,14 @@ function legacyCopy(text: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** "2 NESTS · 3 SAMS BEATEN" — what earned the bonus line. */
+function featsNote(r: MissionResults): string {
+  const f = r.feats;
+  if (!f) return '';
+  const parts: string[] = [];
+  if (f.zonesCleared > 0) parts.push(`${f.zonesCleared} NEST${f.zonesCleared === 1 ? '' : 'S'}`);
+  if (f.missilesDefeated > 0) parts.push(`${f.missilesDefeated} SAM${f.missilesDefeated === 1 ? '' : 'S'} BEATEN`);
+  return parts.join(' · ');
 }

@@ -27,6 +27,11 @@ export interface CombatStats {
   /** Set-piece bonuses (e.g. BRIDGE DROP ×N). */
   bonusPoints: number;
   friendlyFirePenalty: number;
+  /** Skill feats, shown on the debrief. */
+  bestChain: number;
+  missilesDefeated: number;
+  zonesCleared: number;
+  pickupsCollected: number;
 }
 
 /**
@@ -60,7 +65,7 @@ export class World implements WorldView {
   aaFireRate = 1;
   pendingRounds: PendingRound[] = [];
   pendingSecondaries: PendingSecondary[] = [];
-  stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0 };
+  stats: CombatStats = { kills: 0, killPoints: 0, bonusPoints: 0, friendlyFirePenalty: 0, bestChain: 0, missilesDefeated: 0, zonesCleared: 0, pickupsCollected: 0 };
   /** Group ids that have spawned. */
   spawnedGroups = new Set<string>();
   /** Indices of radio cues already played. */

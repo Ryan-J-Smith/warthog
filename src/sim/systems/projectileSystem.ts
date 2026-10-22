@@ -107,6 +107,7 @@ export class ProjectileSystem extends SimSystem {
         proj.targetId = null;
         world.score += stats.evadeBonus;
         world.stats.bonusPoints += stats.evadeBonus;
+        world.stats.missilesDefeated += 1;
         world.emit({ type: 'samEvaded', missileId: proj.id, pos: { ...proj.pos }, bonus: stats.evadeBonus });
         world.emit({ type: 'scoreAwarded', points: stats.evadeBonus, reason: 'MISSILE DEFEATED', pos: { ...p.pos } });
       }
