@@ -146,6 +146,19 @@ export const threeRoads: LevelDefinition = {
     west: WEST_ROAD,
     center: CENTER_ROAD,
     east: EAST_ROAD,
+    // Gunships come over the enemy HQ and settle over the middle of the map.
+    hindsCenter: [
+      { x: 3600, y: -100 },
+      { x: 3450, y: 2300 },
+    ],
+    hindsWest: [
+      { x: -100, y: 1800 },
+      { x: 1500, y: 3000 },
+    ],
+    hindsEast: [
+      { x: 7300, y: 1800 },
+      { x: 5700, y: 3000 },
+    ],
   },
 
   entities: [
@@ -175,7 +188,11 @@ export const threeRoads: LevelDefinition = {
     { kind: 'aaGun', pos: { x: 5220, y: 1450 }, headingDeg: 45 },
   ],
 
-  groups: [],
+  groups: [
+    { id: 'hinds1', trigger: { kind: 'time', at: 200 }, pathId: 'hindsCenter', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }] },
+    { id: 'hinds2', trigger: { kind: 'time', at: 380 }, pathId: 'hindsWest', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }, { kind: 'helicopter' }] },
+    { id: 'hinds3', trigger: { kind: 'time', at: 560 }, pathId: 'hindsEast', spacing: 160, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }, { kind: 'helicopter' }] },
+  ],
 
   zones: [
     { id: 'westBattery', name: 'West battery', center: { x: 1720, y: 1300 }, radius: 420 },
@@ -304,6 +321,24 @@ export const threeRoads: LevelDefinition = {
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'Enemy waves are getting heavier. More tanks on every road.',
+    },
+    {
+      trigger: { kind: 'time', at: 201 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Enemy gunship over the Center road! Break across its nose when it lines up.',
+    },
+    {
+      trigger: { kind: 'time', at: 381 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Hinds coming in from the west flank!',
+    },
+    {
+      trigger: { kind: 'time', at: 561 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'More gunships, east flank. They are getting desperate, Warthog.',
     },
     {
       trigger: { kind: 'time', at: 240 },

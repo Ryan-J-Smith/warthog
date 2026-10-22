@@ -103,6 +103,15 @@ export const ironSleet: LevelDefinition = {
   paths: {
     west: WEST_HIGHWAY,
     east: EAST_HIGHWAY,
+    // Gunships: fly in, then circle the end point (between the roads, where you cross over).
+    hindsNorth: [
+      { x: 3000, y: -100 },
+      { x: 3000, y: 1900 },
+    ],
+    hindsEast: [
+      { x: 6100, y: 3000 },
+      { x: 3900, y: 3300 },
+    ],
   },
 
   entities: [
@@ -133,7 +142,18 @@ export const ironSleet: LevelDefinition = {
     { kind: 'aaGun', pos: { x: 3250, y: 600 }, headingDeg: 90 },
   ],
 
-  groups: [],
+  groups: [
+    { id: 'hinds1', trigger: { kind: 'time', at: 90 }, pathId: 'hindsNorth', spacing: 140, speed: 90, tags: ['hinds'], units: [{ kind: 'helicopter' }] },
+    {
+      id: 'hinds2',
+      trigger: { kind: 'time', at: 170 },
+      pathId: 'hindsEast',
+      spacing: 140,
+      speed: 90,
+      tags: ['hinds'],
+      units: [{ kind: 'helicopter' }, { kind: 'helicopter' }],
+    },
+  ],
 
   convoys: [
     {
@@ -212,6 +232,18 @@ export const ironSleet: LevelDefinition = {
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'Tanks joining the convoys now. Gun or rockets, low and fast.',
+    },
+    {
+      trigger: { kind: 'time', at: 91 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Gunship inbound from the north! Break across its nose when it lines up, and gun it down.',
+    },
+    {
+      trigger: { kind: 'time', at: 171 },
+      speaker: 'OVERLORD',
+      tone: 'urgent',
+      text: 'Two more Hinds from the east. They will try to catch you between the roads.',
     },
     {
       trigger: { kind: 'time', at: 120 },
