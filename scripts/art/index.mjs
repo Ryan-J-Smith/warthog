@@ -5,6 +5,8 @@
 // credible gunmetal A-10 (player.mjs) over the desert terrain. Structures, projectiles, decals,
 // clouds and UI keep their v0 drawings (structures.mjs, misc.mjs), uniformly scaled (never
 // stretched) to the native sizes in src/assets/spriteKeys.ts.
+// Fun pass (2026-10-22): pickups + shield ring (pickups.mjs), attack helicopter + MLRS
+// (units.mjs) and the lane-mission HQs (hq.mjs), all drawn natively in the v1 style.
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +14,8 @@ import * as S from './structures.mjs';
 import * as M from './misc.mjs';
 import * as U from './units.mjs';
 import * as PL from './player.mjs';
+import * as PK from './pickups.mjs';
+import * as HQ from './hq.mjs';
 import { r2 } from './lib.mjs';
 
 const OUT = process.argv[2] ?? fileURLToPath(new URL('../../public/assets/sprites', import.meta.url));
@@ -83,6 +87,24 @@ const UNITS = {
   friendlyInfantry: U.mechFriendly,
 };
 
+/** Fun-pass v1 sprites (drawn at their native sizes, like UNITS). */
+const FUNPASS = {
+  pickupAmmo: PK.pickupAmmo,
+  pickupRepair: PK.pickupRepair,
+  pickupBoost: PK.pickupBoost,
+  pickupOverdrive: PK.pickupOverdrive,
+  shieldRing: PK.shieldRing,
+  heliBody: U.heliBody,
+  heliRotor: U.heliRotor,
+  heliWreck: U.heliWreck,
+  mlrs: U.mlrs,
+  mlrsWreck: U.mlrsWreck,
+  enemyHq: HQ.enemyHq,
+  enemyHqDestroyed: HQ.enemyHqDestroyed,
+  friendlyHq: HQ.friendlyHq,
+  friendlyHqDestroyed: HQ.friendlyHqDestroyed,
+};
+
 /** v0 drawings (scaled to the new native sizes until restyled). */
 const LEGACY = {
   samBase: S.samBase,
@@ -140,13 +162,13 @@ const checkSize = (key, text) => {
   return text;
 };
 
-const missing = Object.keys(sizes).filter((k) => !(k in UNITS) && !(k in LEGACY) && !(k in PENDING));
+const missing = Object.keys(sizes).filter((k) => !(k in UNITS) && !(k in FUNPASS) && !(k in LEGACY) && !(k in PENDING));
 if (missing.length) throw new Error(`No generator for sprite keys: ${missing.join(', ')}`);
 
 mkdirSync(OUT, { recursive: true });
 let total = 0;
 let count = 0;
-for (const [key, fn] of Object.entries(UNITS)) {
+for (const [key, fn] of [...Object.entries(UNITS), ...Object.entries(FUNPASS)]) {
   const text = checkSize(key, fn());
   writeFileSync(join(OUT, `${key}.svg`), text);
   total += text.length;
