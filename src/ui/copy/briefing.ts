@@ -23,6 +23,8 @@ export interface IntelItem {
   positions: Vec2[];
   /** Expected route for armor groups, else null. */
   route: Vec2[] | null;
+  /** Label at the start of the route on the briefing map ("ARMOR", "GUNSHIPS", "CONVOYS"). */
+  routeLabel?: string;
 }
 
 export interface Briefing {
@@ -53,7 +55,7 @@ const OBJECTIVE_NOTES: Record<string, Record<string, string>> = {
   'iron-sleet': {
     interdict:
       'Supply convoys run south down both highways for five minutes, heavier as the clock runs. More than twelve vehicles off the south edge and the line breaks. Chain kills for score.',
-    depot: 'The fuel depot north of the hills, ringed by triple-A. A long way from the roads: worth it only if you can spare the time.',
+    depot: 'The ammo dump north of the hills, ringed by triple-A. A long way from the roads: worth it only if you can spare the time.',
     sam: 'A SAM site covers the east highway. Kill it and the whole road is yours at any altitude.',
   },
 };
@@ -166,8 +168,10 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
         `${launchers === 1 ? 'Rocket artillery' : `${launchers} rocket launchers`} expected ${when}. Its rockets land on the red rings: fly out of them.`,
       );
     }
+    const routeLabel = launchers > 0 ? 'ARTILLERY' : vehicles === 0 && helis > 0 ? 'GUNSHIPS' : 'ARMOR';
     intel.push({
       kind: 'armor',
+      routeLabel,
       text: parts.join(' '),
       positions: [{ ...start }],
       route: path ? briefingRoute(level, group.tags, path).map((p) => ({ ...p })) : null,
@@ -181,6 +185,7 @@ export function deriveIntel(level: LevelDefinition): IntelItem[] {
     const heavier = stream.escalation.length > 0 ? ', growing heavier' : '';
     intel.push({
       kind: 'armor',
+      routeLabel: 'CONVOYS',
       text: `Convoys from the ${from} every ${Math.round(stream.interval)} s${heavier}.`,
       positions: [{ ...start }],
       route: path.map((p) => ({ ...p })),

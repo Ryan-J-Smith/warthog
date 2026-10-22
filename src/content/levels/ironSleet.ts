@@ -40,7 +40,7 @@ export const ironSleet: LevelDefinition = {
   gradeScale: 1.2,
   // The mission always runs the full clock, so there is no time bonus.
   parTime: 300,
-  player: { spawn: { x: 3000, y: 4150 }, headingDeg: -90 },
+  player: { spawn: { x: 3000, y: 4000 }, headingDeg: -90 },
   homeBaseRefId: 'homeBase',
 
   terrain: {
@@ -67,8 +67,8 @@ export const ironSleet: LevelDefinition = {
         width: 30,
         points: [
           { x: 1400, y: 4100 },
-          { x: 2200, y: 4300 },
-          { x: 3000, y: 4400 },
+          { x: 2200, y: 4250 },
+          { x: 3000, y: 4250 },
         ],
       },
     ],
@@ -116,7 +116,7 @@ export const ironSleet: LevelDefinition = {
 
   entities: [
     // Friendly
-    { refId: 'homeBase', kind: 'homeBase', pos: { x: 3000, y: 4400 }, headingDeg: 0 },
+    { refId: 'homeBase', kind: 'homeBase', pos: { x: 3000, y: 4250 }, headingDeg: 0 },
 
     // West highway: triple-A nest at the bend.
     { kind: 'aaGun', pos: { x: 1080, y: 1450 }, headingDeg: 90 },
@@ -136,7 +136,7 @@ export const ironSleet: LevelDefinition = {
     { refId: 'cacheEast', kind: 'cache', pos: { x: 5250, y: 2900 }, headingDeg: 0 },
     { refId: 'cacheNorth', kind: 'cache', pos: { x: 3000, y: 1200 }, headingDeg: 0 },
 
-    // Fuel depot feeding both roads.
+    // Ammo dump feeding both roads.
     { refId: 'fuelDepot', kind: 'ammoDump', pos: { x: 3000, y: 450 }, headingDeg: 0 },
     { kind: 'aaGun', pos: { x: 2750, y: 600 }, headingDeg: 90 },
     { kind: 'aaGun', pos: { x: 3250, y: 600 }, headingDeg: 90 },
@@ -204,7 +204,7 @@ export const ironSleet: LevelDefinition = {
       maxEscapes: 12,
       timeLimit: 300,
     },
-    { id: 'depot', kind: 'destroy', title: 'Destroy the fuel depot', primary: false, targetRefIds: ['fuelDepot'] },
+    { id: 'depot', kind: 'destroy', title: 'Destroy the ammo dump', primary: false, targetRefIds: ['fuelDepot'] },
     { id: 'sam', kind: 'destroy', title: 'Destroy the SAM site', primary: false, targetRefIds: ['samEast'] },
   ],
 
@@ -219,7 +219,7 @@ export const ironSleet: LevelDefinition = {
       trigger: { kind: 'time', at: 8 },
       speaker: 'OVERLORD',
       tone: 'info',
-      text: 'Twelve get through and the line breaks. Chain your kills and keep moving between the roads.',
+      text: 'More than twelve get through and the line breaks. Chain your kills and keep moving between the roads.',
     },
     {
       trigger: { kind: 'entitySpotted', refId: 'samEast' },
@@ -228,7 +228,7 @@ export const ironSleet: LevelDefinition = {
       text: 'SAM radar on the east highway! Stay low or kill it.',
     },
     {
-      trigger: { kind: 'time', at: 60 },
+      trigger: { kind: 'time', at: 76 },
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'Tanks joining the convoys now. Gun or rockets, low and fast.',
@@ -246,7 +246,7 @@ export const ironSleet: LevelDefinition = {
       text: 'Two more Hinds from the east. They will try to catch you between the roads.',
     },
     {
-      trigger: { kind: 'time', at: 120 },
+      trigger: { kind: 'time', at: 148 },
       speaker: 'OVERLORD',
       tone: 'urgent',
       text: 'Mobile triple-A rolling with them. Watch for the laser.',
@@ -261,7 +261,7 @@ export const ironSleet: LevelDefinition = {
       trigger: { kind: 'objectiveResolved', objectiveId: 'depot', status: 'completed' },
       speaker: 'OVERLORD',
       tone: 'good',
-      text: 'Fuel depot is burning! Good hit, Warthog.',
+      text: 'Ammo dump is burning! Good hit, Warthog.',
     },
     {
       trigger: { kind: 'objectiveResolved', objectiveId: 'interdict', status: 'completed' },

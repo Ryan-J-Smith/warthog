@@ -268,7 +268,7 @@ export class BriefingScene extends Phaser.Scene {
       ['◆ DEFEND', COLOR.blue],
       ['▲ AA', COLOR.red],
       ['◯ SAM RANGE', COLOR.red],
-      ['→ ARMOR ROUTE', COLOR.red],
+      ['→ ENEMY ROUTE', COLOR.red],
     ];
     let lx = MAP.x + 20;
     for (const [text, color] of items) {
@@ -315,7 +315,7 @@ export class BriefingScene extends Phaser.Scene {
       if (start) {
         const x = Phaser.Math.Clamp(start.x, MAP.x + 70, MAP.x + MAP.w - 70);
         const y = Phaser.Math.Clamp(start.y - 26, MAP.y + 12, MAP.y + MAP.h - 40);
-        parts.push(this.add.text(x, y, 'ARMOR', textStyle({ size: 17, color: COLOR.red, stroke: true })).setOrigin(0.5, 0));
+        parts.push(this.add.text(x, y, item.routeLabel ?? 'ARMOR', textStyle({ size: 17, color: COLOR.red, stroke: true })).setOrigin(0.5, 0));
       }
     }
     for (const p of parts) p.setVisible(false);

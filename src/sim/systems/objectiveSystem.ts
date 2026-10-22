@@ -73,7 +73,7 @@ export class ObjectiveSystem extends SimSystem {
       this.escapeCallouts.add(`${def.id}:half`);
       world.emit({ type: 'radio', speaker: 'OVERLORD', tone: 'urgent', text: `${world.escapes} vehicles have slipped through! Watch the roads, Warthog.` });
     }
-    if (world.escapes >= def.maxEscapes - 2 && !this.escapeCallouts.has(`${def.id}:last`)) {
+    if (world.escapes >= def.maxEscapes - 1 && !this.escapeCallouts.has(`${def.id}:last`)) {
       this.escapeCallouts.add(`${def.id}:last`);
       world.emit({ type: 'radio', speaker: 'OVERLORD', tone: 'bad', text: 'They are almost through! A couple more and the line breaks!' });
     }
